@@ -92,8 +92,8 @@ break;
 case 3:
 
         yy.debug('expression OR andCondition', $$[$0-2], $$[$0]);
-        $$[$0-2] = $$[$0-2].$or ? $$[$0-2] : {$or: [yy.deGroup($$[$0-2])]};
-        $$[$0-2].$or.push(yy.deGroup($$[$0])); this.$ = $$[$0-2];
+        $$[$0-2] = $$[$0-2].$or ? $$[$0-2] : {$or: [yy.ungroup($$[$0-2])]};
+        $$[$0-2].$or.push(yy.ungroup($$[$0])); this.$ = $$[$0-2];
     
 break;
 case 4:
@@ -102,8 +102,8 @@ break;
 case 5:
 
         yy.debug('andCondition AND filterExpr', $$[$0-2], $$[$0]);
-        $$[$0-2] = $$[$0-2].$and ? $$[$0-2] : {$and: [yy.deGroup($$[$0-2])]};
-        $$[$0-2].$and.push(yy.deGroup($$[$0]));
+        $$[$0-2] = $$[$0-2].$and ? $$[$0-2] : {$and: [yy.ungroup($$[$0-2])]};
+        $$[$0-2].$and.push(yy.ungroup($$[$0]));
         this.$ = $$[$0-2];
     
 break;

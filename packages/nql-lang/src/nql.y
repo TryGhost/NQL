@@ -25,8 +25,8 @@ expression
     : andCondition { yy.debug('andCondition', $1); $$ = $1; }
     | expression OR andCondition {
         yy.debug('expression OR andCondition', $1, $3);
-        $1 = $1.$or ? $1 : {$or: [yy.deGroup($1)]};
-        $1.$or.push(yy.deGroup($3)); $$ = $1;
+        $1 = $1.$or ? $1 : {$or: [yy.ungroup($1)]};
+        $1.$or.push(yy.ungroup($3)); $$ = $1;
     }
     ;
 
@@ -34,8 +34,8 @@ andCondition
     : filterExpr { yy.debug('filterExpr', $1); $$ = $1 }
     | andCondition AND filterExpr {
         yy.debug('andCondition AND filterExpr', $1, $3);
-        $1 = $1.$and ? $1 : {$and: [yy.deGroup($1)]};
-        $1.$and.push(yy.deGroup($3));
+        $1 = $1.$and ? $1 : {$and: [yy.ungroup($1)]};
+        $1.$and.push(yy.ungroup($3));
         $$ = $1;
     }
     ;

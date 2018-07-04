@@ -1,7 +1,7 @@
 const util = require('util');
 
 module.exports = {
-    deGroup(value) {
+    ungroup(value) {
         return value.yg ? value.yg : value;
     },
 
