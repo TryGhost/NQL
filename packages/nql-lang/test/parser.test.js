@@ -460,4 +460,21 @@ describe('Parser', function () {
             }).should.throw(parserError);
         });
     });
+
+    describe('Aliases', function () {
+        it('can handle empty aliases', function () {
+            parse('tag:getting-started', {aliases: {}})
+                .should.eql({tag: 'getting-started'});
+        });
+
+        it('can expand a field alias', function () {
+            parse('tag:getting-started', {aliases: {tag: 'tags.slug'}})
+                .should.eql({'tags.slug': 'getting-started'});
+        });
+
+        it('can expand multiple field aliases', function () {
+            parse('tag:getting-started+author:joe', {aliases: {tag: 'tags.slug', author: 'authors.slug'}})
+                .should.eql({$and: [{'tags.slug': 'getting-started'}, {'authors.slug': 'joe'}]});
+        });
+    });
 });

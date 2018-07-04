@@ -78,13 +78,13 @@ yy: {},
 symbols_: {"error":2,"expressions":3,"expression":4,"andCondition":5,"OR":6,"filterExpr":7,"AND":8,"LPAREN":9,"RPAREN":10,"propExpr":11,"valueExpr":12,"PROP":13,"NOT":14,"LBRACKET":15,"inExpr":16,"RBRACKET":17,"OP":18,"VALUE":19,"NULL":20,"TRUE":21,"FALSE":22,"NUMBER":23,"LITERAL":24,"STRING":25,"GT":26,"LT":27,"GTE":28,"LTE":29,"$accept":0,"$end":1},
 terminals_: {2:"error",6:"OR",8:"AND",9:"LPAREN",10:"RPAREN",13:"PROP",14:"NOT",15:"LBRACKET",17:"RBRACKET",20:"NULL",21:"TRUE",22:"FALSE",23:"NUMBER",24:"LITERAL",25:"STRING",26:"GT",27:"LT",28:"GTE",29:"LTE"},
 productions_: [0,[3,1],[4,1],[4,3],[5,1],[5,3],[7,3],[7,2],[11,1],[12,4],[12,3],[12,2],[12,1],[16,3],[16,1],[19,1],[19,1],[19,1],[19,1],[19,1],[19,1],[18,1],[18,1],[18,1],[18,1],[18,1]],
-performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate /* action[1] */, $$ /* vstack */, _$ /* lstack */, options) {
+performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate /* action[1] */, $$ /* vstack */, _$ /* lstack */, opt) {
 /* this == yyval */
 
 var $0 = $$.length - 1;
 switch (yystate) {
 case 1:
- yy.debug('expression', $$[$0]); return $$[$0]; 
+ yy.debug('expression', $$[$0]); yy.debug('opt', opt); return $$[$0]; 
 break;
 case 2:
  yy.debug('andCondition', $$[$0]); this.$ = $$[$0]; 
@@ -114,7 +114,7 @@ case 7:
  this.$ = {[$$[$0-1]]: $$[$0]}; 
 break;
 case 8:
- $$[$0] = $$[$0].replace(/:$/, ''); this.$ = $$[$0]; 
+ $$[$0] = $$[$0].replace(/:$/, ''); $$[$0] = opt.aliases && opt.aliases[$$[$0]] ? opt.aliases[$$[$0]] : $$[$0]; this.$ = $$[$0]; 
 break;
 case 9:
  this.$ = {$nin: $$[$0-1]}; 

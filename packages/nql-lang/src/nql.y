@@ -1,4 +1,4 @@
-%parse-param options
+%parse-param opt
 
 %start expressions
 
@@ -18,7 +18,7 @@
 %% /* language grammar */
 
 expressions
-    : expression { yy.debug('expression', $1); return $1; }
+    : expression { yy.debug('expression', $1); yy.debug('opt', opt); return $1; }
     ;
 
 expression
@@ -46,7 +46,7 @@ filterExpr
     ;
 
 propExpr
-    : PROP { $1 = $1.replace(/:$/, ''); $$ = $1; }
+    : PROP { $1 = $1.replace(/:$/, ''); $1 = opt.aliases && opt.aliases[$1] ? opt.aliases[$1] : $1; $$ = $1; }
     ;
 
 valueExpr

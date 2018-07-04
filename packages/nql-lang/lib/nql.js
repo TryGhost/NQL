@@ -15,4 +15,4 @@ exports.lex = (input) => {
 };
 
 // returns the JSON object
-exports.parse = input => parser.parse(input);
+exports.parse = (input, options) => parser.parse(input, options || {});
