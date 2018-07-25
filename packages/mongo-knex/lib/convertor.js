@@ -32,7 +32,7 @@ class MongoToKnex {
         this.qb = qb;
         this.tablename = qb._single.table;
 
-        // @TODO build more context? E.g. joins
+        this.joins = [];
     }
 
     processWhereType(mode, op, value) {
@@ -47,11 +47,17 @@ class MongoToKnex {
         return 'andWhere';
     }
 
-    processField(field) {
-        // @TODO account for joins
-        const regex = new RegExp('^' + this.tablename + '\\.');
+    processField(field, op) {
+        const fieldParts = field.split('.');
 
-        if (regex.test(field)) {
+        if (fieldParts[0] === this.tablename) {
+            // If we have the right table already, return
+            return field;
+        } else if (fieldParts.length > 1) {
+            // If we have a different table, that should be a join
+            // Store the OP because an IN is different
+            this.joins.push({table: fieldParts[0], op});
+
             return field;
         }
 
@@ -61,6 +67,7 @@ class MongoToKnex {
     buildComparison(qb, mode, field, op, value) {
         let comp = compOps[op] || '=';
         let whereType = this.processWhereType(mode, op, value);
+        field = this.processField(field, op);
 
         print('add compare', whereType, field, op, comp, value);
         qb[whereType](field, comp, value);
@@ -68,7 +75,6 @@ class MongoToKnex {
 
     buildWhereClause(qb, mode, field, sub) {
         print('whereClause', mode, field, sub);
-        field = this.processField(field);
 
         if (!_.isObject(sub)) {
             this.buildComparison(qb, mode, field, '$eq', sub);
