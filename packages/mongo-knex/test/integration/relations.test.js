@@ -164,4 +164,376 @@ describe.skip('Relations', function () {
                 .catch(done);
         });
     });
+
+    // NOTE: no need to support 1:1 relations just yet
+    describe.skip('One-to-One: Extended Cases', function () {
+        beforeEach(() => utils.db.init('suite1', 'one-to-one-extended-cases'));
+        afterEach(() => utils.db.reset());
+
+        // TODO: should be filled with cases from 'Many-to-Many: Extended Cases' suite
+    });
+
+    describe.skip('One-to-Many: Extended Cases', function () {
+        beforeEach(() => utils.db.init('suite1', 'one-to-many-extended-cases'));
+        afterEach(() => utils.db.reset());
+
+        // TODO: should be filled with cases from 'Many-to-Many: Extended Cases' suite
+    });
+
+    describe.skip('Many-to-Many: Extended Cases', function () {
+        before(() => utils.db.init('suite1', 'many-to-many-extended-cases'));
+        after(() => utils.db.reset());
+
+        describe('negation $ne and $nin', function () {
+            it('can match $ne (single value)', function () {
+                const queryJSON = {
+                    'tags.slug': {
+                        $ne: 'animal'
+                    }
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        // NOTE: make sure to count in posts with no tags
+                        //       do not count in posts with multiple tags containing one of the excluded tags
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+
+            it('can match aliased $ne (single value)', function () {
+                // NOTE: makeQuery needs additional configuration to be passed in for aliases
+                const queryJSON = {
+                    tag: {
+                        $ne: 'animal'
+                    }
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        // NOTE: make sure to count in posts with no tags
+                        //       do not count in posts with multiple tags containing one of the excluded tags
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+
+            it('can match array $nin (single value)', function () {
+                const queryJSON = {
+                    'tags.slug': {
+                        $nin: ['animal']
+                    }
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        // NOTE: make sure to count in posts with no tags
+                        //       do not count in posts with multiple tags containing one of the excluded tags
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+
+            it('can match array $nin (multiple values)', function () {
+                const queryJSON = {
+                    'tags.slug': {
+                        $nin: ['animal', 'classic']
+                    }
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log('query', query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        // NOTE: make sure to count in posts with no tags
+                        //       do not count in posts with multiple tags containing one of the excluded tags
+                        result.should.be.an.Array().with.lengthOf(1);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+        });
+
+        describe('count', function () {
+            it('can compare by count $gt', function () {
+                const queryJSON = {
+                    'authors.count': {$gt: 0}
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+
+            it('can compare by count $lt', function () {
+                const queryJSON = {
+                    'authors.count': {$lt: 2}
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+        });
+
+        describe('conjunction $and', function () {
+            it('can match multiple values of same attribute', function () {
+                const queryJSON = {
+                    $and: [
+                        {'author.slug': 'pat'},
+                        {'authors.slug': 'sam'}
+                    ]
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+
+            it('can match multiple values of different attributes', function () {
+                const queryJSON = {
+                    $and: [
+                        {'authors.slug': 'pat'},
+                        {'tags.slug': 'classic'}
+                    ]
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+
+            it('can match multiple values of same aliased attribute', function () {
+                // NOTE: makeQuery needs additional configuration to be passed in for aliases
+                const queryJSON = {
+                    $and: [
+                        {author: 'pat'},
+                        {author: 'sam'}
+                    ]
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+        });
+
+        describe('conjunction $or', function () {
+            it('can match values of same attributes', function () {
+                const queryJSON = {
+                    $or: [
+                        {'authors.slug': 'joe'},
+                        {'authors.slug': 'pat'}
+                    ]
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+
+            it('can match values of different attributes', function () {
+                const queryJSON = {
+                    $or: [
+                        {'authors.slug': 'joe'},
+                        {'tags.slug': 'photo'}
+                    ]
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+
+            it('can match values of same aliased attributes', function () {
+                // NOTE: makeQuery needs additional configuration to be passed in for aliases
+                const queryJSON = {
+                    $or: [
+                        {author: 'joe'},
+                        {author: 'pat'}
+                    ]
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+        });
+
+        describe('combination of extended cases', function () {
+            it('should be filled with a mix of all the above cases', function () {
+            });
+
+            it('can match values of different attributes combining with negation', function () {
+                const queryJSON = {
+                    $or: [
+                        {'authors.slug': {$ne: 'joe'}},
+                        {'tags.slug': {$in: ['photo']}}
+                    ]
+                };
+
+                // Use the queryJSON to build a query
+                const query = makeQuery(queryJSON);
+
+                // Check any intermediate values
+                console.log(query.toQuery());
+
+                // Perform the query against the DB
+                return query.select()
+                    .then((result) => {
+                        console.log(result);
+
+                        result.should.be.an.Array().with.lengthOf(3);
+
+                        // Check we get the right data
+                        // result.should.do.something;
+                    });
+            });
+        });
+    });
 });
