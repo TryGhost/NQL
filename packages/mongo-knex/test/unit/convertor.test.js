@@ -283,7 +283,7 @@ describe('Logical Groups', function () {
     });
 });
 
-describe('Joins', function () {
+describe('Relations', function () {
     describe('IN with array of objects', function () {
         it('can match array in (single value)', function () {
             runQuery({'tags.slug': {$in: ['video']}})

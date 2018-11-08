@@ -68,3 +68,6 @@ typings/
 .DS_Store
 
 # Mongo Knex Custom
+
+# Test databases
+**/*.db
