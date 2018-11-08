@@ -2,11 +2,9 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const debug = require('debug')('mongo-knex:test');
 const client = require('./client')();
-const schema = require('./schema');
 
 // export our instance of client & schema
 module.exports.client = client;
-module.exports.schema = schema;
 
 /**
  * Utility function
@@ -33,30 +31,54 @@ const flatten = (fixtureJson) => {
 };
 
 /**
- * Setup the DB ready for the test suite
+ * Default behaviour:
  *
- * look for a base fixture file to import
+ * - create tables
+ * - insert base fixtures
+ *
+ * e.g. `setup('suite1')`
  */
-module.exports.setup = function setup(name, cb) {
-    cb = _.isFunction(name) ? name : cb || _.noop;
+module.exports.setup = name => function innerSetup() {
+    const suite = name ? name : 'suite1';
+    debug('Running setup for', suite);
 
-    return function innerSetup() {
-        this.testSuiteName = _.isString(name) ? name : _.kebabCase(_.deburr(this.test.parent.title));
-        debug('Running setup for', this.testSuiteName);
+    const schema = require(`../../integration/${suite}/schema`);
 
-        return schema.down(client)
-            .then(() => schema.up(client))
-            .then(() => {
-                try {
-                    debug('Loading base fixtures for', this.testSuiteName);
-                    const base = require('../../integration/fixtures/base');
-                    return Promise
-                        .each(flatten(base), op => client(op.table).insert(op.entry));
-                } catch (e) {
-                    debug('Not loading any base fixtures for', this.testSuiteName);
-                }
-            })
-            .then(cb);
+    return schema.down(client)
+        .then(() => schema.up(client))
+        .then(() => {
+            try {
+                const base = require(`../../integration/${suite}/fixtures/base`);
+                return Promise.each(flatten(base), op => client(op.table).insert(op.entry));
+            } catch (e) {
+                throw e;
+            }
+        });
+};
+
+/**
+ * Load more fixtures, prior to a group of tests
+ *
+ * `init('suite1', 'fixtures.json'`
+ * `init('fixtures.json')`
+ */
+module.exports.init = (suiteName, fixtureFileName) => {
+    if (!suiteName) {
+        suiteName = fixtureFileName;
+    }
+
+    return function innerInit() {
+        const suite = suiteName ? suiteName : 'suite1';
+        debug('Running setup for', suite);
+
+        try {
+            let fixturesJSON = require(`../../integration/${suite}/fixtures/${fixtureFileName}.json`);
+            debug('Loading fixtures for', fixtureFileName);
+
+            return Promise.each(flatten(fixturesJSON), op => client(op.table).insert(op.entry));
+        } catch (e) {
+            throw e;
+        }
     };
 };
 
@@ -65,67 +87,36 @@ module.exports.setup = function setup(name, cb) {
  *
  * Can be skipped
  */
-module.exports.teardown = function teardown(cb) {
-    cb = cb || _.noop;
+module.exports.teardown = suiteName => function innerTeardown() {
+    if (_.includes(process.argv, '--skip-teardown')) {
+        debug('Skipping teardown for');
+        return;
+    }
 
-    return function innerTeardown() {
-        if (_.includes(process.argv, '--skip-teardown')) {
-            debug('Skipping teardown for', this.testSuiteName);
-            return client.destroy(cb);
-        }
+    const suite = suiteName ? suiteName : 'suite1';
+    const schema = require(`../../integration/${suite}/schema`);
 
-        debug('Running teardown for', this.testSuiteName);
-        return schema
-            .down(client)
-            .then(() => client.destroy(cb));
-    };
+    debug('Running teardown for');
+    return schema.down(client);
 };
 
 /**
- * Load fixtures, prior to a group of tests
- * Uses the name of the describe block
- * e.g. Many-to-many: Simple Cases -> many-to-many-simple-cases.json
+ * Truncate tables instead of removing tables.
+ * Helpful if you want to re-insert a different test fixture.
  */
-module.exports.init = function init(name, cb) {
-    cb = _.isFunction(name) ? name : cb || _.noop;
+module.exports.reset = (suiteName) => {
+    const suite = suiteName ? suiteName : 'suite1';
+    const schema = require(`../../integration/${suite}/schema`);
+    debug('Unloading fixtures for', suite);
 
-    return function innerInit() {
-        // Before each test, we load data specific to this suite of tests
-        this.testGroupName = _.isString(name) ? name : _.kebabCase(_.deburr(this.currentTest.parent.title));
+    return Promise.each(schema.tables, (table) => {
+        return client.schema.hasTable(table)
+            .then((exists) => {
+                if (!exists) {
+                    return;
+                }
 
-        try {
-            let fixturesJSON = require(`./fixtures/${this.testGroupName}.json`);
-            this.fixtures = flatten(fixturesJSON);
-            debug('Loading fixtures for', this.testGroupName);
-            return Promise
-                .each(this.fixtures, op => client(op.table).insert(op.entry))
-                .then(cb);
-        } catch (e) {
-            // No fixtures for this test group
-            debug('Not loading any fixtures for', this.testGroupName);
-            return cb();
-        }
-    };
-};
-
-/**
- * Unloads fixtures after a test group
- * WARNING: naively truncates all tables that were involved in the fixture file
- */
-module.exports.reset = function reset(cb) {
-    cb = cb || _.noop;
-
-    return function innerReset() {
-        // After each test, we unload any data specific to this suite of tests
-        if (this.fixtures) {
-            debug('Unloading fixtures for', this.testGroupName);
-            return Promise
-                .each(this.fixtures, op => client(op.table).truncate())
-                .then(cb);
-        } else {
-            // No fixtures for this test group
-            debug('Not unloading any fixtures for', this.testGroupName);
-            return cb();
-        }
-    };
+                return client(table).truncate();
+            });
+    });
 };

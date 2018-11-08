@@ -1,4 +1,21 @@
 {
+    "users": [
+        {
+            "id": 1,
+            "name": "Pat Taylor",
+            "slug": "pat"
+        },
+        {
+            "id": 2,
+            "name": "Sam Smith",
+            "slug": "sam"
+        },
+        {
+            "id": 3,
+            "name": "Leslie Jones",
+            "slug": "leslie"
+        }
+    ],
     "posts": [
         {
             "id": 1,
@@ -73,23 +90,6 @@
             "name": "#internal",
             "slug": "hash-internal",
             "visibility": "internal"
-        }
-    ],
-    "authors": [
-        {
-            "id": 1,
-            "name": "Pat Taylor",
-            "slug": "pat"
-        },
-        {
-            "id": 2,
-            "name": "Sam Smith",
-            "slug": "sam"
-        },
-        {
-            "id": 3,
-            "name": "Leslie Jones",
-            "slug": "leslie"
         }
     ]
 }

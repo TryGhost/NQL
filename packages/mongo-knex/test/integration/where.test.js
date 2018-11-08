@@ -3,6 +3,7 @@ const knex = utils.db.client;
 const convertor = require('../../lib/convertor');
 
 describe('Where', function () {
+    before(utils.db.teardown());
     before(utils.db.setup());
     after(utils.db.teardown());
 
