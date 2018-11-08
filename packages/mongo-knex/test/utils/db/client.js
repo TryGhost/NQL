@@ -1,9 +1,3 @@
-const knex = require('./knex');
+const config = require('../../../config');
 
-module.exports = (conn) => {
-    if (process.env.DB_CLIENT && Object.keys(knex).includes(process.env.DB_CLIENT)) {
-        return knex[process.env.DB_CLIENT](conn);
-    }
-
-    return knex.sqlite(conn);
-};
+module.exports = () => require('knex')(config.get('database'));
