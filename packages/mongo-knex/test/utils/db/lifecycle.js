@@ -1,5 +1,6 @@
 const _ = require('lodash');
-const debug = require('debug')('test');
+const Promise = require('bluebird');
+const debug = require('debug')('mongo-knex:test');
 const client = require('./client')();
 const schema = require('./schema');
 
@@ -48,7 +49,7 @@ module.exports.setup = function setup(name, cb) {
             .then(() => {
                 try {
                     debug('Loading base fixtures for', this.testSuiteName);
-                    const base = require('./fixtures/base');
+                    const base = require('../../integration/fixtures/base');
                     return Promise
                         .each(flatten(base), op => client(op.table).insert(op.entry));
                 } catch (e) {
