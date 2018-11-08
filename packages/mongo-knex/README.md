@@ -12,6 +12,12 @@
 ## Test
 - `yarn lint` run just eslint
 - `yarn test` run lint && tests
+- `NODE_ENV=testing-mysql yarn test`
+  - Manual database creation is currently required.
+
+## Config
+
+`config.[env].json`
 
 # Copyright & License
 
