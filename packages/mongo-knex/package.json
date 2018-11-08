@@ -10,8 +10,8 @@
     "lint": "eslint . --ext .js --cache",
     "posttest": "yarn lint",
     "test": "yarn test-unit && yarn test-integration",
-    "test-unit": "NODE_ENV=testing mocha ./test/unit/*.test.js",
-    "test-integration": "NODE_ENV=testing mocha ./test/integration/*.test.js",
+    "test-unit": "mocha ./test/unit/*.test.js --exit",
+    "test-integration": "mocha ./test/integration/*.test.js --exit",
     "ship": "STATUS=$(git status --porcelain); echo $STATUS; if [ -z \"$STATUS\" ]; then yarn publish && git push --follow-tags; fi"
   },
   "devDependencies": {
