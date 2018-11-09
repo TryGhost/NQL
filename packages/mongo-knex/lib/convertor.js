@@ -1,5 +1,6 @@
 const _ = require('lodash');
 const debug = require('debug')('mongo-knex:converter');
+const debugExtended = require('debug')('mongo-knex:converter-extended');
 
 const logicOps = [
     '$and',
@@ -66,7 +67,11 @@ class MongoToKnex {
     }
 
     buildWhereClause(qb, mode, field, sub) {
-        debug(`(whereClause) mode: ${mode}, field: ${field}, sub: ${JSON.stringify(sub)}`);
+        debug(`(buildWhereClause) mode: ${mode}, field: ${field}`);
+
+        if (debugExtended.enabled) {
+            debugExtended(`(buildWhereClause) ${JSON.stringify(sub)}`);
+        }
 
         if (!_.isObject(sub)) {
             this.buildComparison(qb, mode, field, '$eq', sub);
@@ -82,7 +87,11 @@ class MongoToKnex {
     buildWhereGroup(qb, parentMode, mode, sub) {
         const whereType = this.processWhereType(parentMode);
 
-        debug(`(whereGroup) mode: ${mode}, sub: ${JSON.stringify(sub)}`);
+        debug(`(buildWhereGroup) mode: ${mode}, whereType: ${whereType}`);
+
+        if (debugExtended.enabled) {
+            debugExtended(`(buildWhereGroup) ${JSON.stringify(sub)}`);
+        }
 
         qb[whereType]((_qb) => {
             if (_.isArray(sub)) {
@@ -94,7 +103,11 @@ class MongoToKnex {
     }
 
     buildQuery(qb, mode, sub) {
-        debug(`(buildQuery) mode: ${mode}, sub: ${JSON.stringify(sub)}`);
+        debug(`(buildQuery) mode: ${mode}`);
+
+        if (debugExtended.enabled) {
+            debugExtended(`(buildQuery) ${JSON.stringify(sub)}`);
+        }
 
         _.forIn(sub, (value, key) => {
             if (isLogicOp(key)) {
@@ -110,9 +123,16 @@ class MongoToKnex {
      * we then pass around to our class methods. That's why we pass the parent `qb` object
      * around instead of remembering it as `this.qb`. There are multiple `qb` objects.
      */
-    processJSON(qb, queryJSON) {
+    processJSON(qb, mongoJSON) {
+        debug('(processJSON)');
+
+        // DEBUG=mongo-knex:converter,mongo-knex:converter-extended
+        if (debugExtended.enabled) {
+            debugExtended(`(processJSON) ${JSON.stringify(mongoJSON)}`);
+        }
+
         // And is the default behaviour
-        this.buildQuery(qb, 'and', queryJSON);
+        this.buildQuery(qb, 'and', mongoJSON);
     }
 }
 
