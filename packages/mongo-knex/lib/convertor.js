@@ -22,10 +22,8 @@ const isLogicOp = key => isOp(key) && _.includes(logicOps, key);
 const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
 
 class MongoToKnex {
-    constructor(qb) {
-        this.qb = qb;
-        this.tablename = qb._single.table;
-
+    constructor(options = {}) {
+        this.tableName = options.tableName;
         this.joins = [];
     }
 
@@ -44,7 +42,7 @@ class MongoToKnex {
     processField(field, op) {
         const fieldParts = field.split('.');
 
-        if (fieldParts[0] === this.tablename) {
+        if (fieldParts[0] === this.tableName) {
             // If we have the right table already, return
             return field;
         } else if (fieldParts.length > 1) {
@@ -55,7 +53,7 @@ class MongoToKnex {
             return field;
         }
 
-        return this.tablename + '.' + field;
+        return this.tableName + '.' + field;
     }
 
     buildComparison(qb, mode, field, op, value) {
@@ -107,16 +105,23 @@ class MongoToKnex {
         });
     }
 
-    processJSON(queryJSON) {
+    /**
+     * The converter receives sub query objects e.g. `qb.where('..', (qb) => {})`, which
+     * we then pass around to our class methods. That's why we pass the parent `qb` object
+     * around instead of remembering it as `this.qb`. There are multiple `qb` objects.
+     */
+    processJSON(qb, queryJSON) {
         // And is the default behaviour
-        this.buildQuery(this.qb, 'and', queryJSON);
+        this.buildQuery(qb, 'and', queryJSON);
     }
 }
 
 module.exports = function convertor(qb, mongoJSON) {
-    const mongoToKnex = new MongoToKnex(qb);
+    const mongoToKnex = new MongoToKnex({
+        tableName: qb._single.table
+    });
 
-    mongoToKnex.processJSON(mongoJSON);
+    mongoToKnex.processJSON(qb, mongoJSON);
 
     return qb;
 };
