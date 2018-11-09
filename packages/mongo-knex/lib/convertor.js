@@ -57,8 +57,8 @@ class MongoToKnex {
     }
 
     buildComparison(qb, mode, field, op, value) {
-        let comp = compOps[op] || '=';
-        let whereType = this.processWhereType(mode, op, value);
+        const comp = compOps[op] || '=';
+        const whereType = this.processWhereType(mode, op, value);
         field = this.processField(field, op);
 
         debug(`(buildComparison) whereType: ${whereType}, field: ${field}, op: ${op}, comp: ${comp}, value: ${value}`);
