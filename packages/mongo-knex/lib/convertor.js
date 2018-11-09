@@ -57,6 +57,15 @@ class MongoToKnex {
         return this.tableName + '.' + field;
     }
 
+    /**
+     * Simple comparison on the parent table.
+     *
+     * e.g.
+     *
+     * `where column = value`
+     * `where column != value`
+     * `where column > value`
+     */
     buildComparison(qb, mode, field, op, value) {
         const comp = compOps[op] || '=';
         const whereType = this.processWhereType(mode, op, value);
@@ -66,6 +75,9 @@ class MongoToKnex {
         qb[whereType](field, comp, value);
     }
 
+    /**
+     * {author: 'carl'}
+     */
     buildWhereClause(qb, mode, field, sub) {
         debug(`(buildWhereClause) mode: ${mode}, field: ${field}`);
 
@@ -84,6 +96,9 @@ class MongoToKnex {
         }
     }
 
+    /**
+     * {$and: [{author: 'carl'}, {status: 'draft'}]}}
+     */
     buildWhereGroup(qb, parentMode, mode, sub) {
         const whereType = this.processWhereType(parentMode);
 
@@ -110,6 +125,8 @@ class MongoToKnex {
         }
 
         _.forIn(sub, (value, key) => {
+            debug(`(buildQuery) key: ${key}`);
+
             if (isLogicOp(key)) {
                 this.buildWhereGroup(qb, mode, key, value);
             } else {
