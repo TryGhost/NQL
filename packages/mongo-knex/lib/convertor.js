@@ -1,11 +1,5 @@
 const _ = require('lodash');
-const print = (...args) => {
-    if (!process.env.DEBUG || !/nql/.test(process.env.DEBUG)) {
-        return;
-    }
-
-    console.log(...args); // eslint-disable-line no-console
-};
+const debug = require('debug')('mongo-knex:converter');
 
 const logicOps = [
     '$and',
@@ -69,12 +63,12 @@ class MongoToKnex {
         let whereType = this.processWhereType(mode, op, value);
         field = this.processField(field, op);
 
-        print('add compare', whereType, field, op, comp, value);
+        debug(`(buildComparison) whereType: ${whereType}, field: ${field}, op: ${op}, comp: ${comp}, value: ${value}`);
         qb[whereType](field, comp, value);
     }
 
     buildWhereClause(qb, mode, field, sub) {
-        print('whereClause', mode, field, sub);
+        debug(`(whereClause) mode: ${mode}, field: ${field}, sub: ${JSON.stringify(sub)}`);
 
         if (!_.isObject(sub)) {
             this.buildComparison(qb, mode, field, '$eq', sub);
@@ -88,8 +82,10 @@ class MongoToKnex {
     }
 
     buildWhereGroup(qb, parentMode, mode, sub) {
-        let whereType = this.processWhereType(parentMode);
-        print('whereGroup', mode, whereType, sub, _.isObject(sub), _.isArray(sub));
+        const whereType = this.processWhereType(parentMode);
+
+        debug(`(whereGroup) mode: ${mode}, sub: ${JSON.stringify(sub)}`);
+
         qb[whereType]((_qb) => {
             if (_.isArray(sub)) {
                 sub.forEach(statement => this.buildQuery(_qb, mode, statement));
@@ -100,7 +96,8 @@ class MongoToKnex {
     }
 
     buildQuery(qb, mode, sub) {
-        print('buildQuery', mode, sub);
+        debug(`(buildQuery) mode: ${mode}, sub: ${JSON.stringify(sub)}`);
+
         _.forIn(sub, (value, key) => {
             if (isLogicOp(key)) {
                 this.buildWhereGroup(qb, mode, key, value);
