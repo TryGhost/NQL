@@ -25,7 +25,10 @@ const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
 class MongoToKnex {
     constructor(options = {}, config = {}) {
         this.tableName = options.tableName;
-        this.config = config;
+        this.config = {};
+
+        // @TODO: https://github.com/NexesJS/mongo-knex/issues/4
+        Object.assign(this.config, {relations: {}, aliases: {}}, config);
     }
 
     processWhereType(mode, op, value) {
