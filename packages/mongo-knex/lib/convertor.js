@@ -23,9 +23,9 @@ const isLogicOp = key => isOp(key) && _.includes(logicOps, key);
 const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
 
 class MongoToKnex {
-    constructor(options = {}) {
+    constructor(options = {}, config = {}) {
         this.tableName = options.tableName;
-        this.joins = [];
+        this.config = config;
     }
 
     processWhereType(mode, op, value) {
@@ -40,25 +40,85 @@ class MongoToKnex {
         return 'andWhere';
     }
 
-    processField(field, op) {
-        const fieldParts = field.split('.');
+    /**
+     * Determine if statement lives on parent table or if statement refers to a relation.
+     */
+    processStatement(column, op, value) {
+        const columnParts = column.split('.');
 
-        if (fieldParts[0] === this.tableName) {
-            // If we have the right table already, return
-            return field;
-        } else if (fieldParts.length > 1) {
-            // If we have a different table, that should be a join
-            // Store the OP because an IN is different
-            this.joins.push({table: fieldParts[0], op});
-
-            return field;
+        // CASE: `posts.status` -> where "posts" is the parent table
+        if (columnParts[0] === this.tableName) {
+            return {
+                column: column,
+                value: value,
+                isRelation: false
+            };
         }
 
-        return this.tableName + '.' + field;
+        // CASE: relation?
+        if (columnParts.length > 1) {
+            debug(columnParts);
+
+            const table = columnParts[0];
+            const relation = this.config.relations[table];
+
+            if (!relation) {
+                throw new Error('Can\'t find relation in config object.');
+            }
+
+            return {
+                column: columnParts[1],
+                operator: op,
+                value: value,
+                config: relation,
+                isRelation: true
+            };
+        }
+
+        // CASE: fallback, `status=draft` -> `posts.status`=draft
+        return {
+            column: this.tableName + '.' + column,
+            value: value,
+            isRelation: false
+        };
     }
 
     /**
-     * Simple comparison on the parent table.
+     * @TODO: This implementation serves currently only one use case:
+     *
+     * - OR conjunctions for many-to-many relations
+     */
+    buildRelationQuery(qb, relation) {
+        debug(`(buildRelationQuery)`);
+
+        if (debugExtended.enabled) {
+            debugExtended(`(buildRelationQuery) ${JSON.stringify(relation)}`);
+        }
+
+        if (relation.config.type === 'manyToMany') {
+            if (isCompOp(relation.operator)) {
+                const comp = compOps[relation.operator] || '=';
+
+                // CASE: post.id IN (SELECT ...)
+                qb.where(`${this.tableName}.id`, 'IN', function () {
+                    return this
+                        .select(`${relation.config.join_table}.${relation.config.join_from}`)
+                        .from(`${relation.config.join_table}`)
+                        .innerJoin(`${relation.config.tableName}`, `${relation.config.tableName}.id`, '=', `${relation.config.join_table}.${relation.config.join_to}`)
+                        .where(`${relation.config.tableName}.${relation.column}`, comp, relation.value);
+                });
+            } else {
+                debug('unknown operator');
+            }
+
+            return;
+        }
+
+        debug('not implemented');
+    }
+
+    /**
+     * Determines if statement is a simple where comparison on the parent table or if the statement is a relation query.
      *
      * e.g.
      *
@@ -66,34 +126,44 @@ class MongoToKnex {
      * `where column != value`
      * `where column > value`
      */
-    buildComparison(qb, mode, field, op, value) {
+    buildComparison(qb, mode, statement, op, value) {
         const comp = compOps[op] || '=';
         const whereType = this.processWhereType(mode, op, value);
-        field = this.processField(field, op);
+        const processedStatement = this.processStatement(statement, op, value);
 
-        debug(`(buildComparison) whereType: ${whereType}, field: ${field}, op: ${op}, comp: ${comp}, value: ${value}`);
-        qb[whereType](field, comp, value);
+        debug(`(buildComparison) isRelation: ${processedStatement.isRelation}`);
+
+        if (processedStatement.isRelation) {
+            return this.buildRelationQuery(qb, processedStatement);
+        }
+
+        debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value}`);
+        qb[whereType](processedStatement.column, comp, processedStatement.value);
     }
 
     /**
      * {author: 'carl'}
      */
-    buildWhereClause(qb, mode, field, sub) {
-        debug(`(buildWhereClause) mode: ${mode}, field: ${field}`);
+    buildWhereClause(qb, mode, statement, sub) {
+        debug(`(buildWhereClause) mode: ${mode}, statement: ${statement}`);
 
         if (debugExtended.enabled) {
             debugExtended(`(buildWhereClause) ${JSON.stringify(sub)}`);
         }
 
+        // CASE sub is an atomic value, we use "eq" as default operator
         if (!_.isObject(sub)) {
-            this.buildComparison(qb, mode, field, '$eq', sub);
-        } else {
-            _.forIn(sub, (value, op) => {
-                if (isCompOp(op)) {
-                    this.buildComparison(qb, mode, field, op, value);
-                }
-            });
+            return this.buildComparison(qb, mode, statement, '$eq', sub);
         }
+
+        // CASE: sub is an object, contains statements and operators
+        _.forIn(sub, (value, op) => {
+            if (isCompOp(op)) {
+                this.buildComparison(qb, mode, statement, op, value);
+            } else {
+                debug('unknown operator');
+            }
+        });
     }
 
     /**
@@ -153,10 +223,10 @@ class MongoToKnex {
     }
 }
 
-module.exports = function convertor(qb, mongoJSON) {
+module.exports = function convertor(qb, mongoJSON, config) {
     const mongoToKnex = new MongoToKnex({
         tableName: qb._single.table
-    });
+    }, config);
 
     mongoToKnex.processJSON(qb, mongoJSON);
 

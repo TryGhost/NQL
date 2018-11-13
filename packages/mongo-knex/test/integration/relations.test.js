@@ -5,13 +5,17 @@ const convertor = require('../../lib/convertor');
 
 /* eslint-disable no-console*/
 
+// @TODO: the config object is not designed yet.
 const makeQuery = query => convertor(knex('posts'), query, {
     relations: {
         tags: {
+            tableName: 'tags',
             type: 'manyToMany',
             join_table: 'posts_tags',
             join_from: 'post_id',
-            join_to: 'tag_id'
+            join_to: 'tag_id',
+            // @TODO: tag -> tags.slug
+            aliases: {}
         },
         authors: {
             type: 'oneToMany',
@@ -22,19 +26,12 @@ const makeQuery = query => convertor(knex('posts'), query, {
 
 // Integration tests build a test database and
 // check that we get the exact data we expect from each query
-describe.skip('Relations', function () {
-    before(utils.db.setup(() => {
-        // Do things afterwards in a callback
-    }));
-
+describe('Relations', function () {
+    before(utils.db.setup());
     after(utils.db.teardown());
 
-    describe('One-to-Many', function () {
-        // Use a named file
-        beforeEach(utils.db.init('test-fixture', () => {
-            // could do stuff after
-        }));
-
+    describe.skip('One-to-Many', function () {
+        beforeEach(utils.db.init('relations1'));
         afterEach(utils.db.reset());
 
         it('can match array in (single value)', function (done) {
@@ -86,82 +83,64 @@ describe.skip('Relations', function () {
         });
     });
 
-    describe('Many-to-Many: Simple Cases', function () {
-        // Use the default file named after the describe block, would be many-to-many-simple-cases
-        beforeEach(utils.db.init());
+    describe('Many-to-Many', function () {
+        before(utils.db.init('relations1'));
 
-        afterEach(utils.db.reset());
+        describe('OR', function () {
+            it('tags.slug IN (animal)', function () {
+                const mongoJSON = {
+                    'tags.slug': {
+                        $in: ['animal']
+                    }
+                };
 
-        it('can match array in (single value)', function (done) {
-            const queryJSON = {'tags.slug': {$in: ['animal']}};
+                const query = makeQuery(mongoJSON);
 
-            // Use the queryJSON to build a query
-            const query = makeQuery(queryJSON);
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                    });
+            });
 
-            // Check any intermediate values
-            console.log(query.toQuery());
+            it('featured:true AND tags.slug IN (animal)', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            featured: true
+                        },
+                        {
+                            'tags.slug': {
+                                $in: ['animal']
+                            }
+                        }
+                    ]
+                };
 
-            // Perform the query against the DB
-            query.select()
-                .then((result) => {
-                    console.log(result);
+                const query = makeQuery(mongoJSON);
 
-                    result.should.be.an.Array().with.lengthOf(3);
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                    });
+            });
 
-                    // Check we get the right data
-                    // result.should.do.something;
+            it('tags.id IN (2,3)', function () {
+                const mongoJSON = {
+                    'tags.id': {
+                        $in: [2, 3]
+                    }
+                };
 
-                    done();
-                })
-                .catch(done);
-        });
+                const query = makeQuery(mongoJSON);
 
-        it('can match array in (multiple values)', function (done) {
-            const queryJSON = {'tags.id': {$in: [2, 3]}};
-
-            // Use the queryJSON to build a query
-            const query = makeQuery(queryJSON);
-
-            // Check any intermediate values
-            console.log('query', query.toQuery());
-
-            // Perform the query against the DB
-            query.select()
-                .then((result) => {
-                    console.log(result);
-
-                    result.should.be.an.Array().with.lengthOf(4);
-
-                    // Check we get the right data
-                    // result.should.do.something;
-
-                    done();
-                })
-                .catch(done);
-        });
-
-        it('can match array in (multiple values with x, y and xy)', function (done) {
-            const queryJSON = {'tags.id': {$in: [1, 2]}};
-
-            // Use the queryJSON to build a query
-            const query = makeQuery(queryJSON);
-
-            // Check any intermediate values
-            console.log('query', query.toQuery());
-
-            // Perform the query against the DB
-            query.select()
-                .then((result) => {
-                    console.log(result);
-
-                    result.should.be.an.Array().with.lengthOf(5);
-
-                    // Check we get the right data
-                    // result.should.do.something;
-
-                    done();
-                })
-                .catch(done);
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                    });
+            });
         });
     });
 

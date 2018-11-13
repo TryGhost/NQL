@@ -63,8 +63,9 @@ module.exports.setup = name => function innerSetup() {
  * `init('fixtures.json')`
  */
 module.exports.init = (suiteName, fixtureFileName) => {
-    if (!suiteName) {
-        suiteName = fixtureFileName;
+    if (!fixtureFileName) {
+        fixtureFileName = suiteName;
+        suiteName = null;
     }
 
     return function innerInit() {
