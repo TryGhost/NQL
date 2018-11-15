@@ -159,7 +159,7 @@ describe('Relations', function () {
                     });
             });
 
-            it('tags.slug equals "animal" and posts_tags.sort_order is 0 OR featured is false', function () {
+            it('tags.slug equals "animal" and posts_tags.sort_order is 0 OR author_id is 1', function () {
                 const mongoJSON = {$or: [
                     {
                         $and: [
@@ -182,7 +182,7 @@ describe('Relations', function () {
                 return query
                     .select()
                     .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(5);
+                        result.should.be.an.Array().with.lengthOf(6);
                     });
             });
         });

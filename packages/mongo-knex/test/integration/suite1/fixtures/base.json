@@ -64,6 +64,14 @@
             "image": null,
             "status": "published",
             "author_id": 1
+        },
+        {
+            "id": 7,
+            "title": "no tags, yeah",
+            "featured": true,
+            "image": null,
+            "status": "published",
+            "author_id": 1
         }
     ],
     "tags": [

@@ -13,7 +13,7 @@ describe('Where', function () {
 
         return query
             .then((results) => {
-                results.length.should.eql(4);
+                results.length.should.eql(5);
             });
     });
 });
