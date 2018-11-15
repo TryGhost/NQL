@@ -15,6 +15,12 @@
 - `NODE_ENV=testing-mysql yarn test`
   - Manual database creation is currently required.
 
+## Debug
+
+`DEBUG=mongo-knex:*`
+`DEBUG=mongo-knex:converter`
+`DEBUG=mongo-knex:converter-extended`
+
 ## Config
 
 `config.[env].json`
