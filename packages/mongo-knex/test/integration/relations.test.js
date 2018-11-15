@@ -27,6 +27,7 @@ const makeQuery = query => convertor(knex('posts'), query, {
 // Integration tests build a test database and
 // check that we get the exact data we expect from each query
 describe('Relations', function () {
+    before(utils.db.teardown());
     before(utils.db.setup());
     after(utils.db.teardown());
 
@@ -85,6 +86,106 @@ describe('Relations', function () {
 
     describe('Many-to-Many', function () {
         before(utils.db.init('relations1'));
+
+        describe('EQUALS', function () {
+            it('tags.slug equals "animal"', function () {
+                const mongoJSON = {
+                    'tags.slug': 'animal'
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                    });
+            });
+        });
+
+        describe('Multiple where clauses for relations', function () {
+            it('tags.slug equals "animal" and posts_tags.sort_order is 0 and featured is true', function () {
+                // where primary tag is "animal"
+                const mongoJSON = {$and: [
+                    {
+                        $and: [
+                            {
+                                'tags.slug': 'animal'
+                            },
+                            {
+                                'posts_tags.sort_order': 0
+                            }
+                        ]
+
+                    },
+                    {
+                        featured: true
+                    }
+                ]};
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(0);
+                    });
+            });
+
+            it('tags.slug equals "animal" and posts_tags.sort_order is 0 and featured is false', function () {
+                // where primary tag is "animal"
+                const mongoJSON = {$and: [
+                    {
+                        $and: [
+                            {
+                                'tags.slug': 'animal'
+                            },
+                            {
+                                'posts_tags.sort_order': 0
+                            }
+                        ]
+                    },
+                    {
+                        featured: false
+                    }
+                ]};
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                    });
+            });
+
+            it('tags.slug equals "animal" and posts_tags.sort_order is 0 OR featured is false', function () {
+                const mongoJSON = {$or: [
+                    {
+                        $and: [
+                            {
+                                'tags.slug': 'animal'
+                            },
+                            {
+                                'posts_tags.sort_order': 0
+                            },
+                            {
+                                featured: false
+                            }
+                        ]
+                    },
+                    {author_id: 1}
+                ]};
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(5);
+                    });
+            });
+        });
 
         describe('OR', function () {
             it('tags.slug IN (animal)', function () {

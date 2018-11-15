@@ -63,13 +63,31 @@ class MongoToKnex {
             debug(columnParts);
 
             const table = columnParts[0];
-            const relation = this.config.relations[table];
+            let relation = this.config.relations[table];
 
             if (!relation) {
-                throw new Error('Can\'t find relation in config object.');
+                // CASE: you want to filter by a column on the join table
+                relation = _.find(this.config.relations, (relation) => {
+                    return relation.join_table === table;
+                });
+
+                if (!relation) {
+                    throw new Error('Can\'t find relation in config object.');
+                }
+
+                return {
+                    join_table: relation.join_table,
+                    table: relation.tableName,
+                    column: columnParts[1],
+                    operator: op,
+                    value: value,
+                    config: relation,
+                    isRelation: true
+                };
             }
 
             return {
+                table: columnParts[0],
                 column: columnParts[1],
                 operator: op,
                 value: value,
@@ -87,37 +105,58 @@ class MongoToKnex {
     }
 
     /**
-     * @TODO: This implementation serves currently only one use case:
+     * @TODO: This implementation serves currently the following use cases:
      *
      * - OR conjunctions for many-to-many relations
+     * - filter by multiple relation columns
+     * - filter by columns on the join table
      */
-    buildRelationQuery(qb, relation) {
+    buildRelationQuery(qb, relations) {
         debug(`(buildRelationQuery)`);
 
         if (debugExtended.enabled) {
-            debugExtended(`(buildRelationQuery) ${JSON.stringify(relation)}`);
+            debugExtended(`(buildRelationQuery) ${JSON.stringify(relations)}`);
         }
 
-        if (relation.config.type === 'manyToMany') {
-            if (isCompOp(relation.operator)) {
-                const comp = compOps[relation.operator] || '=';
+        const groupedRelations = _.groupBy(relations, 'table');
 
-                // CASE: post.id IN (SELECT ...)
-                qb.where(`${this.tableName}.id`, 'IN', function () {
-                    return this
-                        .select(`${relation.config.join_table}.${relation.config.join_from}`)
-                        .from(`${relation.config.join_table}`)
-                        .innerJoin(`${relation.config.tableName}`, `${relation.config.tableName}.id`, '=', `${relation.config.join_table}.${relation.config.join_to}`)
-                        .where(`${relation.config.tableName}.${relation.column}`, comp, relation.value);
-                });
-            } else {
-                debug('unknown operator');
+        if (debugExtended.enabled) {
+            debugExtended(`(buildRelationQuery) grouped: ${JSON.stringify(relations)}`);
+        }
+
+        // CASE: {tags: [where clause, where clause], authors: [where clause, where clause]}
+        _.each(Object.keys(groupedRelations), (key) => {
+            debug(`(buildRelationQuery) build relation for ${key}`);
+
+            const statements = groupedRelations[key];
+
+            // CASE: any statement for the same relation should contain the same config
+            const reference = statements[0];
+
+            if (reference.config.type === 'manyToMany') {
+                if (isCompOp(reference.operator)) {
+                    const comp = compOps[reference.operator] || '=';
+
+                    // CASE: post.id IN (SELECT ...)
+                    qb.where(`${this.tableName}.id`, 'IN', function () {
+                        const innerQB = this
+                            .select(`${reference.config.join_table}.${reference.config.join_from}`)
+                            .from(`${reference.config.join_table}`)
+                            .innerJoin(`${reference.config.tableName}`, `${reference.config.tableName}.id`, '=', `${reference.config.join_table}.${reference.config.join_to}`);
+
+                        _.each(statements, (value, key) => {
+                            debug(`(buildRelationQuery) build relation where statements for ${key}`);
+
+                            innerQB.where(`${value.join_table || value.table}.${value.column}`, comp, value.value);
+                        });
+
+                        return innerQB;
+                    });
+                } else {
+                    debug('unknown operator');
+                }
             }
-
-            return;
-        }
-
-        debug('not implemented');
+        });
     }
 
     /**
@@ -129,15 +168,27 @@ class MongoToKnex {
      * `where column != value`
      * `where column > value`
      */
-    buildComparison(qb, mode, statement, op, value) {
+    buildComparison(qb, mode, statement, op, value, group) {
         const comp = compOps[op] || '=';
         const whereType = this.processWhereType(mode, op, value);
         const processedStatement = this.processStatement(statement, op, value);
 
-        debug(`(buildComparison) isRelation: ${processedStatement.isRelation}`);
+        debug(`(buildComparison) isRelation: ${processedStatement.isRelation}, group: ${group}`);
 
         if (processedStatement.isRelation) {
-            return this.buildRelationQuery(qb, processedStatement);
+            // CASE: if the statement is not part of a group, execute the query instantly
+            if (!group) {
+                this.buildRelationQuery(qb, [processedStatement]);
+                return;
+            }
+
+            // CASE: if the statement is part of a group, collect the relation statements to be able to group them later
+            if (!qb.hasOwnProperty('relations')) {
+                qb.relations = [];
+            }
+
+            qb.relations.push(processedStatement);
+            return;
         }
 
         debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value}`);
@@ -147,7 +198,7 @@ class MongoToKnex {
     /**
      * {author: 'carl'}
      */
-    buildWhereClause(qb, mode, statement, sub) {
+    buildWhereClause(qb, mode, statement, sub, group) {
         debug(`(buildWhereClause) mode: ${mode}, statement: ${statement}`);
 
         if (debugExtended.enabled) {
@@ -156,13 +207,13 @@ class MongoToKnex {
 
         // CASE sub is an atomic value, we use "eq" as default operator
         if (!_.isObject(sub)) {
-            return this.buildComparison(qb, mode, statement, '$eq', sub);
+            return this.buildComparison(qb, mode, statement, '$eq', sub, group);
         }
 
         // CASE: sub is an object, contains statements and operators
         _.forIn(sub, (value, op) => {
             if (isCompOp(op)) {
-                this.buildComparison(qb, mode, statement, op, value);
+                this.buildComparison(qb, mode, statement, op, value, group);
             } else {
                 debug('unknown operator');
             }
@@ -171,6 +222,8 @@ class MongoToKnex {
 
     /**
      * {$and: [{author: 'carl'}, {status: 'draft'}]}}
+     * {$and: {author: 'carl'}}
+     * {$and: {author: { $in: [...] }}}
      */
     buildWhereGroup(qb, parentMode, mode, sub) {
         const whereType = this.processWhereType(parentMode);
@@ -183,14 +236,20 @@ class MongoToKnex {
 
         qb[whereType]((_qb) => {
             if (_.isArray(sub)) {
-                sub.forEach(statement => this.buildQuery(_qb, mode, statement));
+                sub.forEach(statement => this.buildQuery(_qb, mode, statement, true));
             } else if (_.isObject(sub)) {
-                this.buildQuery(_qb, mode, sub);
+                this.buildQuery(_qb, mode, sub, true);
+            }
+
+            // CASE: now execute all relation statements of this group
+            if (_qb.hasOwnProperty('relations')) {
+                this.buildRelationQuery(_qb, _qb.relations);
+                delete _qb.relations;
             }
         });
     }
 
-    buildQuery(qb, mode, sub) {
+    buildQuery(qb, mode, sub, group) {
         debug(`(buildQuery) mode: ${mode}`);
 
         if (debugExtended.enabled) {
@@ -201,9 +260,10 @@ class MongoToKnex {
             debug(`(buildQuery) key: ${key}`);
 
             if (isLogicOp(key)) {
+                // CASE: you have two groups ($or), you have one group ($and)
                 this.buildWhereGroup(qb, mode, key, value);
             } else {
-                this.buildWhereClause(qb, mode, key, value);
+                this.buildWhereClause(qb, mode, key, value, group);
             }
         });
     }
@@ -221,8 +281,8 @@ class MongoToKnex {
             debugExtended(`(processJSON) ${JSON.stringify(mongoJSON)}`);
         }
 
-        // And is the default behaviour
-        this.buildQuery(qb, 'and', mongoJSON);
+        // 'and' is the default behaviour
+        this.buildQuery(qb, '$and', mongoJSON);
     }
 }
 
