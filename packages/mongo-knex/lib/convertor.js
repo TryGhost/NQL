@@ -116,6 +116,12 @@ class MongoToKnex {
 
         const groupedRelations = {};
 
+        /**
+         * We group the relations by a unique key.
+         * Each grouping will create a sub query.
+         *
+         * @TODO: choose a different key name (!)
+         */
         _.each(relations, (relation) => {
             if (!groupedRelations[relation.table]) {
                 groupedRelations[relation.table] = [];
@@ -123,7 +129,11 @@ class MongoToKnex {
 
             if (groupedRelations[relation.table].length) {
                 const columnExists = _.find(groupedRelations[relation.table], (statement) => {
-                    // CASE: we should not use the same sub query if the column name is the same (two sub queries)
+                    /**
+                     * CASE:
+                     * - we should not use the same sub query if the column name is the same (two sub queries)
+                     * - e.g. $and conjunction requires us to use 2 sub queries, because we have to look at each individual tag
+                     */
                     if (statement.column === relation.column) {
                         return true;
                     }
@@ -147,7 +157,7 @@ class MongoToKnex {
             debugExtended(`(buildRelationQuery) grouped: ${JSON.stringify(groupedRelations)}`);
         }
 
-        // CASE: {tags: [where clause, where clause], authors: [where clause, where clause]}
+        // CASE: {tags: [where clause, where clause], tags_123: [where clause], authors: [where clause, where clause]}
         _.each(Object.keys(groupedRelations), (key) => {
             debug(`(buildRelationQuery) build relation for ${key}`);
 
@@ -160,7 +170,7 @@ class MongoToKnex {
                 if (isCompOp(reference.operator)) {
                     const comp = reference.operator === '$ne' || reference.operator === '$nin' ? 'NOT IN' : 'IN';
 
-                    // CASE: WHERE post.id IN (SELECT ...)
+                    // CASE: WHERE resource.id (IN | NOT IN) (SELECT ...)
                     qb[reference.whereType](`${this.tableName}.id`, comp, function () {
                         const innerQB = this
                             .select(`${reference.config.join_table}.${reference.config.join_from}`)
