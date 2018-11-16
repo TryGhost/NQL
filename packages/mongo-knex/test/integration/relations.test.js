@@ -103,6 +103,24 @@ describe('Relations', function () {
             });
         });
 
+        describe('NEGATION', function () {
+            // should return posts without tags
+            // if a post has more than 1 tag, if one tag is animal, do not return
+            it('tags.slug is NOT "animal"', function () {
+                const mongoJSON = {
+                    'tags.slug': {$ne: 'animal'}
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                    });
+            });
+        });
+
         describe('Multiple where clauses for relations', function () {
             it('tags.slug equals "animal" and posts_tags.sort_order is 0 and featured is true', function () {
                 // where primary tag is "animal"

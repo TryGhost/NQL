@@ -161,10 +161,10 @@ class MongoToKnex {
 
             if (reference.config.type === 'manyToMany') {
                 if (isCompOp(reference.operator)) {
-                    const comp = compOps[reference.operator] || '=';
+                    const comp = reference.operator === '$ne' || reference.operator === '$nin' ? 'NOT IN' : 'IN';
 
                     // CASE: post.id IN (SELECT ...)
-                    qb.where(`${this.tableName}.id`, 'IN', function () {
+                    qb.where(`${this.tableName}.id`, comp, function () {
                         const innerQB = this
                             .select(`${reference.config.join_table}.${reference.config.join_from}`)
                             .from(`${reference.config.join_table}`)
@@ -173,7 +173,7 @@ class MongoToKnex {
                         _.each(statements, (value, key) => {
                             debug(`(buildRelationQuery) build relation where statements for ${key}`);
 
-                            innerQB.where(`${value.join_table || value.table}.${value.column}`, comp, value.value);
+                            innerQB.where(`${value.join_table || value.table}.${value.column}`, 'IN', !_.isArray(value.value) ? [value.value] : value.value);
                         });
 
                         return innerQB;
