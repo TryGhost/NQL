@@ -1,6 +1,6 @@
 {
   "name": "@nexes/mongo-knex",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "tbc",
   "repository": "git@github.com:NexesJS/mongo-knex.git",
   "author": "Ghost Foundation",
