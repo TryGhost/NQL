@@ -118,10 +118,36 @@ class MongoToKnex {
             debugExtended(`(buildRelationQuery) ${JSON.stringify(relations)}`);
         }
 
-        const groupedRelations = _.groupBy(relations, 'table');
+        const groupedRelations = {};
+
+        _.each(relations, (relation) => {
+            if (!groupedRelations[relation.table]) {
+                groupedRelations[relation.table] = [];
+            }
+
+            if (groupedRelations[relation.table].length) {
+                const columnExists = _.find(groupedRelations[relation.table], (statement) => {
+                    // CASE: we should not use the same sub query if the column name is the same (two sub queries)
+                    if (statement.column === relation.column) {
+                        return true;
+                    }
+                });
+
+                if (columnExists) {
+                    if (!groupedRelations[relation.table + '_']) {
+                        groupedRelations[relation.table + '_'] = [];
+                    }
+
+                    groupedRelations[relation.table + '_'].push(relation);
+                    return;
+                }
+            }
+
+            groupedRelations[relation.table].push(relation);
+        });
 
         if (debugExtended.enabled) {
-            debugExtended(`(buildRelationQuery) grouped: ${JSON.stringify(relations)}`);
+            debugExtended(`(buildRelationQuery) grouped: ${JSON.stringify(groupedRelations)}`);
         }
 
         // CASE: {tags: [where clause, where clause], authors: [where clause, where clause]}

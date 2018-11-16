@@ -187,6 +187,29 @@ describe('Relations', function () {
             });
         });
 
+        describe('AND', function () {
+            it('tags.slug is animal and classic', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tags.slug': 'animal'
+                        },
+                        {
+                            'tags.slug': 'classic'
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                    });
+            });
+        });
+
         describe('OR', function () {
             it('tags.slug IN (animal)', function () {
                 const mongoJSON = {
