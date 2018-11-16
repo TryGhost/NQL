@@ -226,6 +226,20 @@ describe('Relations', function () {
                         result.should.be.an.Array().with.lengthOf(2);
                     });
             });
+
+            it('tags.slug is animal and tags.slug not in []', function () {
+                const mongoJSON = {
+                    $and: [{'tags.slug': 'animal'},{'tags.slug': {$nin: ['classic']}}]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                    });
+            });
         });
 
         describe('OR', function () {
