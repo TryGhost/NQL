@@ -105,11 +105,7 @@ class MongoToKnex {
     }
 
     /**
-     * @TODO: This implementation serves currently the following use cases:
-     *
-     * - OR conjunctions for many-to-many relations
-     * - filter by multiple relation columns
-     * - filter by columns on the join table
+     * Build queries for relations.
      */
     buildRelationQuery(qb, relations) {
         debug(`(buildRelationQuery)`);
@@ -134,11 +130,12 @@ class MongoToKnex {
                 });
 
                 if (columnExists) {
-                    if (!groupedRelations[relation.table + '_']) {
-                        groupedRelations[relation.table + '_'] = [];
+                    const newKey = `${relation.table}_${Math.floor(Math.random() * 100)}`;
+                    if (!groupedRelations[newKey]) {
+                        groupedRelations[newKey] = [];
                     }
 
-                    groupedRelations[relation.table + '_'].push(relation);
+                    groupedRelations[newKey].push(relation);
                     return;
                 }
             }
