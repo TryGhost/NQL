@@ -160,8 +160,8 @@ class MongoToKnex {
                 if (isCompOp(reference.operator)) {
                     const comp = reference.operator === '$ne' || reference.operator === '$nin' ? 'NOT IN' : 'IN';
 
-                    // CASE: post.id IN (SELECT ...)
-                    qb.where(`${this.tableName}.id`, comp, function () {
+                    // CASE: WHERE post.id IN (SELECT ...)
+                    qb[reference.whereType](`${this.tableName}.id`, comp, function () {
                         const innerQB = this
                             .select(`${reference.config.join_table}.${reference.config.join_from}`)
                             .from(`${reference.config.join_table}`)
@@ -169,8 +169,7 @@ class MongoToKnex {
 
                         _.each(statements, (value, key) => {
                             debug(`(buildRelationQuery) build relation where statements for ${key}`);
-
-                            innerQB.where(`${value.join_table || value.table}.${value.column}`, 'IN', !_.isArray(value.value) ? [value.value] : value.value);
+                            innerQB[value.whereType](`${value.join_table || value.table}.${value.column}`, 'IN', !_.isArray(value.value) ? [value.value] : value.value);
                         });
 
                         return innerQB;
@@ -196,11 +195,12 @@ class MongoToKnex {
         const whereType = this.processWhereType(mode, op, value);
         const processedStatement = this.processStatement(statement, op, value);
 
-        debug(`(buildComparison) isRelation: ${processedStatement.isRelation}, group: ${group}`);
+        debug(`(buildComparison) mode: ${mode}, op: ${op}, isRelation: ${processedStatement.isRelation}, group: ${group}`);
 
         if (processedStatement.isRelation) {
             // CASE: if the statement is not part of a group, execute the query instantly
             if (!group) {
+                processedStatement.whereType = whereType;
                 this.buildRelationQuery(qb, [processedStatement]);
                 return;
             }
@@ -210,6 +210,7 @@ class MongoToKnex {
                 qb.relations = [];
             }
 
+            processedStatement.whereType = whereType;
             qb.relations.push(processedStatement);
             return;
         }

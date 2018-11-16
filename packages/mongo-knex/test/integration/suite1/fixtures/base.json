@@ -72,6 +72,14 @@
             "image": null,
             "status": "published",
             "author_id": 1
+        },
+        {
+            "id": 8,
+            "title": "has internal tag",
+            "featured": true,
+            "image": null,
+            "status": "published",
+            "author_id": 2
         }
     ],
     "tags": [

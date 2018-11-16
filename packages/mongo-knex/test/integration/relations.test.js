@@ -116,7 +116,7 @@ describe('Relations', function () {
                 return query
                     .select()
                     .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(4);
+                        result.should.be.an.Array().with.lengthOf(5);
                     });
             });
         });
@@ -240,6 +240,58 @@ describe('Relations', function () {
                         result.should.be.an.Array().with.lengthOf(1);
                     });
             });
+
+            it('(tags.slug is animal and sort_order is 0) and tags.visibility=public', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            $and: [
+                                {
+                                    'tags.slug': 'animal'
+                                },
+                                {
+                                    'posts_tags.sort_order': 0
+                                }
+                            ]
+                        },
+                        {
+                            'tags.visibility': 'public'
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                    });
+            });
+
+            it('tags.slug is animal and sort_order is 0 and tags.visibility=public', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tags.slug': 'animal'
+                        },
+                        {
+                            'posts_tags.sort_order': 0
+                        },
+                        {
+                            'tags.visibility': 'public'
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                    });
+            });
         });
 
         describe('OR', function () {
@@ -256,6 +308,58 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(3);
+                    });
+            });
+
+            it('(tags.slug = animal and sort_order = 0) OR visibility:internal', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            $and: [
+                                {
+                                    'tags.slug': 'animal'
+                                },
+                                {
+                                    'posts_tags.sort_order': 0
+                                }
+                            ]
+                        },
+                        {
+                            'tags.visibility': 'internal'
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                    });
+            });
+
+            it('tags.slug = animal OR sort_order = 0 OR visibility:internal', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            'tags.slug': 'animal'
+                        },
+                        {
+                            'posts_tags.sort_order': 0
+                        },
+                        {
+                            'tags.visibility': 'internal'
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(7);
                     });
             });
 
