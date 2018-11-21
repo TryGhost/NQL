@@ -18,6 +18,7 @@ const makeQuery = query => convertor(knex('posts'), query, {
             aliases: {}
         },
         authors: {
+            tableName: 'users',
             type: 'oneToMany',
             join_from: 'author_id'
         }
@@ -32,7 +33,7 @@ describe('Relations', function () {
     after(utils.db.teardown());
 
     describe.skip('One-to-Many', function () {
-        beforeEach(utils.db.init('relations1'));
+        beforeEach(utils.db.init('one-to-many'));
         afterEach(utils.db.reset());
 
         it('can match array in (single value)', function (done) {
@@ -85,9 +86,9 @@ describe('Relations', function () {
     });
 
     describe('Many-to-Many', function () {
-        before(utils.db.init('relations1'));
+        before(utils.db.init('many-to-many'));
 
-        describe('EQUALS', function () {
+        describe('EQUALS $eq', function () {
             it('tags.slug equals "animal"', function () {
                 const mongoJSON = {
                     'tags.slug': 'animal'
@@ -101,14 +102,30 @@ describe('Relations', function () {
                         result.should.be.an.Array().with.lengthOf(3);
                     });
             });
+
+            it('tags.visibility equals "internal"', function () {
+                const mongoJSON = {
+                    'tags.visibility': 'internal'
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                    });
+            });
         });
 
-        describe('NEGATION', function () {
+        describe('NEGATION $ne', function () {
             // should return posts without tags
             // if a post has more than 1 tag, if one tag is animal, do not return
             it('tags.slug is NOT "animal"', function () {
                 const mongoJSON = {
-                    'tags.slug': {$ne: 'animal'}
+                    'tags.slug': {
+                        $ne: 'animal'
+                    }
                 };
 
                 const query = makeQuery(mongoJSON);
@@ -119,93 +136,25 @@ describe('Relations', function () {
                         result.should.be.an.Array().with.lengthOf(5);
                     });
             });
-        });
 
-        describe('Multiple where clauses for relations', function () {
-            it('tags.slug equals "animal" and posts_tags.sort_order is 0 and featured is true', function () {
-                // where primary tag is "animal"
-                const mongoJSON = {$and: [
-                    {
-                        $and: [
-                            {
-                                'tags.slug': 'animal'
-                            },
-                            {
-                                'posts_tags.sort_order': 0
-                            }
-                        ]
-
-                    },
-                    {
-                        featured: true
+            it('tags.visibility is NOT "public"', function () {
+                const mongoJSON = {
+                    'tags.visibility': {
+                        $ne: 'public'
                     }
-                ]};
+                };
 
                 const query = makeQuery(mongoJSON);
 
                 return query
                     .select()
                     .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(0);
-                    });
-            });
-
-            it('tags.slug equals "animal" and posts_tags.sort_order is 0 and featured is false', function () {
-                // where primary tag is "animal"
-                const mongoJSON = {$and: [
-                    {
-                        $and: [
-                            {
-                                'tags.slug': 'animal'
-                            },
-                            {
-                                'posts_tags.sort_order': 0
-                            }
-                        ]
-                    },
-                    {
-                        featured: false
-                    }
-                ]};
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(1);
-                    });
-            });
-
-            it('tags.slug equals "animal" and posts_tags.sort_order is 0 OR author_id is 1', function () {
-                const mongoJSON = {$or: [
-                    {
-                        $and: [
-                            {
-                                'tags.slug': 'animal'
-                            },
-                            {
-                                'posts_tags.sort_order': 0
-                            },
-                            {
-                                featured: false
-                            }
-                        ]
-                    },
-                    {author_id: 1}
-                ]};
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(6);
+                        result.should.be.an.Array().with.lengthOf(2);
                     });
             });
         });
 
-        describe('AND', function () {
+        describe('AND $and', function () {
             it('tags.slug is animal and classic', function () {
                 const mongoJSON = {
                     $and: [
@@ -227,9 +176,16 @@ describe('Relations', function () {
                     });
             });
 
-            it('tags.slug is animal and tags.slug not in []', function () {
+            it('tags.slug is hash-internal and tags.visibility is private', function () {
                 const mongoJSON = {
-                    $and: [{'tags.slug': 'animal'},{'tags.slug': {$nin: ['classic']}}]
+                    $and: [
+                        {
+                            'tags.slug': 'hash-internal'
+                        },
+                        {
+                            'tags.visibility': 'internal'
+                        }
+                    ]
                 };
 
                 const query = makeQuery(mongoJSON);
@@ -238,6 +194,56 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
+                        result[0].title.should.equal('has internal tag');
+                    });
+            });
+
+            it('tags.slug is animal and tags.slug not in []', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tags.slug': 'animal'
+                        },
+                        {
+                            'tags.slug': {
+                                $nin: ['classic']
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                    });
+            });
+
+            it('tags.slug is not animal and tags.slug is not cgi', function () {
+                // equivalent to $nin: ['animal', 'cgi']
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tags.slug': {
+                                $ne: 'animal'
+                            }
+                        },
+                        {
+                            'tags.slug': {
+                                $ne: 'cgi'
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
                     });
             });
 
@@ -294,23 +300,7 @@ describe('Relations', function () {
             });
         });
 
-        describe('OR', function () {
-            it('tags.slug IN (animal)', function () {
-                const mongoJSON = {
-                    'tags.slug': {
-                        $in: ['animal']
-                    }
-                };
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(3);
-                    });
-            });
-
+        describe('OR $or', function () {
             it('(tags.slug = animal and sort_order = 0) OR visibility:internal', function () {
                 const mongoJSON = {
                     $or: [
@@ -362,19 +352,14 @@ describe('Relations', function () {
                         result.should.be.an.Array().with.lengthOf(7);
                     });
             });
+        });
 
-            it('featured:true AND tags.slug IN (animal)', function () {
+        describe('IN $in', function () {
+            it('tags.slug IN (animal)', function () {
                 const mongoJSON = {
-                    $and: [
-                        {
-                            featured: true
-                        },
-                        {
-                            'tags.slug': {
-                                $in: ['animal']
-                            }
-                        }
-                    ]
+                    'tags.slug': {
+                        $in: ['animal']
+                    }
                 };
 
                 const query = makeQuery(mongoJSON);
@@ -382,7 +367,23 @@ describe('Relations', function () {
                 return query
                     .select()
                     .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.be.an.Array().with.lengthOf(3);
+                    });
+            });
+
+            it('tags.slug IN (animal, cgi)', function () {
+                const mongoJSON = {
+                    'tags.slug': {
+                        $in: ['animal', 'cgi']
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
                     });
             });
 
@@ -401,15 +402,200 @@ describe('Relations', function () {
                         result.should.be.an.Array().with.lengthOf(4);
                     });
             });
+
+            it('tags.slug IN (animal) AND featured:true', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tags.slug': {
+                                $in: ['animal']
+                            }
+                        },
+                        {
+                            featured: true
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                    });
+            });
         });
-    });
 
-    // NOTE: no need to support 1:1 relations just yet
-    describe.skip('One-to-One: Extended Cases', function () {
-        beforeEach(() => utils.db.init('suite1', 'one-to-one-extended-cases'));
-        afterEach(() => utils.db.reset());
+        describe('NOT IN $nin', function () {
+            it('tags.slug NOT IN (animal)', function () {
+                const mongoJSON = {
+                    'tags.slug': {
+                        $nin: ['animal']
+                    }
+                };
 
-        // TODO: should be filled with cases from 'Many-to-Many: Extended Cases' suite
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(5);
+                    });
+            });
+
+            it('tags.slug NOT IN (animal, cgi)', function () {
+                const mongoJSON = {
+                    'tags.slug': {
+                        $nin: ['animal', 'cgi']
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                    });
+            });
+
+            it('tags.id NOT IN (2,3)', function () {
+                const mongoJSON = {
+                    'tags.id': {
+                        $nin: [2, 3]
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                    });
+            });
+
+            it('tags.slug NOT IN (classic, animal) AND featured:true', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tags.slug': {
+                                $nin: ['classic', 'animal']
+                            }
+                        },
+                        {
+                            featured: true
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result[0].title.should.equal('When She Loved Me');
+                        result[1].title.should.equal('no tags, yeah');
+                        result[2].title.should.equal('has internal tag');
+                    });
+            });
+        });
+
+        describe('Multiple where clauses for relations', function () {
+            it('tags.slug equals "cgi" and posts_tags.sort_order is 0 and featured is true', function () {
+                // where primary tag is "animal"
+                const mongoJSON = {
+                    $and: [
+                        {
+                            $and: [
+                                {
+                                    'tags.slug': 'cgi'
+                                },
+                                {
+                                    'posts_tags.sort_order': 0
+                                }
+                            ]
+
+                        },
+                        {
+                            featured: true
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                        result[0].title.should.equal('When She Loved Me');
+                    });
+            });
+
+            it('tags.slug equals "animal" and posts_tags.sort_order is 0 and featured is false', function () {
+                // where primary tag is "animal"
+                const mongoJSON = {
+                    $and: [
+                        {
+                            $and: [
+                                {
+                                    'tags.slug': 'animal'
+                                },
+                                {
+                                    'posts_tags.sort_order': 0
+                                }
+                            ]
+                        },
+                        {
+                            featured: false
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                        result[0].title.should.equal('The Bare Necessities');
+                    });
+            });
+
+            it('tags.slug equals "animal" and posts_tags.sort_order is 0 OR author_id is 1', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            $and: [
+                                {
+                                    'tags.slug': 'animal'
+                                },
+                                {
+                                    'posts_tags.sort_order': 0
+                                },
+                                {
+                                    featured: false
+                                }
+                            ]
+                        },
+                        {
+                            author_id: 1
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(6);
+                    });
+            });
+        });
     });
 
     describe.skip('One-to-Many: Extended Cases', function () {
@@ -424,34 +610,7 @@ describe('Relations', function () {
         after(() => utils.db.reset());
 
         describe('negation $ne and $nin', function () {
-            it('can match $ne (single value)', function () {
-                const queryJSON = {
-                    'tags.slug': {
-                        $ne: 'animal'
-                    }
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        // NOTE: make sure to count in posts with no tags
-                        //       do not count in posts with multiple tags containing one of the excluded tags
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-
-            it('can match aliased $ne (single value)', function () {
+            it('ALIAS SUPPORT NEEDED can match aliased $ne', function () {
                 // NOTE: makeQuery needs additional configuration to be passed in for aliases
                 const queryJSON = {
                     tag: {
@@ -473,60 +632,6 @@ describe('Relations', function () {
                         // NOTE: make sure to count in posts with no tags
                         //       do not count in posts with multiple tags containing one of the excluded tags
                         result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-
-            it('can match array $nin (single value)', function () {
-                const queryJSON = {
-                    'tags.slug': {
-                        $nin: ['animal']
-                    }
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        // NOTE: make sure to count in posts with no tags
-                        //       do not count in posts with multiple tags containing one of the excluded tags
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-
-            it('can match array $nin (multiple values)', function () {
-                const queryJSON = {
-                    'tags.slug': {
-                        $nin: ['animal', 'classic']
-                    }
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log('query', query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        // NOTE: make sure to count in posts with no tags
-                        //       do not count in posts with multiple tags containing one of the excluded tags
-                        result.should.be.an.Array().with.lengthOf(1);
 
                         // Check we get the right data
                         // result.should.do.something;
@@ -583,32 +688,6 @@ describe('Relations', function () {
         });
 
         describe('conjunction $and', function () {
-            it('can match multiple values of same attribute', function () {
-                const queryJSON = {
-                    $and: [
-                        {'author.slug': 'pat'},
-                        {'authors.slug': 'sam'}
-                    ]
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-
             it('can match multiple values of different attributes', function () {
                 const queryJSON = {
                     $and: [
