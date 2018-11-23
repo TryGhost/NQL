@@ -47,10 +47,9 @@ class MongoToKnex {
      * Determine if statement lives on parent table or if statement refers to a relation.
      */
     processStatement(column, op, value) {
-        const columnParts = column.split('.');
-
+        const [tableName, columnName] = column.split('.');
         // CASE: `posts.status` -> where "posts" is the parent table
-        if (columnParts[0] === this.tableName) {
+        if (tableName === this.tableName) {
             return {
                 column: column,
                 value: value,
@@ -59,10 +58,10 @@ class MongoToKnex {
         }
 
         // CASE: relation?
-        if (columnParts.length > 1) {
-            debug(columnParts);
+        if (columnName) {
+            debug(tableName, columnName);
 
-            const table = columnParts[0];
+            const table = tableName;
             let relation = this.config.relations[table];
 
             if (!relation) {
@@ -78,7 +77,7 @@ class MongoToKnex {
                 return {
                     join_table: relation.join_table,
                     table: relation.tableName,
-                    column: columnParts[1],
+                    column: columnName,
                     operator: op,
                     value: value,
                     config: relation,
@@ -87,8 +86,8 @@ class MongoToKnex {
             }
 
             return {
-                table: columnParts[0],
-                column: columnParts[1],
+                table: tableName,
+                column: columnName,
                 operator: op,
                 value: value,
                 config: relation,
