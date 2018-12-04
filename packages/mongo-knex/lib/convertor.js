@@ -216,11 +216,21 @@ class MongoToKnex {
                     // CASE: WHERE resource.id (IN | NOT IN) (SELECT ...)
                     qb[reference.whereType](`${this.tableName}.id`, comp, function () {
                         const joinFilterStatements = groupedRelations[key].joinFilterStatements;
+
+                        let innerJoinValue = reference.config.tableName;
+                        let innerJoinOn = `${reference.config.tableName}.id`;
+
+                        // CASE: you can define a name for the join table
+                        if (reference.config.tableNameAs) {
+                            innerJoinValue = `${reference.config.tableName} as ${reference.config.tableNameAs}`;
+                            innerJoinOn = `${reference.config.tableNameAs}.id`;
+                        }
+
                         const innerQB = this
                             .select(`${reference.config.join_table}.${reference.config.join_from}`)
                             .from(`${reference.config.join_table}`)
-                            .innerJoin(`${reference.config.tableName}`, function () {
-                                this.on(`${reference.config.tableName}.id`, '=', `${reference.config.join_table}.${reference.config.join_to}`);
+                            .innerJoin(innerJoinValue, function () {
+                                this.on(innerJoinOn, '=', `${reference.config.join_table}.${reference.config.join_to}`);
 
                                 // CASE: when applying AND con junction and having multiple groups the filter
                                 //       related to joining table has to be applied within each group
