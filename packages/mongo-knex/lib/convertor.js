@@ -21,6 +21,7 @@ const compOps = {
 const isOp = key => key.charAt(0) === '$';
 const isLogicOp = key => isOp(key) && _.includes(logicOps, key);
 const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
+const isNegationOp = key => isOp(key) && _.includes(['$ne', '$nin'], key);
 
 class MongoToKnex {
     constructor(options = {}, config = {}) {
@@ -97,60 +98,95 @@ class MongoToKnex {
 
         // CASE: fallback, `status=draft` -> `posts.status`=draft
         return {
-            column: this.tableName + '.' + column,
+            column: `${this.tableName}.${column}`,
             value: value,
             isRelation: false
         };
     }
 
     /**
+     * We group the relations by a unique key.
+     * Each grouping will create a sub query.
+     *
+     * @TODO: choose a different key name (!)
+     *
+     * Returns a group structure of following format:
+     *  {
+     *      "groupKey": {
+     *          innerWhereStatements: [],
+     *          joinFilterStatements: []
+     *      }
+     *  }
+     */
+    groupRelationStatements(statements, mode) {
+        const group = {};
+
+        // groups depend on the mode of grouping, if its and $and we need to treat a filter on
+        // joining table differently than we would with $or
+        // e.g. for $or we can create a subquery or group that filter,
+        //      for $and we have to include joining table filter in every group
+        const innerWhereStatements = (mode === '$and')
+            ? statements.filter(r => !(r.join_table))
+            : statements;
+
+        _.each(innerWhereStatements, (statement) => {
+            /**
+             * CASE:
+             * - we should not use the same sub query if the column name is the same (two sub queries)
+             * - e.g. $and conjunction requires us to use 2 sub queries, because we have to look at each individual tag
+             *
+             * - we should also not use grouping of negated values for the same reasons as above
+             */
+            let createSubGroup = isNegationOp(statement.operator);
+
+            if (!createSubGroup && group[statement.table]) {
+                createSubGroup = _.find(group[statement.table].innerWhereStatements, (innerStatement) => {
+                    if (innerStatement.column === statement.column) {
+                        return true;
+                    }
+                });
+            }
+
+            let groupKey = statement.table;
+
+            if (createSubGroup) {
+                // TODO: while this is 'good enough' approach this needs to be approached with something
+                // more stable than random from 1..100
+                groupKey = `${statement.table}_${Math.floor(Math.random() * 100)}`;
+            }
+
+            if (!group[groupKey]) {
+                group[groupKey] = {};
+                group[groupKey].innerWhereStatements = [];
+            }
+
+            group[groupKey].innerWhereStatements.push(statement);
+        });
+
+        // NOTE: filters applied on join level have to be included when they are
+        // a part of $and  group
+        if (mode === '$and') {
+            const joinFilterStatements = statements.filter(r => (r.join_table));
+
+            _.each(Object.keys(group), (key) => {
+                group[key].joinFilterStatements = joinFilterStatements;
+            });
+        }
+
+        return group;
+    }
+
+    /**
      * Build queries for relations.
      */
-    buildRelationQuery(qb, relations) {
+    buildRelationQuery(qb, relations, mode) {
         debug(`(buildRelationQuery)`);
 
         if (debugExtended.enabled) {
             debugExtended(`(buildRelationQuery) ${JSON.stringify(relations)}`);
         }
 
-        const groupedRelations = {};
-
-        /**
-         * We group the relations by a unique key.
-         * Each grouping will create a sub query.
-         *
-         * @TODO: choose a different key name (!)
-         */
-        _.each(relations, (relation) => {
-            if (!groupedRelations[relation.table]) {
-                groupedRelations[relation.table] = [];
-            }
-
-            if (groupedRelations[relation.table].length) {
-                const columnExists = _.find(groupedRelations[relation.table], (statement) => {
-                    /**
-                     * CASE:
-                     * - we should not use the same sub query if the column name is the same (two sub queries)
-                     * - e.g. $and conjunction requires us to use 2 sub queries, because we have to look at each individual tag
-                     */
-                    if (statement.column === relation.column) {
-                        return true;
-                    }
-                });
-
-                if (columnExists) {
-                    const newKey = `${relation.table}_${Math.floor(Math.random() * 100)}`;
-                    if (!groupedRelations[newKey]) {
-                        groupedRelations[newKey] = [];
-                    }
-
-                    groupedRelations[newKey].push(relation);
-                    return;
-                }
-            }
-
-            groupedRelations[relation.table].push(relation);
-        });
+        const groupedRelations = this.groupRelationStatements(relations, mode);
 
         if (debugExtended.enabled) {
             debugExtended(`(buildRelationQuery) grouped: ${JSON.stringify(groupedRelations)}`);
@@ -160,31 +196,69 @@ class MongoToKnex {
         _.each(Object.keys(groupedRelations), (key) => {
             debug(`(buildRelationQuery) build relation for ${key}`);
 
-            const statements = groupedRelations[key];
+            const statements = groupedRelations[key].innerWhereStatements;
 
             // CASE: any statement for the same relation should contain the same config
             const reference = statements[0];
 
             if (reference.config.type === 'manyToMany') {
-                if (isCompOp(reference.operator)) {
-                    const comp = reference.operator === '$ne' || reference.operator === '$nin' ? 'NOT IN' : 'IN';
+                if (_.every(statements.map(s => s.operator), isCompOp)) {
+                    // CASE: only negate whole group when all the operators in the group are negative,
+                    // otherwise we cannot combine groups with negated and regular equation operators
+                    const negateGroup = _.every(statements.map(s => s.operator), (operator) => {
+                        return isNegationOp(operator);
+                    });
+
+                    const comp = negateGroup
+                        ? compOps.$nin
+                        : compOps.$in;
 
                     // CASE: WHERE resource.id (IN | NOT IN) (SELECT ...)
                     qb[reference.whereType](`${this.tableName}.id`, comp, function () {
+                        const joinFilterStatements = groupedRelations[key].joinFilterStatements;
                         const innerQB = this
                             .select(`${reference.config.join_table}.${reference.config.join_from}`)
                             .from(`${reference.config.join_table}`)
-                            .innerJoin(`${reference.config.tableName}`, `${reference.config.tableName}.id`, '=', `${reference.config.join_table}.${reference.config.join_to}`);
+                            .innerJoin(`${reference.config.tableName}`, function () {
+                                this.on(`${reference.config.tableName}.id`, '=', `${reference.config.join_table}.${reference.config.join_to}`);
 
-                        _.each(statements, (value, key) => {
+                                // CASE: when applying AND con junction and having multiple groups the filter
+                                //       related to joining table has to be applied within each group
+                                _.each(joinFilterStatements, (joinFilter) => {
+                                    this.andOn(`${joinFilter.join_table}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
+                                });
+                            });
+
+                        if (debugExtended.enabled) {
+                            debug(`(buildRelationQuery) innerQB sql-pre: ${innerQB.toSQL().sql}`);
+                        }
+
+                        _.each(statements, (statement, key) => {
                             debug(`(buildRelationQuery) build relation where statements for ${key}`);
-                            innerQB[value.whereType](`${value.join_table || value.table}.${value.column}`, 'IN', !_.isArray(value.value) ? [value.value] : value.value);
+
+                            const statementColumn = `${statement.join_table || statement.table}.${statement.column}`;
+                            let statementOp;
+
+                            if (negateGroup) {
+                                statementOp = compOps.$in;
+                            } else {
+                                statementOp = isNegationOp(statement.operator)
+                                    ? compOps.$nin
+                                    : compOps.$in;
+                            }
+                            const statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
+
+                            innerQB[statement.whereType](statementColumn, statementOp, statementValue);
                         });
+
+                        if (debugExtended.enabled) {
+                            debug(`(buildRelationQuery) innerQB sql-post: ${innerQB.toSQL().sql}`);
+                        }
 
                         return innerQB;
                     });
                 } else {
-                    debug('unknown operator');
+                    debug(`one of ${key} group statements contains unknown operator`);
                 }
             }
         });
@@ -207,10 +281,11 @@ class MongoToKnex {
         debug(`(buildComparison) mode: ${mode}, op: ${op}, isRelation: ${processedStatement.isRelation}, group: ${group}`);
 
         if (processedStatement.isRelation) {
+            processedStatement.whereType = whereType;
+
             // CASE: if the statement is not part of a group, execute the query instantly
             if (!group) {
-                processedStatement.whereType = whereType;
-                this.buildRelationQuery(qb, [processedStatement]);
+                this.buildRelationQuery(qb, [processedStatement], mode);
                 return;
             }
 
@@ -219,7 +294,6 @@ class MongoToKnex {
                 qb.relations = [];
             }
 
-            processedStatement.whereType = whereType;
             qb.relations.push(processedStatement);
             return;
         }
@@ -276,7 +350,7 @@ class MongoToKnex {
 
             // CASE: now execute all relation statements of this group
             if (_qb.hasOwnProperty('relations')) {
-                this.buildRelationQuery(_qb, _qb.relations);
+                this.buildRelationQuery(_qb, _qb.relations, mode);
                 delete _qb.relations;
             }
         });

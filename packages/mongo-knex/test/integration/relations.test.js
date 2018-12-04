@@ -198,7 +198,7 @@ describe('Relations', function () {
                     });
             });
 
-            it('tags.slug is animal and tags.slug not in []', function () {
+            it('tags.slug is animal and tags.slug NOT in [classic]', function () {
                 const mongoJSON = {
                     $and: [
                         {
@@ -218,22 +218,18 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
+                        result[0].title.should.equal('The Bare Necessities');
                     });
             });
 
-            it('tags.slug is not animal and tags.slug is not cgi', function () {
-                // equivalent to $nin: ['animal', 'cgi']
+            it('tags.slug is animal and sort_order is 0 and tags.visibility=public', function () {
                 const mongoJSON = {
                     $and: [
                         {
-                            'tags.slug': {
-                                $ne: 'animal'
-                            }
+                            'tags.slug': 'animal'
                         },
                         {
-                            'tags.slug': {
-                                $ne: 'cgi'
-                            }
+                            'posts_tags.sort_order': 0
                         }
                     ]
                 };
@@ -243,7 +239,8 @@ describe('Relations', function () {
                 return query
                     .select()
                     .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(4);
+                        result.should.be.an.Array().with.lengthOf(1);
+                        result[0].title.should.equal('The Bare Necessities');
                     });
             });
 
@@ -272,6 +269,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
+                        result[0].title.should.equal('The Bare Necessities');
                     });
             });
 
@@ -296,6 +294,99 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
+                    });
+            });
+
+            it('tags.slug is NOT animal and tags.slug is NOT cgi', function () {
+                // equivalent to $nin: ['animal', 'cgi']
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tags.slug': {
+                                $ne: 'animal'
+                            }
+                        },
+                        {
+                            'tags.slug': {
+                                $ne: 'cgi'
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                    });
+            });
+
+            it('tags.slug NOT equal "classic" and tags.visibility is equal "public"', function () {
+                const mongoJSON = {
+                    'tags.visibility': 'public',
+                    'tags.slug': {
+                        $ne: 'classic'
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result[0].title.should.equal('The Bare Necessities');
+                        result[1].title.should.equal('When She Loved Me');
+                    });
+            });
+
+            it('tags.slug NOT equal "classic" and tags.visibility is equal "public"', function () {
+                const mongoJSON = {
+                    'tags.visibility': 'public',
+                    'tags.slug': {
+                        $nin: ['classic']
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result[0].title.should.equal('The Bare Necessities');
+                        result[1].title.should.equal('When She Loved Me');
+                    });
+            });
+
+            it('(tags.slug NOT  IN "classic" and tags.visibility is equal "public")', function () {
+                // this case can be generated with:
+                // 'tags.slug:-classic+tags.visibility:public'
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tags.visibility': 'public'
+                        },
+                        {
+                            'tags.slug': {
+                                $nin: ['classic']
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+                // NOTE: this query is generating a group, this should be avoided
+                // as we can't group negated properties with other, unless those
+                // are going through connecting table
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result[0].title.should.equal('The Bare Necessities');
+                        result[1].title.should.equal('When She Loved Me');
                     });
             });
         });
@@ -505,7 +596,7 @@ describe('Relations', function () {
 
         describe('Multiple where clauses for relations', function () {
             it('tags.slug equals "cgi" and posts_tags.sort_order is 0 and featured is true', function () {
-                // where primary tag is "animal"
+                // where primary tag is "cgi"
                 const mongoJSON = {
                     $and: [
                         {
@@ -562,6 +653,40 @@ describe('Relations', function () {
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
                         result[0].title.should.equal('The Bare Necessities');
+                    });
+            });
+
+            it('tags.slug NOT equal "classic" and posts_tags.sort_order is 0 and featured is true', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            $and: [
+                                {
+                                    'tags.slug': {
+                                        $ne: 'classic'
+                                    }
+                                },
+                                {
+                                    'posts_tags.sort_order': 0
+                                }
+                            ]
+                        },
+                        {
+                            featured: true
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        // TODO: should this include tags with no tags? the filter is about primary tag != 'classic' so they should count?
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result[0].title.should.equal('When She Loved Me');
+                        result[1].title.should.equal('no tags, yeah');
+                        result[2].title.should.equal('has internal tag');
                     });
             });
 
