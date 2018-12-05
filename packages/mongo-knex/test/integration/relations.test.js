@@ -446,6 +446,48 @@ describe('Relations', function () {
                         result.should.be.an.Array().with.lengthOf(7);
                     });
             });
+
+            it('any author is pat or leslie', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            'authors.slug': 'leslie'
+                        },
+                        {
+                            'authors.slug': 'pat'
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(7);
+                    });
+            });
+
+            it('any author is sam or any tag is cgi', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            'authors.slug': 'sam'
+                        },
+                        {
+                            'tags.slug': 'cgi'
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                    });
+            });
         });
 
         describe('IN $in', function () {
@@ -757,60 +799,6 @@ describe('Relations', function () {
             it('can compare by count $lt', function () {
                 const queryJSON = {
                     'authors.count': {$lt: 2}
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-        });
-
-        describe('conjunction $or', function () {
-            it('can match values of same attributes', function () {
-                const queryJSON = {
-                    $or: [
-                        {'authors.slug': 'joe'},
-                        {'authors.slug': 'pat'}
-                    ]
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-
-            it('can match values of different attributes', function () {
-                const queryJSON = {
-                    $or: [
-                        {'authors.slug': 'joe'},
-                        {'tags.slug': 'photo'}
-                    ]
                 };
 
                 // Use the queryJSON to build a query
