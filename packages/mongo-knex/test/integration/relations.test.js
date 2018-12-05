@@ -30,59 +30,6 @@ describe('Relations', function () {
     before(utils.db.setup());
     after(utils.db.teardown());
 
-    describe.skip('One-to-Many', function () {
-        beforeEach(utils.db.init('one-to-many'));
-        afterEach(utils.db.reset());
-
-        it('can match array in (single value)', function (done) {
-            const queryJSON = {'authors.slug': {$in: ['sam']}};
-
-            // Use the queryJSON to build a query
-            const query = makeQuery(queryJSON);
-
-            // Check any intermediate values
-            console.log(query.toQuery());
-
-            // Perform the query against the DB
-            query.select()
-                .then((result) => {
-                    console.log(result);
-
-                    result.should.be.an.Array().with.lengthOf(2);
-
-                    // Check we get the right data
-                    // result.should.do.something;
-
-                    done();
-                })
-                .catch(done);
-        });
-
-        it('can match array in (multiple values)', function (done) {
-            const queryJSON = {'authors.name': {$in: ['Sam Smith', 'Pat Taylor']}};
-
-            // Use the queryJSON to build a query
-            const query = makeQuery(queryJSON);
-
-            // Check any intermediate values
-            console.log('query', query.toQuery());
-
-            // Perform the query against the DB
-            query.select()
-                .then((result) => {
-                    console.log(result);
-
-                    result.should.be.an.Array().with.lengthOf(5);
-
-                    // Check we get the right data
-                    // result.should.do.something;
-
-                    done();
-                })
-                .catch(done);
-        });
-    });
-
     describe('Many-to-Many', function () {
         before(utils.db.init('many-to-many'));
 
@@ -721,13 +668,6 @@ describe('Relations', function () {
         });
     });
 
-    describe.skip('One-to-Many: Extended Cases', function () {
-        beforeEach(() => utils.db.init('suite1', 'one-to-many-extended-cases'));
-        afterEach(() => utils.db.reset());
-
-        // TODO: should be filled with cases from 'Many-to-Many: Extended Cases' suite
-    });
-
     describe.skip('Many-to-Many: Extended Cases', function () {
         before(() => utils.db.init('suite1', 'many-to-many-extended-cases'));
         after(() => utils.db.reset());
@@ -893,4 +833,7 @@ describe('Relations', function () {
             });
         });
     });
+
+    describe('[NOT IMPLEMENTED] One-to-One', function () {});
+    describe('[NOT IMPLEMENTED] One-to-Many', function () {});
 });
