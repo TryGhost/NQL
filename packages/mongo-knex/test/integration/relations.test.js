@@ -392,61 +392,106 @@ describe('Relations', function () {
                         result.should.be.an.Array().with.lengthOf(3);
                     });
             });
+
+            describe('Multiple conditions applied to the joining table and to the destination table', function () {
+                it('tags.slug equals "cgi" and posts_tags.sort_order is 0 and featured is true', function () {
+                    // where primary tag is "cgi"
+                    const mongoJSON = {
+                        $and: [
+                            {
+                                $and: [
+                                    {
+                                        'tags.slug': 'cgi'
+                                    },
+                                    {
+                                        'posts_tags.sort_order': 0
+                                    }
+                                ]
+
+                            },
+                            {
+                                featured: true
+                            }
+                        ]
+                    };
+
+                    const query = makeQuery(mongoJSON);
+
+                    return query
+                        .select()
+                        .then((result) => {
+                            result.should.be.an.Array().with.lengthOf(1);
+                            result[0].title.should.equal('When She Loved Me');
+                        });
+                });
+
+                it('tags.slug equals "animal" and posts_tags.sort_order is 0 and featured is false', function () {
+                    // where primary tag is "animal"
+                    const mongoJSON = {
+                        $and: [
+                            {
+                                $and: [
+                                    {
+                                        'tags.slug': 'animal'
+                                    },
+                                    {
+                                        'posts_tags.sort_order': 0
+                                    }
+                                ]
+                            },
+                            {
+                                featured: false
+                            }
+                        ]
+                    };
+
+                    const query = makeQuery(mongoJSON);
+
+                    return query
+                        .select()
+                        .then((result) => {
+                            result.should.be.an.Array().with.lengthOf(1);
+                            result[0].title.should.equal('The Bare Necessities');
+                        });
+                });
+
+                it('tags.slug NOT equal "classic" and posts_tags.sort_order is 0 and featured is true', function () {
+                    const mongoJSON = {
+                        $and: [
+                            {
+                                $and: [
+                                    {
+                                        'tags.slug': {
+                                            $ne: 'classic'
+                                        }
+                                    },
+                                    {
+                                        'posts_tags.sort_order': 0
+                                    }
+                                ]
+                            },
+                            {
+                                featured: true
+                            }
+                        ]
+                    };
+
+                    const query = makeQuery(mongoJSON);
+
+                    return query
+                        .select()
+                        .then((result) => {
+                            // TODO: should this include tags with no tags? the filter is about primary tag != 'classic' so they should count?
+                            result.should.be.an.Array().with.lengthOf(3);
+                            result[0].title.should.equal('When She Loved Me');
+                            result[1].title.should.equal('no tags, yeah');
+                            result[2].title.should.equal('has internal tag');
+                        });
+                });
+            });
         });
 
         describe('OR $or', function () {
-            it('(tags.slug = animal and sort_order = 0) OR visibility:internal', function () {
-                const mongoJSON = {
-                    $or: [
-                        {
-                            $and: [
-                                {
-                                    'tags.slug': 'animal'
-                                },
-                                {
-                                    'posts_tags.sort_order': 0
-                                }
-                            ]
-                        },
-                        {
-                            'tags.visibility': 'internal'
-                        }
-                    ]
-                };
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(2);
-                    });
-            });
-
-            it('tags.slug = animal OR sort_order = 0 OR visibility:internal', function () {
-                const mongoJSON = {
-                    $or: [
-                        {
-                            'tags.slug': 'animal'
-                        },
-                        {
-                            'posts_tags.sort_order': 0
-                        },
-                        {
-                            'tags.visibility': 'internal'
-                        }
-                    ]
-                };
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(7);
-                    });
-            });
-
             it('any author is pat or leslie', function () {
                 const mongoJSON = {
                     $or: [
@@ -512,6 +557,91 @@ describe('Relations', function () {
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
                     });
+            });
+
+            describe('Multiple conditions applied to the joining table and to the destination table', function () {
+                it('tags.slug equals "animal" and posts_tags.sort_order is 0 OR author_id is 1', function () {
+                    const mongoJSON = {
+                        $or: [
+                            {
+                                $and: [
+                                    {
+                                        'tags.slug': 'animal'
+                                    },
+                                    {
+                                        'posts_tags.sort_order': 0
+                                    },
+                                    {
+                                        featured: false
+                                    }
+                                ]
+                            },
+                            {
+                                author_id: 1
+                            }
+                        ]
+                    };
+
+                    const query = makeQuery(mongoJSON);
+
+                    return query
+                        .select()
+                        .then((result) => {
+                            result.should.be.an.Array().with.lengthOf(6);
+                        });
+                });
+
+                it('(tags.slug = animal and sort_order = 0) OR visibility:internal', function () {
+                    const mongoJSON = {
+                        $or: [
+                            {
+                                $and: [
+                                    {
+                                        'tags.slug': 'animal'
+                                    },
+                                    {
+                                        'posts_tags.sort_order': 0
+                                    }
+                                ]
+                            },
+                            {
+                                'tags.visibility': 'internal'
+                            }
+                        ]
+                    };
+
+                    const query = makeQuery(mongoJSON);
+
+                    return query
+                        .select()
+                        .then((result) => {
+                            result.should.be.an.Array().with.lengthOf(2);
+                        });
+                });
+
+                it('tags.slug = animal OR sort_order = 0 OR visibility:internal', function () {
+                    const mongoJSON = {
+                        $or: [
+                            {
+                                'tags.slug': 'animal'
+                            },
+                            {
+                                'posts_tags.sort_order': 0
+                            },
+                            {
+                                'tags.visibility': 'internal'
+                            }
+                        ]
+                    };
+
+                    const query = makeQuery(mongoJSON);
+
+                    return query
+                        .select()
+                        .then((result) => {
+                            result.should.be.an.Array().with.lengthOf(7);
+                        });
+                });
             });
         });
 
@@ -660,134 +790,6 @@ describe('Relations', function () {
                         result[0].title.should.equal('When She Loved Me');
                         result[1].title.should.equal('no tags, yeah');
                         result[2].title.should.equal('has internal tag');
-                    });
-            });
-        });
-
-        describe('Multiple where clauses for relations', function () {
-            it('tags.slug equals "cgi" and posts_tags.sort_order is 0 and featured is true', function () {
-                // where primary tag is "cgi"
-                const mongoJSON = {
-                    $and: [
-                        {
-                            $and: [
-                                {
-                                    'tags.slug': 'cgi'
-                                },
-                                {
-                                    'posts_tags.sort_order': 0
-                                }
-                            ]
-
-                        },
-                        {
-                            featured: true
-                        }
-                    ]
-                };
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(1);
-                        result[0].title.should.equal('When She Loved Me');
-                    });
-            });
-
-            it('tags.slug equals "animal" and posts_tags.sort_order is 0 and featured is false', function () {
-                // where primary tag is "animal"
-                const mongoJSON = {
-                    $and: [
-                        {
-                            $and: [
-                                {
-                                    'tags.slug': 'animal'
-                                },
-                                {
-                                    'posts_tags.sort_order': 0
-                                }
-                            ]
-                        },
-                        {
-                            featured: false
-                        }
-                    ]
-                };
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(1);
-                        result[0].title.should.equal('The Bare Necessities');
-                    });
-            });
-
-            it('tags.slug NOT equal "classic" and posts_tags.sort_order is 0 and featured is true', function () {
-                const mongoJSON = {
-                    $and: [
-                        {
-                            $and: [
-                                {
-                                    'tags.slug': {
-                                        $ne: 'classic'
-                                    }
-                                },
-                                {
-                                    'posts_tags.sort_order': 0
-                                }
-                            ]
-                        },
-                        {
-                            featured: true
-                        }
-                    ]
-                };
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        // TODO: should this include tags with no tags? the filter is about primary tag != 'classic' so they should count?
-                        result.should.be.an.Array().with.lengthOf(3);
-                        result[0].title.should.equal('When She Loved Me');
-                        result[1].title.should.equal('no tags, yeah');
-                        result[2].title.should.equal('has internal tag');
-                    });
-            });
-
-            it('tags.slug equals "animal" and posts_tags.sort_order is 0 OR author_id is 1', function () {
-                const mongoJSON = {
-                    $or: [
-                        {
-                            $and: [
-                                {
-                                    'tags.slug': 'animal'
-                                },
-                                {
-                                    'posts_tags.sort_order': 0
-                                },
-                                {
-                                    featured: false
-                                }
-                            ]
-                        },
-                        {
-                            author_id: 1
-                        }
-                    ]
-                };
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(6);
                     });
             });
         });
