@@ -823,16 +823,6 @@ describe('Relations', function () {
         });
     });
 
-    describe.skip('Many-to-Many: Extended Cases', function () {
-        before(() => utils.db.init('suite1', 'many-to-many-extended-cases'));
-        after(() => utils.db.reset());
-
-        describe('combination of extended cases', function () {
-            it('should be filled with a mix of all the above cases', function () {
-            });
-        });
-    });
-
     describe('[NOT IMPLEMENTED] One-to-One', function () {});
     describe('[NOT IMPLEMENTED] One-to-Many', function () {});
 });
