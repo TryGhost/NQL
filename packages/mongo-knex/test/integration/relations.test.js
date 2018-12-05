@@ -766,59 +766,41 @@ describe('Relations', function () {
                     });
             });
         });
+
+        describe('COUNT', function () {
+            it.skip('can compare by count $gt', function () {
+                const mongoJSON = {
+                    'authors.count': {$gt: 0}
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                    });
+            });
+
+            it.skip('can compare by count $lt', function () {
+                const mongoJSON = {
+                    'authors.count': {$lt: 2}
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                    });
+            });
+        });
     });
 
     describe.skip('Many-to-Many: Extended Cases', function () {
         before(() => utils.db.init('suite1', 'many-to-many-extended-cases'));
         after(() => utils.db.reset());
-
-        describe('count', function () {
-            it('can compare by count $gt', function () {
-                const queryJSON = {
-                    'authors.count': {$gt: 0}
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-
-            it('can compare by count $lt', function () {
-                const queryJSON = {
-                    'authors.count': {$lt: 2}
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-        });
 
         describe('combination of extended cases', function () {
             it('should be filled with a mix of all the above cases', function () {
