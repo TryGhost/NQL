@@ -12,4 +12,7 @@ if (!process.env.NODE_ENV) {
 // Require overrides - these add globals for tests
 require('./overrides');
 
+// "should" overrides
+require('./assertions');
+
 module.exports.db = require('./db');

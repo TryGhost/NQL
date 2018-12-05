@@ -6,25 +6,31 @@ const convertor = require('../../lib/convertor');
 /* eslint-disable no-console*/
 
 // @TODO: the config object is not designed yet.
-const makeQuery = query => convertor(knex('posts'), query, {
-    relations: {
-        tags: {
-            tableName: 'tags',
-            type: 'manyToMany',
-            join_table: 'posts_tags',
-            join_from: 'post_id',
-            join_to: 'tag_id'
-        },
-        authors: {
-            tableName: 'users',
-            tableNameAs: 'authors',
-            type: 'manyToMany',
-            join_table: 'posts_authors',
-            join_from: 'post_id',
-            join_to: 'author_id'
+const makeQuery = (mongoJSON) => {
+    const query = convertor(knex('posts'), mongoJSON, {
+        relations: {
+            tags: {
+                tableName: 'tags',
+                type: 'manyToMany',
+                join_table: 'posts_tags',
+                join_from: 'post_id',
+                join_to: 'tag_id'
+            },
+            authors: {
+                tableName: 'users',
+                tableNameAs: 'authors',
+                type: 'manyToMany',
+                join_table: 'posts_authors',
+                join_from: 'post_id',
+                join_to: 'author_id'
+            }
         }
-    }
-});
+    });
+
+    query.orderBy('id', 'ASC');
+
+    return query;
+};
 
 // Integration tests build a test database and
 // check that we get the exact data we expect from each query
@@ -48,6 +54,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([2, 4, 6]);
                     });
             });
 
@@ -62,6 +69,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
+                        result.should.matchIds([8]);
                     });
             });
         });
@@ -82,6 +90,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(5);
+                        result.should.matchIds([1, 3, 5, 7, 8]);
                     });
             });
 
@@ -98,6 +107,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([7, 8]);
                     });
             });
         });
@@ -121,6 +131,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([4, 6]);
                     });
             });
 
@@ -142,7 +153,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
-                        result[0].title.should.equal('has internal tag');
+                        result.should.matchIds([8]);
                     });
             });
 
@@ -166,7 +177,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
-                        result[0].title.should.equal('The Bare Necessities');
+                        result.should.matchIds([2]);
                     });
             });
 
@@ -188,7 +199,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
-                        result[0].title.should.equal('The Bare Necessities');
+                        result.should.matchIds([2]);
                     });
             });
 
@@ -217,7 +228,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
-                        result[0].title.should.equal('The Bare Necessities');
+                        result.should.matchIds([2]);
                     });
             });
 
@@ -242,6 +253,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
+                        result.should.matchIds([2]);
                     });
             });
 
@@ -268,6 +280,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([1, 5, 7, 8]);
                     });
             });
 
@@ -285,12 +298,11 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(2);
-                        result[0].title.should.equal('The Bare Necessities');
-                        result[1].title.should.equal('When She Loved Me');
+                        result.should.matchIds([2, 3]);
                     });
             });
 
-            it('tags.slug NOT equal "classic" and tags.visibility is equal "public"', function () {
+            it('tags.slug NOT IN ["classic"] and tags.visibility is equal "public"', function () {
                 const mongoJSON = {
                     'tags.visibility': 'public',
                     'tags.slug': {
@@ -304,8 +316,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(2);
-                        result[0].title.should.equal('The Bare Necessities');
-                        result[1].title.should.equal('When She Loved Me');
+                        result.should.matchIds([2, 3]);
                     });
             });
 
@@ -326,6 +337,7 @@ describe('Relations', function () {
                 };
 
                 const query = makeQuery(mongoJSON);
+
                 // NOTE: this query is generating a group, this should be avoided
                 // as we can't group negated properties with other, unless those
                 // are going through connecting table
@@ -333,8 +345,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(2);
-                        result[0].title.should.equal('The Bare Necessities');
-                        result[1].title.should.equal('When She Loved Me');
+                        result.should.matchIds([2, 3]);
                     });
             });
 
@@ -356,6 +367,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([1, 4, 5, 6]);
                     });
             });
 
@@ -390,6 +402,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([1, 5, 6]);
                     });
             });
 
@@ -421,7 +434,7 @@ describe('Relations', function () {
                         .select()
                         .then((result) => {
                             result.should.be.an.Array().with.lengthOf(1);
-                            result[0].title.should.equal('When She Loved Me');
+                            result.should.matchIds([3]);
                         });
                 });
 
@@ -451,7 +464,7 @@ describe('Relations', function () {
                         .select()
                         .then((result) => {
                             result.should.be.an.Array().with.lengthOf(1);
-                            result[0].title.should.equal('The Bare Necessities');
+                            result.should.matchIds([2]);
                         });
                 });
 
@@ -481,11 +494,10 @@ describe('Relations', function () {
                     return query
                         .select()
                         .then((result) => {
-                            // TODO: should this include tags with no tags? the filter is about primary tag != 'classic' so they should count?
+                            // @NOTE: This should return posts without tags, because a post without tags is not tagged
+                            //        with the primary tag "classic".
                             result.should.be.an.Array().with.lengthOf(3);
-                            result[0].title.should.equal('When She Loved Me');
-                            result[1].title.should.equal('no tags, yeah');
-                            result[2].title.should.equal('has internal tag');
+                            result.should.matchIds([3, 7, 8]);
                         });
                 });
             });
@@ -510,6 +522,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(7);
+                        result.should.matchIds([1, 3, 4, 5, 6, 7, 8]);
                     });
             });
 
@@ -531,6 +544,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([2, 3, 4, 8]);
                     });
             });
 
@@ -556,6 +570,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([2, 4, 6, 8]);
                     });
             });
 
@@ -588,6 +603,7 @@ describe('Relations', function () {
                         .select()
                         .then((result) => {
                             result.should.be.an.Array().with.lengthOf(6);
+                            result.should.matchIds([1, 2, 3, 5, 6, 7]);
                         });
                 });
 
@@ -616,6 +632,7 @@ describe('Relations', function () {
                         .select()
                         .then((result) => {
                             result.should.be.an.Array().with.lengthOf(2);
+                            result.should.matchIds([2, 8]);
                         });
                 });
 
@@ -640,6 +657,7 @@ describe('Relations', function () {
                         .select()
                         .then((result) => {
                             result.should.be.an.Array().with.lengthOf(7);
+                            result.should.matchIds([1, 2, 3, 4, 5, 6, 8]);
                         });
                 });
             });
@@ -659,6 +677,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([2, 4, 6]);
                     });
             });
 
@@ -675,6 +694,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([2, 3, 4, 6]);
                     });
             });
 
@@ -691,6 +711,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([2, 3, 4, 6]);
                     });
             });
 
@@ -714,6 +735,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([4, 6]);
                     });
             });
         });
@@ -732,6 +754,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(5);
+                        result.should.matchIds([1, 3, 5, 7, 8]);
                     });
             });
 
@@ -748,6 +771,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([1, 5, 7, 8]);
                     });
             });
 
@@ -764,6 +788,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([1, 5, 7, 8]);
                     });
             });
 
@@ -787,9 +812,7 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(3);
-                        result[0].title.should.equal('When She Loved Me');
-                        result[1].title.should.equal('no tags, yeah');
-                        result[2].title.should.equal('has internal tag');
+                        result.should.matchIds([3, 7, 8]);
                     });
             });
         });
