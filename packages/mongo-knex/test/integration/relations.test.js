@@ -13,9 +13,7 @@ const makeQuery = query => convertor(knex('posts'), query, {
             type: 'manyToMany',
             join_table: 'posts_tags',
             join_from: 'post_id',
-            join_to: 'tag_id',
-            // @TODO: tag -> tags.slug
-            aliases: {}
+            join_to: 'tag_id'
         },
         authors: {
             tableName: 'users',
@@ -734,36 +732,6 @@ describe('Relations', function () {
         before(() => utils.db.init('suite1', 'many-to-many-extended-cases'));
         after(() => utils.db.reset());
 
-        describe('negation $ne and $nin', function () {
-            it('ALIAS SUPPORT NEEDED can match aliased $ne', function () {
-                // NOTE: makeQuery needs additional configuration to be passed in for aliases
-                const queryJSON = {
-                    tag: {
-                        $ne: 'animal'
-                    }
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        // NOTE: make sure to count in posts with no tags
-                        //       do not count in posts with multiple tags containing one of the excluded tags
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-        });
-
         describe('count', function () {
             it('can compare by count $gt', function () {
                 const queryJSON = {
@@ -838,33 +806,6 @@ describe('Relations', function () {
                         // result.should.do.something;
                     });
             });
-
-            it('can match multiple values of same aliased attribute', function () {
-                // NOTE: makeQuery needs additional configuration to be passed in for aliases
-                const queryJSON = {
-                    $and: [
-                        {author: 'pat'},
-                        {author: 'sam'}
-                    ]
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
         });
 
         describe('conjunction $or', function () {
@@ -899,33 +840,6 @@ describe('Relations', function () {
                     $or: [
                         {'authors.slug': 'joe'},
                         {'tags.slug': 'photo'}
-                    ]
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-
-            it('can match values of same aliased attributes', function () {
-                // NOTE: makeQuery needs additional configuration to be passed in for aliases
-                const queryJSON = {
-                    $or: [
-                        {author: 'joe'},
-                        {author: 'pat'}
                     ]
                 };
 

@@ -29,7 +29,7 @@ class MongoToKnex {
         this.config = {};
 
         // @TODO: https://github.com/NexesJS/mongo-knex/issues/4
-        Object.assign(this.config, {relations: {}, aliases: {}}, config);
+        Object.assign(this.config, {relations: {}}, config);
     }
 
     processWhereType(mode, op, value) {
