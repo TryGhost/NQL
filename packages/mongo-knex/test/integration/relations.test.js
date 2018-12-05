@@ -17,8 +17,11 @@ const makeQuery = query => convertor(knex('posts'), query, {
         },
         authors: {
             tableName: 'users',
-            type: 'oneToMany',
-            join_from: 'author_id'
+            tableNameAs: 'authors',
+            type: 'manyToMany',
+            join_table: 'posts_authors',
+            join_from: 'post_id',
+            join_to: 'author_id'
         }
     }
 });
@@ -332,6 +335,61 @@ describe('Relations', function () {
                         result.should.be.an.Array().with.lengthOf(2);
                         result[0].title.should.equal('The Bare Necessities');
                         result[1].title.should.equal('When She Loved Me');
+                    });
+            });
+
+            it('any author is pat and any tag is classic (query on multiple relations)', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'authors.slug': 'pat'
+                        },
+                        {
+                            'tags.slug': 'classic'
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                    });
+            });
+
+            it('first author is pat and first tag is classic (query on multiple relations)', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            $and: [
+                                {
+                                    'tags.slug': 'classic'
+                                },
+                                {
+                                    'posts_tags.sort_order': 0
+                                }
+                            ]
+                        },
+                        {
+                            $and: [
+                                {
+                                    'authors.slug': 'pat'
+                                },
+                                {
+                                    'posts_authors.sort_order': 0
+                                }
+                            ]
+                        }
+                    ]
+                };
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
                     });
             });
         });
@@ -699,34 +757,6 @@ describe('Relations', function () {
             it('can compare by count $lt', function () {
                 const queryJSON = {
                     'authors.count': {$lt: 2}
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
-            });
-        });
-
-        describe('conjunction $and', function () {
-            it('can match multiple values of different attributes', function () {
-                const queryJSON = {
-                    $and: [
-                        {'authors.slug': 'pat'},
-                        {'tags.slug': 'classic'}
-                    ]
                 };
 
                 // Use the queryJSON to build a query
