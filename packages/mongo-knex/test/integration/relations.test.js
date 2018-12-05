@@ -488,6 +488,31 @@ describe('Relations', function () {
                         result.should.be.an.Array().with.lengthOf(4);
                     });
             });
+
+            it('any author is not pat or any tag is in [animal]', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            'authors.slug': {
+                                $ne: 'pat'
+                            }
+                        },
+                        {
+                            'tags.slug': {
+                                $in: ['animal']
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                    });
+            });
         });
 
         describe('IN $in', function () {
@@ -804,32 +829,6 @@ describe('Relations', function () {
 
         describe('combination of extended cases', function () {
             it('should be filled with a mix of all the above cases', function () {
-            });
-
-            it('can match values of different attributes combining with negation', function () {
-                const queryJSON = {
-                    $or: [
-                        {'authors.slug': {$ne: 'joe'}},
-                        {'tags.slug': {$in: ['photo']}}
-                    ]
-                };
-
-                // Use the queryJSON to build a query
-                const query = makeQuery(queryJSON);
-
-                // Check any intermediate values
-                console.log(query.toQuery());
-
-                // Perform the query against the DB
-                return query.select()
-                    .then((result) => {
-                        console.log(result);
-
-                        result.should.be.an.Array().with.lengthOf(3);
-
-                        // Check we get the right data
-                        // result.should.do.something;
-                    });
             });
         });
     });
