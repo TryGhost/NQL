@@ -15,6 +15,7 @@ module.exports.up = function (knex) {
             table.boolean('featured').defaultsTo(false);
             table.string('image', 191).nullable();
             table.string('status', 191).nullable();
+            table.dateTime('published_at').nullable();
             table.integer('author_id').unsigned().references('users.id');
         }))
         .then(() => knex.schema.createTable('tags', (table) => {
@@ -22,6 +23,7 @@ module.exports.up = function (knex) {
             table.string('name', 191);
             table.string('slug', 191);
             table.string('visibility', 191).defaultTo('public');
+            table.dateTime('created_at');
         }))
         .then(() => knex.schema.createTable('posts_tags', (table) => {
             table.increments('id').primary();

@@ -22,6 +22,7 @@ const isOp = key => key.charAt(0) === '$';
 const isLogicOp = key => isOp(key) && _.includes(logicOps, key);
 const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
 const isNegationOp = key => isOp(key) && _.includes(['$ne', '$nin'], key);
+const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
 
 class MongoToKnex {
     constructor(options = {}, config = {}) {
@@ -249,11 +250,19 @@ class MongoToKnex {
                             if (negateGroup) {
                                 statementOp = compOps.$in;
                             } else {
-                                statementOp = isNegationOp(statement.operator)
-                                    ? compOps.$nin
-                                    : compOps.$in;
+                                if (isNegationOp(statement.operator)) {
+                                    statementOp = compOps.$nin;
+                                } else {
+                                    statementOp = compOps[statement.operator];
+                                }
                             }
-                            const statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
+
+                            let statementValue = statement.value;
+
+                            // CASE: need to normalize value to array when it's a group operation
+                            if (isStatementGroupOp(statementOp)) {
+                                statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
+                            }
 
                             innerQB[statement.whereType](statementColumn, statementOp, statementValue);
                         });

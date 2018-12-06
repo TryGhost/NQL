@@ -23,6 +23,7 @@
             "featured": false,
             "image": null,
             "status": "published",
+            "published_at": "2015-01-01",
             "author_id": 1
         },
         {
@@ -31,6 +32,7 @@
             "featured": false,
             "image": "myimage.jpg",
             "status": "draft",
+            "published_at": null,
             "author_id": 2
         },
         {
@@ -39,6 +41,7 @@
             "featured": true,
             "image": null,
             "status": "published",
+            "published_at": "2015-01-03",
             "author_id": 1
         },
         {
@@ -47,6 +50,7 @@
             "featured": true,
             "image": null,
             "status": "published",
+            "published_at": "2015-06-01",
             "author_id": 2
         },
         {
@@ -55,6 +59,7 @@
             "featured": true,
             "image": null,
             "status": "published",
+            "published_at": "2015-06-02",
             "author_id": 1
         },
         {
@@ -63,6 +68,7 @@
             "featured": true,
             "image": null,
             "status": "published",
+            "published_at": "2015-06-03",
             "author_id": 1
         },
         {
@@ -71,6 +77,7 @@
             "featured": true,
             "image": null,
             "status": "published",
+            "published_at": "2015-06-04",
             "author_id": 1
         },
         {
@@ -79,6 +86,7 @@
             "featured": true,
             "image": null,
             "status": "published",
+            "published_at": "2015-06-05",
             "author_id": 2
         }
     ],
@@ -87,25 +95,29 @@
             "id": 1,
             "name": "Classic",
             "slug": "classic",
-            "visibility": "public"
+            "visibility": "public",
+            "created_at": "2015-01-01"
         },
         {
             "id": 2,
             "name": "Animal",
             "slug": "animal",
-            "visibility": "public"
+            "visibility": "public",
+            "created_at": "2015-01-02"
         },
         {
             "id": 3,
             "name": "CGI",
             "slug": "cgi",
-            "visibility": "public"
+            "visibility": "public",
+            "created_at": "2015-06-21"
         },
         {
             "id": 4,
             "name": "#internal",
             "slug": "hash-internal",
-            "visibility": "internal"
+            "visibility": "internal",
+            "created_at": "2015-06-22"
         }
     ]
 }

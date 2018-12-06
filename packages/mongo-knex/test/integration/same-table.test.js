@@ -85,4 +85,63 @@ describe('Same Table', function () {
                 });
         });
     });
+
+    describe('COMPARISONS $gt / $gte / $lt / $lte', function () {
+        it('published_at is > 2015-06-04', function () {
+            const mongoJSON = {published_at: {
+                $gt: '2015-06-04'
+            }};
+
+            const query = makeQuery(mongoJSON);
+
+            return query
+                .then((result) => {
+                    result.length.should.eql(1);
+                    result.should.matchIds([8]);
+                });
+        });
+
+        it('published_at is >= 2015-06-04', function () {
+            const mongoJSON = {published_at: {
+                $gte: '2015-06-04'
+            }};
+
+            const query = makeQuery(mongoJSON);
+
+            return query
+                .then((result) => {
+                    result.length.should.eql(2);
+                    result.should.matchIds([7, 8]);
+                });
+        });
+
+        it('published_at is < 2015-06-04', function () {
+            const mongoJSON = {published_at: {
+                $lt: '2015-06-04'
+            }};
+
+            const query = makeQuery(mongoJSON);
+
+            return query
+                .then((result) => {
+                    result.length.should.eql(5);
+                    result.should.matchIds([1, 3, 4, 5, 6]);
+                });
+        });
+
+        it('published_at is <= 2015-06-04', function () {
+            const mongoJSON = {published_at: {
+                $lte: '2015-06-04'
+            }};
+
+            const query = makeQuery(mongoJSON);
+
+            return query
+                .then((result) => {
+                    result.length.should.eql(6);
+                    result.should.matchIds([1, 3, 4, 5, 6, 7]);
+                });
+        });
+    });
 });
+

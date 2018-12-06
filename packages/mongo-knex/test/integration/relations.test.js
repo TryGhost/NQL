@@ -112,6 +112,64 @@ describe('Relations', function () {
             });
         });
 
+        describe('COMPARISONS $gt / $gte / $lt / $lte', function () {
+            it('tags.created_at is > 2015-06-21', function () {
+                const mongoJSON = {'tags.created_at': {
+                    $gt: '2015-06-21'
+                }};
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .then((result) => {
+                        result.length.should.eql(1);
+                        result.should.matchIds([8]);
+                    });
+            });
+
+            it('tags.created_at is >= 2015-06-21', function () {
+                const mongoJSON = {'tags.created_at': {
+                    $gte: '2015-06-21'
+                }};
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .then((result) => {
+                        result.length.should.eql(2);
+                        result.should.matchIds([3, 8]);
+                    });
+            });
+
+            it('tags.created_at is < 2015-01-02', function () {
+                const mongoJSON = {'tags.created_at': {
+                    $lt: '2015-01-02'
+                }};
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .then((result) => {
+                        result.length.should.eql(4);
+                        result.should.matchIds([1, 4, 5, 6]);
+                    });
+            });
+
+            it('tags.created_at is <= 2015-01-02', function () {
+                const mongoJSON = {'tags.created_at': {
+                    $lte: '2015-01-02'
+                }};
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .then((result) => {
+                        result.length.should.eql(5);
+                        result.should.matchIds([1, 2, 4, 5, 6]);
+                    });
+            });
+        });
+
         describe('AND $and', function () {
             it('tags.slug is animal and classic', function () {
                 const mongoJSON = {
