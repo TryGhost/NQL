@@ -49,14 +49,6 @@ class MongoToKnex {
      */
     processStatement(column, op, value) {
         const [tableName, columnName] = column.split('.');
-        // CASE: `posts.status` -> where "posts" is the parent table
-        if (tableName === this.tableName) {
-            return {
-                column: column,
-                value: value,
-                isRelation: false
-            };
-        }
 
         // CASE: relation?
         if (columnName) {
@@ -71,8 +63,13 @@ class MongoToKnex {
                     return relation.join_table === table;
                 });
 
+                // CASE: assume it's a column on the destination table
                 if (!relation) {
-                    throw new Error('Can\'t find relation in config object.');
+                    return {
+                        column: column,
+                        value: value,
+                        isRelation: false
+                    };
                 }
 
                 return {
