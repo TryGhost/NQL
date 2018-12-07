@@ -25,11 +25,26 @@ const isNegationOp = key => isOp(key) && _.includes(['$ne', '$nin'], key);
 const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
 
 class MongoToKnex {
+    /**
+     *
+     * @param {Object} options
+     * @param {String} options.tableName
+     *
+     * @param {Object} config
+     * @param {Object} config.relations structure:
+     *  {[relation-name]}: {
+     *      tableName: String (e.g. tags)
+     *      tableNameAs: String (e.g. t, optional)
+     *      type: String (e.g. manyToMany)
+     *      joinTable: String (e.g.  posts_tags)
+     *      joinFrom: String (e.g. post_id)
+     *      joinTo: String (e.g. tag_id)
+     *  }
+     */
     constructor(options = {}, config = {}) {
         this.tableName = options.tableName;
         this.config = {};
 
-        // @TODO: https://github.com/NexesJS/mongo-knex/issues/4
         Object.assign(this.config, {relations: {}}, config);
     }
 
@@ -61,7 +76,7 @@ class MongoToKnex {
             if (!relation) {
                 // CASE: you want to filter by a column on the join table
                 relation = _.find(this.config.relations, (relation) => {
-                    return relation.join_table === table;
+                    return relation.joinTable === table;
                 });
 
                 // CASE: assume it's a column on the destination table
@@ -74,7 +89,7 @@ class MongoToKnex {
                 }
 
                 return {
-                    join_table: relation.join_table,
+                    joinTable: relation.joinTable,
                     table: relation.tableName,
                     column: columnName,
                     operator: op,
@@ -122,7 +137,7 @@ class MongoToKnex {
         // e.g. for $or we can create a subquery or group that filter,
         //      for $and we have to include joining table filter in every group
         const innerWhereStatements = (mode === '$and')
-            ? statements.filter(r => !(r.join_table))
+            ? statements.filter(r => !(r.joinTable))
             : statements;
 
         _.each(innerWhereStatements, (statement, idx) => {
@@ -164,7 +179,7 @@ class MongoToKnex {
         // NOTE: filters applied on join level have to be included when they are
         // a part of $and  group
         if (mode === '$and') {
-            const joinFilterStatements = statements.filter(r => (r.join_table));
+            const joinFilterStatements = statements.filter(r => (r.joinTable));
 
             _.each(Object.keys(group), (key) => {
                 group[key].joinFilterStatements = joinFilterStatements;
@@ -225,15 +240,15 @@ class MongoToKnex {
                         }
 
                         const innerQB = this
-                            .select(`${reference.config.join_table}.${reference.config.join_from}`)
-                            .from(`${reference.config.join_table}`)
+                            .select(`${reference.config.joinTable}.${reference.config.joinFrom}`)
+                            .from(`${reference.config.joinTable}`)
                             .innerJoin(innerJoinValue, function () {
-                                this.on(innerJoinOn, '=', `${reference.config.join_table}.${reference.config.join_to}`);
+                                this.on(innerJoinOn, '=', `${reference.config.joinTable}.${reference.config.joinTo}`);
 
                                 // CASE: when applying AND con junction and having multiple groups the filter
                                 //       related to joining table has to be applied within each group
                                 _.each(joinFilterStatements, (joinFilter) => {
-                                    this.andOn(`${joinFilter.join_table}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
+                                    this.andOn(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
                                 });
                             });
 
@@ -244,7 +259,7 @@ class MongoToKnex {
                         _.each(statements, (statement, key) => {
                             debug(`(buildRelationQuery) build relation where statements for ${key}`);
 
-                            const statementColumn = `${statement.join_table || statement.table}.${statement.column}`;
+                            const statementColumn = `${statement.joinTable || statement.table}.${statement.column}`;
                             let statementOp;
 
                             if (negateGroup) {
