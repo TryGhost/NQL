@@ -106,8 +106,6 @@ class MongoToKnex {
      * We group the relations by a unique key.
      * Each grouping will create a sub query.
      *
-     * @TODO: choose a different key name (!)
-     *
      * Returns a group structure of following format:
      *  {
      *      "groupKey": {
@@ -127,7 +125,7 @@ class MongoToKnex {
             ? statements.filter(r => !(r.join_table))
             : statements;
 
-        _.each(innerWhereStatements, (statement) => {
+        _.each(innerWhereStatements, (statement, idx) => {
             /**
              * CASE:
              * - we should not use the same sub query if the column name is the same (two sub queries)
@@ -148,9 +146,11 @@ class MongoToKnex {
             let groupKey = statement.table;
 
             if (createSubGroup) {
-                // TODO: while this is 'good enough' approach this needs to be approached with something
-                // more stable than random from 1..100
-                groupKey = `${statement.table}_${Math.floor(Math.random() * 100)}`;
+                groupKey = `${statement.table}_${idx})}`;
+
+                if (group[groupKey]) {
+                    throw new Error('Key collision detected');
+                }
             }
 
             if (!group[groupKey]) {

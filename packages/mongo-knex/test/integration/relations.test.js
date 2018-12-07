@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const utils = require('../utils');
 const knex = utils.db.client;
 
@@ -629,6 +630,33 @@ describe('Relations', function () {
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
                         result.should.matchIds([2, 4, 6, 8]);
+                    });
+            });
+
+            it('any author is pat or leslie or lots of other do not collide when grouping', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            'authors.slug': 'leslie'
+                        },
+                        {
+                            'authors.slug': 'pat'
+                        }
+                    ]
+                };
+
+                _.times(100, (idx) => {
+                    const author = {'authors.slug': `author-${idx}`};
+                    mongoJSON.$or.push(author);
+                });
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(7);
+                        result.should.matchIds([1, 3, 4, 5, 6, 7, 8]);
                     });
             });
 
