@@ -80,6 +80,34 @@ const rejectStatements = (statements, func) => {
 };
 
 /**
+ * ## Merge Filters
+ * Util to combine multiple filters based on the priority how
+ * they are passed into the method. For example:
+ *      mergeFilter(overrides, custom, defaults);
+ * would merge these three filters having overrides on highers priority
+ * and defaults on the lowest priority
+ */
+const mergeFilters = (...filters) => {
+    let merged = {};
+
+    filters
+        .filter(filter => (!!filter)) // CASE: remove empty arguments if any
+        .forEach((filter) => {
+            if (filter && Object.keys(filter).length > 0) {
+                filter = rejectStatements(filter, (statement) => {
+                    return findStatement(merged, statement);
+                });
+
+                if (filter) {
+                    merged = merged ? combineFilters(merged, filter) : filter;
+                }
+            }
+        });
+
+    return merged;
+};
+
+/**
  * ## Expand Filters
  * Util that expands Mongo JSON statements with custom statements
  */
@@ -131,5 +159,6 @@ module.exports = {
     combineFilters: combineFilters,
     findStatement: findStatement,
     rejectStatements: rejectStatements,
+    mergeFilters: mergeFilters,
     expandFilters: expandFilters
 };
