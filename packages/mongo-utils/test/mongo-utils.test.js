@@ -731,3 +731,136 @@ describe('Expand filters', () => {
         expandFilters(filter, expansions).should.eql(processed);
     });
 });
+
+describe('mapQuery', function () {
+    it('uses the return value instead of existing value', function () {
+        const filter = {
+            $and: [{
+                hello: 'world'
+            }, {
+                never: {
+                    $ne: 'have i ever'
+                }
+            }, {
+                list: {
+                    $in: ['a', 'b']
+                }
+            }]
+        };
+
+        mongoUtils.mapQuery(filter, function (value, key) {
+            return {
+                [key.toUpperCase()]: value
+            };
+        }).should.eql({
+            $and: [{
+                HELLO: 'world'
+            }, {
+                NEVER: {
+                    $ne: 'have i ever'
+                }
+            }, {
+                LIST: {
+                    $in: ['a', 'b']
+                }
+            }]
+        });
+    });
+
+    it('can modify both key and value', function () {
+        const filter = {
+            $and: [{
+                oh: 'no'
+            }, {
+                oh: 'yes'
+            }, {
+                untouched: {
+                    $in: ['a', 'b']
+                }
+            }]
+        };
+
+        mongoUtils.mapQuery(filter, function (value, key) {
+            if (key === 'oh') {
+                if (value === 'no') {
+                    return {
+                        ['hey']: 'nay'
+                    };
+                } else if (value === 'yes') {
+                    return {
+                        ['hey']: 'ay'
+                    };
+                }
+            }
+
+            return {
+                [key]: value
+            };
+        }).should.eql({
+            $and: [{
+                hey: 'nay'
+            }, {
+                hey: 'ay'
+            }, {
+                untouched: {
+                    $in: ['a', 'b']
+                }
+            }]
+        });
+    });
+
+    it('allows removal of queries by returning undefined', function () {
+        const filter = {
+            $and: [{
+                hello: 'world'
+            }, {
+                never: {
+                    $ne: 'have i ever'
+                }
+            }, {
+                DELETEME: {
+                    $in: ['a', 'b']
+                }
+            }]
+        };
+
+        mongoUtils.mapQuery(filter, function (value, key) {
+            if (key === 'DELETEME') {
+                return;
+            }
+            return {
+                [key]: value
+            };
+        }).should.eql({
+            $and: [{
+                hello: 'world'
+            }, {
+                never: {
+                    $ne: 'have i ever'
+                }
+            }]
+        });
+    });
+
+    it('allows removal of parents by emptying the children', function () {
+        const filter = {
+            $and: [{
+                hello: 'world'
+            }, {
+                never: {
+                    $ne: 'have i ever'
+                }
+            }, {
+                DELETEME: {
+                    $in: ['a', 'b']
+                }
+            }]
+        };
+
+        mongoUtils.mapQuery(filter, function (/*value, key*/) {
+            return;
+        }).should.eql({
+            // EMPTY
+        });
+    });
+});

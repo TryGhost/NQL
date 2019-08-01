@@ -3,6 +3,32 @@ const _ = require('lodash');
 const GROUPS = ['$and', '$or'];
 
 /**
+ * Maps over a mongo query, calling `fn` on each non-operator object
+ * using the return value as the new query object at that level/layer
+ */
+const mapQuery = (query, fn) => {
+    if (Array.isArray(query)) {
+        return query.map(obj => mapQuery(obj, fn))
+            // Allow removal of empty children from lists
+            .filter(obj => !_.isEmpty(obj));
+    }
+    return _.reduce(query, (modifiedNQLMongoJSON, value, key) => {
+        let mappedObject;
+        if (GROUPS.includes(key)) {
+            const mappedValue = mapQuery(value, fn);
+            // Allow removal of parent with empty children
+            mappedObject = _.isEmpty(mappedValue) ? null : {
+                [key]: mappedValue
+            };
+        } else {
+            mappedObject = fn(value, key);
+        }
+
+        return _.assign({}, modifiedNQLMongoJSON, mappedObject);
+    }, {});
+};
+
+/**
  * Combines two filters with $and conjunction
  */
 const combineFilters = (primary, secondary) => {
@@ -50,33 +76,14 @@ const rejectStatements = (statements, func) => {
         return statements;
     }
 
-    GROUPS.forEach((group) => {
-        if (_.has(statements, group)) {
-            statements[group] = rejectStatements(statements[group], func);
-
-            if (statements[group].length === 0) {
-                delete statements[group];
-            }
+    return mapQuery(statements, function (value, key) {
+        if (func(key)) {
+            return;
         }
+        return {
+            [key]: value
+        };
     });
-
-    if (_.isArray(statements)) {
-        statements = statements
-            .map((statement) => {
-                return rejectStatements(statement, func);
-            })
-            .filter((statement) => {
-                return !(_.isEmpty(statement));
-            });
-    } else {
-        Object.keys(statements).forEach((key) => {
-            if (!GROUPS.includes(key) && func(key)) {
-                delete statements[key];
-            }
-        });
-    }
-
-    return statements;
 };
 
 /**
@@ -128,37 +135,32 @@ const expandFilters = (statements, expansions) => {
         ]};
     };
 
-    let processed = {};
+    return mapQuery(statements, function (value, key) {
+        const expansion = _.find(expansions, {key});
 
-    Object.keys(statements).forEach((key) => {
-        if (GROUPS.includes(key)) {
-            processed[key] = statements[key]
-                .map(statement => expandFilters(statement, expansions));
-        } else {
-            const expansion = _.find(expansions, {key});
-
-            if (expansion) {
-                let replaced = {};
-                replaced[expansion.replacement] = statements[key];
-
-                if (expansion.expansion) {
-                    replaced = expand(replaced, expansion.expansion);
-                }
-
-                processed = _.merge(processed, replaced);
-            } else {
-                processed = _.merge(processed, _.pick(statements, key));
-            }
+        if (!expansion) {
+            return {
+                [key]: value
+            };
         }
-    });
 
-    return processed;
+        let replaced = {
+            [expansion.replacement]: value
+        };
+
+        if (expansion.expansion) {
+            return expand(replaced, expansion.expansion);
+        }
+
+        return replaced;
+    });
 };
 
 module.exports = {
-    combineFilters: combineFilters,
-    findStatement: findStatement,
-    rejectStatements: rejectStatements,
-    mergeFilters: mergeFilters,
-    expandFilters: expandFilters
+    combineFilters,
+    findStatement,
+    rejectStatements,
+    mergeFilters,
+    expandFilters,
+    mapQuery
 };
