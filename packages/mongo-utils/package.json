@@ -1,6 +1,6 @@
 {
   "name": "@nexes/mongo-utils",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "repository": "git@github.com:NexesJS/mongo-utils.git",
   "author": "Ghost Foundation",
   "license": "MIT",
