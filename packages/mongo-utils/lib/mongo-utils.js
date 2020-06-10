@@ -156,7 +156,87 @@ const expandFilters = (statements, expansions) => {
     });
 };
 
+/**
+ * @typedef {object} Mapping
+ *
+ * @prop {any} from
+ * @prop {any} to
+ */
+
+/**
+ * @typedef {object} KeyValueMapping
+ *
+ * @prop {Mapping} key
+ * @prop {Mapping[]} values
+ */
+
+/**
+ * Returns the replace value for `input`, or just `input` if there is no replacement
+ *
+ * @param {any} input
+ * @param {Mapping[]} valueMappings
+ *
+ * @returns {any}
+ */
+function replaceValue(input, valueMappings) {
+    const replacer = valueMappings.find(({from}) => from === input);
+    return replacer ? replacer.to : input;
+}
+
+/**
+ * Returns the result of calling fn on an item or each item in an array
+ */
+function fmap(item, fn) {
+    return Array.isArray(item) ? item.map(fn) : fn(item);
+}
+
+/**
+ * @typedef {Object} Query
+ */
+
+/**
+ * Returns a transformer which can be passed into nql
+ *
+ * @param {KeyValueMapping} mapping
+ *
+ * @returns {(input: Query) => Query}
+ */
+function mapKeyValues(mapping) {
+    /**
+     * @param {Query} input
+     */
+    return function transformer(input) {
+        return mapQuery(input, function (value, key) {
+            // Passthrough on anything that doesn't match our mapping
+            if (key !== mapping.key.from) {
+                return {
+                    [key]: value
+                };
+            }
+
+            // Primitive query of the form "key: value"
+            if (typeof value !== 'object') {
+                return {
+                    [mapping.key.to]: replaceValue(value, mapping.values)
+                };
+            }
+
+            // Complex query of the form "key: { $in: [value, value] }" or "key: { $ne: value }"
+            return {
+                [mapping.key.to]: _.reduce(value, (updatedQuery, objValue, objKey) => {
+                    // objKey = $in | $ne | etc...
+                    // objValue = vallue | [value, value] | etc...
+                    return Object.assign(updatedQuery, {
+                        [objKey]: fmap(objValue, item => replaceValue(item, mapping.values))
+                    });
+                }, {})
+            };
+        });
+    };
+}
+
 module.exports = {
+    mapKeyValues,
     combineFilters,
     findStatement,
     rejectStatements,

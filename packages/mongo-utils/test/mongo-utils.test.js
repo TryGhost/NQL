@@ -864,3 +864,77 @@ describe('mapQuery', function () {
         });
     });
 });
+
+describe('mapKeyValues', function () {
+    it('Is able to replace both keys and values', function () {
+        const query = {
+            good: true
+        };
+
+        const transformer = mongoUtils.mapKeyValues({
+            key: {
+                from: 'good',
+                to: 'bad'
+            },
+            values: [{
+                from: true,
+                to: false
+            }, {
+                from: false,
+                to: true
+            }]
+        });
+
+        transformer(query).should.eql({
+            bad: false
+        });
+    });
+
+    it('Is able to replace nested keys and values', function () {
+        const query = {
+            $and: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    something: 'else'
+                }, {
+                    good: {
+                        $ne: true
+                    }
+                }]
+            }]
+        };
+
+        const transformer = mongoUtils.mapKeyValues({
+            key: {
+                from: 'good',
+                to: 'bad'
+            },
+            values: [{
+                from: true,
+                to: false
+            }, {
+                from: false,
+                to: true
+            }]
+        });
+
+        transformer(query).should.eql({
+            $and: [{
+                bad: {
+                    $ne: true
+                }
+            }, {
+                $or: [{
+                    something: 'else'
+                }, {
+                    bad: {
+                        $ne: false
+                    }
+                }]
+            }]
+        });
+    });
+});
