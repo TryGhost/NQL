@@ -291,6 +291,79 @@ class MongoToKnex {
                 } else {
                     debug(`one of ${key} group statements contains unknown operator`);
                 }
+            } else if (reference.config.type === 'oneToOne') {
+                if (_.every(statements.map(s => s.operator), isCompOp)) {
+                    // CASE: only negate whole group when all the operators in the group are negative,
+                    // otherwise we cannot combine groups with negated and regular equation operators
+                    const negateGroup = _.every(statements.map(s => s.operator), (operator) => {
+                        return isNegationOp(operator);
+                    });
+
+                    const comp = negateGroup
+                        ? compOps.$nin
+                        : compOps.$in;
+                    const tableName = this.tableName;
+
+                    qb[reference.whereType](`${this.tableName}.id`, comp, function () {
+                        const joinFilterStatements = groupedRelations[key].joinFilterStatements;
+
+                        let innerJoinValue = reference.config.tableName;
+                        let innerJoinOn = `${reference.config.tableName}.${reference.config.joinFrom}`;
+
+                        // CASE: you can define a name for the join table
+                        if (reference.config.tableNameAs) {
+                            innerJoinValue = `${reference.config.tableName} as ${reference.config.tableNameAs}`;
+                            innerJoinOn = `${reference.config.tableNameAs}.${reference.config.joinFrom}`;
+                        }
+
+                        const innerQB = this
+                            .select(innerJoinOn)
+                            .from(`${tableName}`)
+                            .leftJoin(innerJoinValue, function () {
+                                this.on(innerJoinOn, '=', `${tableName}.id`);
+
+                                // CASE: when applying AND con junction and having multiple groups the filter
+                                //       related to joining table has to be applied within each group
+                                _.each(joinFilterStatements, (joinFilter) => {
+                                    this.andOn(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
+                                });
+                            });
+
+                        _.each(statements, (statement, key) => {
+                            debug(`(buildRelationQuery) build relation where statements for ${key}`);
+
+                            const statementColumn = `${statement.table}.${statement.column}`;
+                            let statementOp;
+
+                            if (negateGroup) {
+                                statementOp = compOps.$in;
+                            } else {
+                                if (isNegationOp(statement.operator)) {
+                                    statementOp = compOps.$nin;
+                                } else {
+                                    statementOp = compOps[statement.operator];
+                                }
+                            }
+
+                            let statementValue = statement.value;
+
+                            // CASE: need to normalize value to array when it's a group operation
+                            if (isStatementGroupOp(statementOp)) {
+                                statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
+                            }
+
+                            innerQB[statement.whereType](statementColumn, statementOp, statementValue);
+                        });
+
+                        if (debugExtended.enabled) {
+                            debug(`(buildRelationQuery) innerQB sql-pre: ${innerQB.toSQL().sql}`);
+                        }
+
+                        return innerQB;
+                    });
+                } else {
+                    debug(`one of ${key} group statements contains unknown operator`);
+                }
             }
         });
     }

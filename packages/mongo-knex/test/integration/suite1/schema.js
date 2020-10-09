@@ -1,5 +1,12 @@
 const Promise = require('bluebird');
-const TABLES = ['posts_tags', 'posts_authors', 'posts', 'tags', 'users'];
+const TABLES = [
+    'posts_tags',
+    'posts_authors',
+    'posts_meta',
+    'posts',
+    'tags',
+    'users'
+];
 
 module.exports.up = function (knex) {
     // Before all tests, we load any base data (data that won't change)
@@ -17,6 +24,14 @@ module.exports.up = function (knex) {
             table.string('status', 191).nullable();
             table.dateTime('published_at').nullable();
             table.integer('author_id').unsigned().references('users.id');
+        }))
+        .then(() => knex.schema.createTable('posts_meta', (table) => {
+            table.increments('id').primary();
+            table.integer('post_id').unsigned().references('posts.id');
+            table.string('meta_title', 2000).nullable();
+            table.string('meta_description', 2000).nullable();
+            table.string('email_subject', 300).nullable();
+            table.integer('like_count').unsigned();
         }))
         .then(() => knex.schema.createTable('tags', (table) => {
             table.increments('id').primary();
