@@ -304,7 +304,8 @@ class MongoToKnex {
                         : compOps.$in;
                     const tableName = this.tableName;
 
-                    qb[reference.whereType](`${this.tableName}.id`, comp, function () {
+                    const where = reference.whereType === 'orWhere' ? 'orWhere' : 'where';
+                    qb[where](`${this.tableName}.id`, comp, function () {
                         const joinFilterStatements = groupedRelations[key].joinFilterStatements;
 
                         let innerJoinValue = reference.config.tableName;
@@ -317,7 +318,7 @@ class MongoToKnex {
                         }
 
                         const innerQB = this
-                            .select(innerJoinOn)
+                            .select(`${tableName}.id`)
                             .from(`${tableName}`)
                             .leftJoin(innerJoinValue, function () {
                                 this.on(innerJoinOn, '=', `${tableName}.id`);
@@ -335,8 +336,14 @@ class MongoToKnex {
                             const statementColumn = `${statement.table}.${statement.column}`;
                             let statementOp;
 
+                            // NOTE: this negation is here to ensure records with no relation are
+                            //       include in negation (e.g. `relation.columnName: {$ne: null})
                             if (negateGroup) {
                                 statementOp = compOps.$in;
+
+                                if (statement.value === null) {
+                                    statement.whereType = (statement.whereType === 'whereNotNull') ? 'whereNull' : 'whereNotNull';
+                                }
                             } else {
                                 if (isNegationOp(statement.operator)) {
                                     statementOp = compOps.$nin;

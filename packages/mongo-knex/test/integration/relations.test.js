@@ -971,10 +971,43 @@ describe('Relations', function () {
                     .select()
                     .then((result) => {
                         // result should also contain records that do not have meta_title record - null
-                        result.should.be.an.Array().with.lengthOf(7);
+                        result.should.matchIds([2, 3, 4, 5, 6, 7, 8]);
                         result.forEach((post) => {
                             'A Whole New World'.should.not.equal(post.title);
                         });
+                    });
+            });
+
+            it('posts_meta.meta_title not equal null', function () {
+                const mongoJSON = {
+                    'posts_meta.meta_title': {
+                        $ne: null
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.matchIds([1, 4, 5]);
+                    });
+            });
+
+            it('posts_meta.meta_title not equal null and featured is false', function () {
+                const mongoJSON = {
+                    'posts_meta.meta_title': {
+                        $ne: null
+                    },
+                    featured: false
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.matchIds([1]);
                     });
             });
         });
