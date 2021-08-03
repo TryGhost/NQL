@@ -29,6 +29,14 @@ const makeQuery = (mongoJSON) => {
                 tableName: 'posts_meta',
                 type: 'oneToOne',
                 joinFrom: 'post_id'
+            },
+            comments: {
+                tableName: 'comments',
+                type: 'manyToMany',
+                joinTable: 'posts_comments',
+                joinFrom: 'post_id',
+                joinTo: 'comment_id',
+                joinToForeign: 'comment_provider_id'
             }
         }
     });
@@ -47,6 +55,23 @@ describe('Relations', function () {
 
     describe('Many-to-Many', function () {
         before(utils.db.init('many-to-many'));
+
+        describe('joinToForeign', function () {
+            it('Allows you to join an a customer foreign key in the resulting row', function () {
+                const mongoJSON = {
+                    'comments.content': 'Hello, world'
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                        result.should.matchIds([1]);
+                    });
+            });
+        });
 
         describe('EQUALS $eq', function () {
             it('tags.slug equals "animal"', function () {

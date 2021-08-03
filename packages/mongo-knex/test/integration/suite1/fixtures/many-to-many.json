@@ -22,5 +22,10 @@
         {"post_id": 7, "author_id": 1, "sort_order": 0},
         {"post_id": 8, "author_id": 2, "sort_order": 0},
         {"post_id": 8, "author_id": 3, "sort_order": 1}
+    ],
+
+    "posts_comments": [
+        {"post_id": 1, "comment_id": "external_1"},
+        {"post_id": 2, "comment_id": "external_2"}
     ]
 }

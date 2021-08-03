@@ -1,5 +1,7 @@
 const Promise = require('bluebird');
 const TABLES = [
+    'posts_comments',
+    'comments',
     'posts_tags',
     'posts_authors',
     'posts_meta',
@@ -51,6 +53,16 @@ module.exports.up = function (knex) {
             table.integer('post_id').unsigned().references('posts.id');
             table.integer('author_id').unsigned().references('users.id');
             table.integer('sort_order').defaultTo(0);
+        }))
+        .then(() => knex.schema.createTable('comments', (table) => {
+            table.increments('id').primary();
+            table.string('comment_provider_id');
+            table.string('content');
+        }))
+        .then(() => knex.schema.createTable('posts_comments', (table) => {
+            table.increments('id').primary();
+            table.integer('post_id').unsigned().references('posts.id');
+            table.string('comment_id').references('comments.comment_provider_id');
         }));
 };
 

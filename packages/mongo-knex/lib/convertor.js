@@ -231,12 +231,12 @@ class MongoToKnex {
                         const joinFilterStatements = groupedRelations[key].joinFilterStatements;
 
                         let innerJoinValue = reference.config.tableName;
-                        let innerJoinOn = `${reference.config.tableName}.id`;
+                        let innerJoinOn = `${reference.config.tableName}.${reference.config.joinToForeign || 'id'}`;
 
                         // CASE: you can define a name for the join table
                         if (reference.config.tableNameAs) {
                             innerJoinValue = `${reference.config.tableName} as ${reference.config.tableNameAs}`;
-                            innerJoinOn = `${reference.config.tableNameAs}.id`;
+                            innerJoinOn = `${reference.config.tableNameAs}.${reference.config.joinToForeign || 'id'}`;
                         }
 
                         const innerQB = this

@@ -120,6 +120,18 @@
             "created_at": "2015-06-22"
         }
     ],
+    "comments": [
+        {
+            "id": 1,
+            "comment_provider_id": "external_1",
+            "content": "Hello, world"
+        },
+        {
+            "id": 2,
+            "comment_provider_id": "external_2",
+            "content": "Learn forex trading today and make millions, only a 1000 USD up front payment! bit.ly/scam"
+        }
+    ],
     "posts_meta": [
         {
             "id": 1,
