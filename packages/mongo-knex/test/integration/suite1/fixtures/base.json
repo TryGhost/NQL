@@ -154,5 +154,61 @@
             "meta_description": null,
             "like_count": 42
         }
+    ],
+    "posts_view_events": [
+        {
+            "id": 1,
+            "post_id": 1,
+            "count": 2,
+            "date": "2021-01-01"
+        },
+        {
+            "id": 2,
+            "post_id": 2,
+            "count": 4,
+            "date": "2021-01-01"
+        },
+        {
+            "id": 3,
+            "post_id": 3,
+            "count": 0,
+            "date": "2021-01-01"
+        },
+        {
+            "id": 4,
+            "post_id": 1,
+            "count": 6,
+            "date": "2021-01-02"
+        },
+        {
+            "id": 5,
+            "post_id": 2,
+            "count": 3,
+            "date": "2021-01-02"
+        },
+        {
+            "id": 6,
+            "post_id": 3,
+            "count": 0,
+            "date": "2021-01-02"
+        },
+        {
+            "id": 7,
+            "post_id": 1,
+            "count": 5,
+            "date": "2021-01-03"
+        },
+        {
+            "id": 8,
+            "post_id": 2,
+            "count": 7,
+            "date": "2021-01-03"
+        },
+        {
+            "id": 9,
+            "post_id": 3,
+            "count": 10,
+            "date": "2021-01-03"
+        }
     ]
 }

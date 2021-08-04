@@ -30,6 +30,22 @@ const makeQuery = (mongoJSON) => {
                 type: 'oneToOne',
                 joinFrom: 'post_id'
             },
+            views: {
+                tableName: 'views',
+                type: 'oneToOne',
+                joinFrom: 'post_id',
+                virtualTable: true,
+                virtualTableDefinition: knex.raw(`
+                    SELECT
+                        posts_view_events.post_id,
+                        SUM(posts_view_events.count) as total
+                    FROM posts
+                    JOIN posts_view_events
+                        ON posts.id = posts_view_events.post_id
+                    GROUP BY
+                        posts.id
+                `)
+            },
             comments: {
                 tableName: 'comments',
                 type: 'manyToMany',
@@ -54,6 +70,25 @@ describe('Relations', function () {
         await utils.db.setup()();
     });
     after(utils.db.teardown());
+
+    describe('Virtual Table', function () {
+        it('Should allow relations with virtual tables', function () {
+            const mongoJSON = {
+                'views.total': {
+                    $gt: 10
+                }
+            };
+
+            const query = makeQuery(mongoJSON);
+
+            return query
+                .select()
+                .then((result) => {
+                    result.should.be.an.Array().with.lengthOf(2);
+                    result.should.matchIds([1, 2]);
+                });
+        });
+    });
 
     describe('Many-to-Many', function () {
         before(utils.db.init('many-to-many'));
