@@ -5,7 +5,9 @@
 omitops                      [^\s'"\+\,\(\)\>\<=\[\]\-]
 omitopsbarnot                [^\s'"\+\,\(\)\>\<=\[\]]
 escapable                    ['"\+\,\(\)\>\<=\[\]]
+final                        [\+\,\(\)\[\]]
 
+%s reldate
 
 %%
 
@@ -17,6 +19,16 @@ escapable                    ['"\+\,\(\)\>\<=\[\]]
 [0-9]+(\.[0-9]+)?\b(?![\-])                                 return 'NUMBER';
 '['                                                         return 'LBRACKET';
 ']'                                                         return 'RBRACKET';
+
+/* relative date handling */
+now(?=[-+]\d+[dwMyhms](?:{final}|$))                        { this.pushState('reldate');
+                                                            return 'NOW'; }
+<reldate>'-'                                                return 'SUB';
+<reldate>'+'                                                return 'ADD';
+<reldate>\d+                                                return 'AMOUNT'
+<reldate>[dwMyhms]                                          { this.popState();
+                                                            return 'INTERVAL' }
+
 {omitops}(\\{escapable}|{omitopsbarnot})+                   return 'LITERAL';
 ['](\\['"]|[^'"])+?[']                                      return 'STRING';
 '('                                                         return 'LPAREN';

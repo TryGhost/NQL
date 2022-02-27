@@ -1,4 +1,19 @@
 const util = require('util');
+const ops = {
+    add: require('date-fns/add'),
+    sub: require('date-fns/sub')
+};
+const format = require('date-fns/formatRFC3339');
+
+const intervals = {
+    d: 'days',
+    w: 'weeks',
+    M: 'months',
+    y: 'years',
+    h: 'hours',
+    m: 'minutes',
+    s: 'seconds'
+};
 
 module.exports = {
     ungroup(value) {
@@ -8,6 +23,13 @@ module.exports = {
     unescape(value) {
         var re = new RegExp('\\\\([\'"])', 'g');
         return value.replace(re, '$1');
+    },
+
+    relDateToAbsolute(op, amount, duration) {
+        const now = new Date();
+        const finalDate = ops[op](now, {[intervals[duration]]: amount});
+
+        return format(finalDate);
     },
 
     debug() {

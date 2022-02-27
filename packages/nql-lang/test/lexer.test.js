@@ -38,6 +38,7 @@ describe('Lexer', function () {
         it('can recognise <=', function () {
             lex('<=').should.eql([{token: 'LTE', matched: '<='}]);
         });
+
         it('cannot recognise :', function () {
             (function () {
                 lex(':');
@@ -118,6 +119,7 @@ describe('Lexer', function () {
             lex('its-nullable').should.eql([{token: 'LITERAL', matched: 'its-nullable'}]);
             lex('notnullable').should.eql([{token: 'LITERAL', matched: 'notnullable'}]);
             lex('null-thing').should.eql([{token: 'LITERAL', matched: 'null-thing'}]);
+            lex('its-a-null-thing').should.eql([{token: 'LITERAL', matched: 'its-a-null-thing'}]);
         });
 
         it('does not confuse keywords in STRINGs', function () {
@@ -129,6 +131,7 @@ describe('Lexer', function () {
             lex('\'its-nullable\'').should.eql([{token: 'STRING', matched: '\'its-nullable\''}]);
             lex('\'notnullable\'').should.eql([{token: 'STRING', matched: '\'notnullable\''}]);
             lex('\'null-thing\'').should.eql([{token: 'STRING', matched: '\'null-thing\''}]);
+            lex('\'its-a-null-thing\'').should.eql([{token: 'STRING', matched: '\'its-a-null-thing\''}]);
         });
     });
 
@@ -512,7 +515,154 @@ describe('Lexer', function () {
         });
     });
 
-    describe('complex examples', function () {
+    describe('Relative Date expressions', function () {
+        it('Does not confuse LITERALs when they are almost relative dates with sub', function () {
+            const cases = [
+                'now-2',
+                'now-12',
+                'now-2Q',
+                'now-2dQ',
+                'now-2d1',
+                'now-2D',
+                'now-2W',
+                'now-2Y',
+                'its-now-2d',
+                'its-now-2dY',
+                'snow-2d',
+                'snow-2dY'
+            ];
+
+            cases.forEach(function (testCase) {
+                lex(testCase).should.eql([{token: 'LITERAL', matched: testCase}]);
+            });
+        });
+
+        it('Does not confuse expressions when they are almost relative dates with add', function () {
+            const cases = [
+                'now+2',
+                'now+12',
+                'now+2Q',
+                'now+2dQ',
+                'now+2d1',
+                'now+2D',
+                'now+2W',
+                'now+2Y'
+            ];
+
+            cases.forEach(function (testCase) {
+                const result = lex(testCase);
+                result.should.be.an.Array().with.lengthOf(3);
+                result[0].should.eql({token: 'LITERAL', matched: 'now'});
+                result[1].should.eql({token: 'AND', matched: '+'});
+            });
+
+            lex('its-now+2d').should.eql([
+                {token: 'LITERAL', matched: 'its-now'},
+                {token: 'AND', matched: '+'},
+                {token: 'LITERAL', matched: '2d'}
+            ]);
+            lex('its-now+2dY').should.eql([
+                {token: 'LITERAL', matched: 'its-now'},
+                {token: 'AND', matched: '+'},
+                {token: 'LITERAL', matched: '2dY'}
+            ]);
+            lex('snow+2d').should.eql([
+                {token: 'LITERAL', matched: 'snow'},
+                {token: 'AND', matched: '+'},
+                {token: 'LITERAL', matched: '2d'}
+            ]);
+            lex('snow+2dY').should.eql([
+                {token: 'LITERAL', matched: 'snow'},
+                {token: 'AND', matched: '+'},
+                {token: 'LITERAL', matched: '2dY'}
+            ]);
+        });
+
+        it('can expand all valid intervals', function () {
+            const intervals = {
+                d: 'days',
+                w: 'weeks',
+                M: 'months',
+                y: 'years',
+                h: 'hours',
+                m: 'minutes',
+                s: 'seconds'
+            };
+
+            const cases = [
+                'now-2d',
+                'now-2w',
+                'now-2M',
+                'now-2y',
+                'now-2h',
+                'now-2m',
+                'now-2s'
+            ];
+
+            cases.forEach(function (testCase, i) {
+                const result = lex(testCase);
+                result.should.be.an.Array().with.lengthOf(4);
+                result[0].should.eql({token: 'NOW', matched: 'now'});
+                result[1].should.eql({token: 'SUB', matched: '-'});
+                result[2].should.eql({token: 'AMOUNT', matched: '2'});
+                result[3].should.eql({token: 'INTERVAL', matched: Object.keys(intervals)[i]});
+            });
+        });
+
+        describe('Full relative date expressions', function () {
+            it('last_seen_at:>=now-2d', function () {
+                lex('last_seen_at:>=now-2d').should.eql([
+                    {token: 'PROP', matched: 'last_seen_at:'},
+                    {token: 'GTE', matched: '>='},
+                    {token: 'NOW', matched: 'now'},
+                    {token: 'SUB', matched: '-'},
+                    {token: 'AMOUNT', matched: '2'},
+                    {token: 'INTERVAL', matched: 'd'}
+                ]);
+            });
+
+            it('last_seen_at:>=now+2d', function () {
+                lex('last_seen_at:>=now+2d').should.eql([
+                    {token: 'PROP', matched: 'last_seen_at:'},
+                    {token: 'GTE', matched: '>='},
+                    {token: 'NOW', matched: 'now'},
+                    {token: 'ADD', matched: '+'},
+                    {token: 'AMOUNT', matched: '2'},
+                    {token: 'INTERVAL', matched: 'd'}
+                ]);
+            });
+
+            it('last_seen_at:>=now+2d+foo:bar', function () {
+                lex('last_seen_at:>=now+2d+foo:bar').should.eql([
+                    {token: 'PROP', matched: 'last_seen_at:'},
+                    {token: 'GTE', matched: '>='},
+                    {token: 'NOW', matched: 'now'},
+                    {token: 'ADD', matched: '+'},
+                    {token: 'AMOUNT', matched: '2'},
+                    {token: 'INTERVAL', matched: 'd'},
+                    {token: 'AND', matched: '+'},
+                    {token: 'PROP', matched: 'foo:'},
+                    {token: 'LITERAL', matched: 'bar'}
+                ]);
+            });
+
+            it('foo:bar+last_seen_at:>=now+2d', function () {
+                lex('foo:bar+last_seen_at:>=now+2d').should.eql([
+                    {token: 'PROP', matched: 'foo:'},
+                    {token: 'LITERAL', matched: 'bar'},
+                    {token: 'AND', matched: '+'},
+                    {token: 'PROP', matched: 'last_seen_at:'},
+                    {token: 'GTE', matched: '>='},
+                    {token: 'NOW', matched: 'now'},
+                    {token: 'ADD', matched: '+'},
+                    {token: 'AMOUNT', matched: '2'},
+                    {token: 'INTERVAL', matched: 'd'}
+                ]);
+            });
+        });
+    });
+
+    describe('Complex examples', function () {
         it('many expressions', function () {
             lex('tag:photo+featured:true,tag.count:>5').should.eql([
                 {token: 'PROP', matched: 'tag:'},
@@ -535,6 +685,22 @@ describe('Lexer', function () {
                 {token: 'OR', matched: ','},
                 {token: 'PROP', matched: 'null:'},
                 {token: 'FALSE', matched: 'false'}
+            ]);
+
+            lex('tag:photo+created_at:>=now-1d,tag.count:>5').should.eql([
+                {token: 'PROP', matched: 'tag:'},
+                {token: 'LITERAL', matched: 'photo'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'created_at:'},
+                {token: 'GTE', matched: '>='},
+                {token: 'NOW', matched: 'now'},
+                {token: 'SUB', matched: '-'},
+                {token: 'AMOUNT', matched: '1'},
+                {token: 'INTERVAL', matched: 'd'},
+                {token: 'OR', matched: ','},
+                {token: 'PROP', matched: 'tag.count:'},
+                {token: 'GT', matched: '>'},
+                {token: 'NUMBER', matched: '5'}
             ]);
 
             lex('tag:photo+image:-null,tag.count:>5').should.eql([
@@ -567,6 +733,28 @@ describe('Lexer', function () {
                 {token: 'OR', matched: ','},
                 {token: 'PROP', matched: 'featured:'},
                 {token: 'TRUE', matched: 'true'},
+                {token: 'RPAREN', matched: ')'}
+            ]);
+
+            lex('author:-joe+(tag:photo,image:-null,created_at:>=now-1d)').should.eql([
+                {token: 'PROP', matched: 'author:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'LITERAL', matched: 'joe'},
+                {token: 'AND', matched: '+'},
+                {token: 'LPAREN', matched: '('},
+                {token: 'PROP', matched: 'tag:'},
+                {token: 'LITERAL', matched: 'photo'},
+                {token: 'OR', matched: ','},
+                {token: 'PROP', matched: 'image:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'NULL', matched: 'null'},
+                {token: 'OR', matched: ','},
+                {token: 'PROP', matched: 'created_at:'},
+                {token: 'GTE', matched: '>='},
+                {token: 'NOW', matched: 'now'},
+                {token: 'SUB', matched: '-'},
+                {token: 'AMOUNT', matched: '1'},
+                {token: 'INTERVAL', matched: 'd'},
                 {token: 'RPAREN', matched: ')'}
             ]);
         });
@@ -618,6 +806,25 @@ describe('Lexer', function () {
                 {token: 'PROP', matched: 'post.count:'},
                 {token: 'LT', matched: '<'},
                 {token: 'NUMBER', matched: '100'}
+            ]);
+
+            lex('author:-joe+created_at:[now-1d,now+1d]').should.eql([
+                {token: 'PROP', matched: 'author:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'LITERAL', matched: 'joe'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'created_at:'},
+                {token: 'LBRACKET', matched: '['},
+                {token: 'NOW', matched: 'now'},
+                {token: 'SUB', matched: '-'},
+                {token: 'AMOUNT', matched: '1'},
+                {token: 'INTERVAL', matched: 'd'},
+                {token: 'OR', matched: ','},
+                {token: 'NOW', matched: 'now'},
+                {token: 'ADD', matched: '+'},
+                {token: 'AMOUNT', matched: '1'},
+                {token: 'INTERVAL', matched: 'd'},
+                {token: 'RBRACKET', matched: ']'}
             ]);
         });
     });
