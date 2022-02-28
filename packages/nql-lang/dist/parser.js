@@ -73,7 +73,7 @@
 */
 var parser = (function(){
 var o=function(k,v,o,l){for(o=o||{},l=k.length;l--;o[k[l]]=v);return o},$V0=[1,5],$V1=[1,7],$V2=[1,8],$V3=[1,6,10],$V4=[1,9],$V5=[1,6,8,10],$V6=[1,20],$V7=[1,21],$V8=[1,22],$V9=[1,23],$Va=[1,24],$Vb=[1,25],$Vc=[20,21,22,23,24,25],$Vd=[1,6,8,10,17],$Ve=[1,35],$Vf=[6,17];
-var parser = {trace: function trace() { },
+var parser = {trace: function trace () { },
 yy: {},
 symbols_: {"error":2,"expressions":3,"expression":4,"andCondition":5,"OR":6,"filterExpr":7,"AND":8,"LPAREN":9,"RPAREN":10,"propExpr":11,"valueExpr":12,"PROP":13,"NOT":14,"LBRACKET":15,"inExpr":16,"RBRACKET":17,"OP":18,"VALUE":19,"NULL":20,"TRUE":21,"FALSE":22,"NUMBER":23,"LITERAL":24,"STRING":25,"GT":26,"LT":27,"GTE":28,"LTE":29,"$accept":0,"$end":1},
 terminals_: {2:"error",6:"OR",8:"AND",9:"LPAREN",10:"RPAREN",13:"PROP",14:"NOT",15:"LBRACKET",17:"RBRACKET",20:"NULL",21:"TRUE",22:"FALSE",23:"NUMBER",24:"LITERAL",25:"STRING",26:"GT",27:"LT",28:"GTE",29:"LTE"},
@@ -171,7 +171,7 @@ break;
 },
 table: [{3:1,4:2,5:3,7:4,9:$V0,11:6,13:$V1},{1:[3]},{1:[2,1],6:$V2},o($V3,[2,2],{8:$V4}),o($V5,[2,4]),{4:10,5:3,7:4,9:$V0,11:6,13:$V1},{12:11,14:[1,12],15:[1,13],18:14,19:15,20:$V6,21:$V7,22:$V8,23:$V9,24:$Va,25:$Vb,26:[1,16],27:[1,17],28:[1,18],29:[1,19]},o([14,15,20,21,22,23,24,25,26,27,28,29],[2,8]),{5:26,7:4,9:$V0,11:6,13:$V1},{7:27,9:$V0,11:6,13:$V1},{6:$V2,10:[1,28]},o($V5,[2,7]),o($Vc,[2,21],{15:[1,29]}),{16:30,19:31,20:$V6,21:$V7,22:$V8,23:$V9,24:$Va,25:$Vb},{19:32,20:$V6,21:$V7,22:$V8,23:$V9,24:$Va,25:$Vb},o($V5,[2,12]),o($Vc,[2,22]),o($Vc,[2,23]),o($Vc,[2,24]),o($Vc,[2,25]),o($Vd,[2,15]),o($Vd,[2,16]),o($Vd,[2,17]),o($Vd,[2,18]),o($Vd,[2,19]),o($Vd,[2,20]),o($V3,[2,3],{8:$V4}),o($V5,[2,5]),o($V5,[2,6]),{16:33,19:31,20:$V6,21:$V7,22:$V8,23:$V9,24:$Va,25:$Vb},{6:$Ve,17:[1,34]},o($Vf,[2,14]),o($V5,[2,11]),{6:$Ve,17:[1,36]},o($V5,[2,10]),{19:37,20:$V6,21:$V7,22:$V8,23:$V9,24:$Va,25:$Vb},o($V5,[2,9]),o($Vf,[2,13])],
 defaultActions: {},
-parseError: function parseError(str, hash) {
+parseError: function parseError (str, hash) {
     if (hash.recoverable) {
         this.trace(str);
     } else {
@@ -470,7 +470,7 @@ showPosition:function () {
     },
 
 // test the lexed token: return FALSE when not a match, otherwise return token
-test_match:function (match, indexed_rule) {
+test_match:function(match, indexed_rule) {
         var token,
             lines,
             backup;
@@ -600,7 +600,7 @@ next:function () {
     },
 
 // return next match that has a token
-lex:function lex() {
+lex:function lex () {
         var r = this.next();
         if (r) {
             return r;
@@ -610,12 +610,12 @@ lex:function lex() {
     },
 
 // activates a new lexer condition state (pushes the new lexer condition state onto the condition stack)
-begin:function begin(condition) {
+begin:function begin (condition) {
         this.conditionStack.push(condition);
     },
 
 // pop the previously active lexer condition state off the condition stack
-popState:function popState() {
+popState:function popState () {
         var n = this.conditionStack.length - 1;
         if (n > 0) {
             return this.conditionStack.pop();
@@ -625,7 +625,7 @@ popState:function popState() {
     },
 
 // produce the lexer rule set which is active for the currently active lexer condition state
-_currentRules:function _currentRules() {
+_currentRules:function _currentRules () {
         if (this.conditionStack.length && this.conditionStack[this.conditionStack.length - 1]) {
             return this.conditions[this.conditionStack[this.conditionStack.length - 1]].rules;
         } else {
@@ -634,7 +634,7 @@ _currentRules:function _currentRules() {
     },
 
 // return the currently active lexer condition state; when an index argument is provided it produces the N-th previous condition state, if available
-topState:function topState(n) {
+topState:function topState (n) {
         n = this.conditionStack.length - 1 - Math.abs(n || 0);
         if (n >= 0) {
             return this.conditionStack[n];
@@ -644,7 +644,7 @@ topState:function topState(n) {
     },
 
 // alias for begin(condition)
-pushState:function pushState(condition) {
+pushState:function pushState (condition) {
         this.begin(condition);
     },
 
@@ -725,7 +725,7 @@ if (typeof require !== 'undefined' && typeof exports !== 'undefined') {
 exports.parser = parser;
 exports.Parser = parser.Parser;
 exports.parse = function () { return parser.parse.apply(parser, arguments); };
-exports.main = function commonjsMain(args) {
+exports.main = function commonjsMain (args) {
     if (!args[1]) {
         console.log('Usage: '+args[0]+' FILE');
         process.exit(1);
