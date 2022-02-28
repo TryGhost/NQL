@@ -109,18 +109,18 @@ describe('Lexer', function () {
             lex('6').should.eql([{token: 'NUMBER', matched: '6'}]);
         });
 
-        it('does not confuse values in LITERALs', function () {
+        it('does not confuse keywords in LITERALs', function () {
             lex('strueth').should.eql([{token: 'LITERAL', matched: 'strueth'}]);
             lex('trueth').should.eql([{token: 'LITERAL', matched: 'trueth'}]);
             lex('true_thing').should.eql([{token: 'LITERAL', matched: 'true_thing'}]);
-            // lex('true-thing').should.eql([{token: 'LITERAL', matched: 'true-thing'}]);
+            lex('true-thing').should.eql([{token: 'LITERAL', matched: 'true-thing'}]);
             lex('nullable').should.eql([{token: 'LITERAL', matched: 'nullable'}]);
             lex('its-nullable').should.eql([{token: 'LITERAL', matched: 'its-nullable'}]);
             lex('notnullable').should.eql([{token: 'LITERAL', matched: 'notnullable'}]);
-            // lex('null-thing').should.eql([{token: 'LITERAL', matched: 'null-thing'}]);
+            lex('null-thing').should.eql([{token: 'LITERAL', matched: 'null-thing'}]);
         });
 
-        it('does not confuse values in STRINGs', function () {
+        it('does not confuse keywords in STRINGs', function () {
             lex('\'strueth\'').should.eql([{token: 'STRING', matched: '\'strueth\''}]);
             lex('\'trueth\'').should.eql([{token: 'STRING', matched: '\'trueth\''}]);
             lex('\'true_thing\'').should.eql([{token: 'STRING', matched: '\'true_thing\''}]);
@@ -526,11 +526,49 @@ describe('Lexer', function () {
                 {token: 'NUMBER', matched: '5'}
             ]);
 
-            // lex("tag:photo+image:-null,tag.count:>5").should.eql();
+            lex('true:null+false:true,null:false').should.eql([
+                {token: 'PROP', matched: 'true:'},
+                {token: 'NULL', matched: 'null'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'false:'},
+                {token: 'TRUE', matched: 'true'},
+                {token: 'OR', matched: ','},
+                {token: 'PROP', matched: 'null:'},
+                {token: 'FALSE', matched: 'false'}
+            ]);
+
+            lex('tag:photo+image:-null,tag.count:>5').should.eql([
+                {token: 'PROP', matched: 'tag:'},
+                {token: 'LITERAL', matched: 'photo'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'image:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'NULL', matched: 'null'},
+                {token: 'OR', matched: ','},
+                {token: 'PROP', matched: 'tag.count:'},
+                {token: 'GT', matched: '>'},
+                {token: 'NUMBER', matched: '5'}
+            ]);
         });
 
         it('grouped expressions', function () {
-            // lex("author:-joe+(tag:photo,image:-null,featured:true)").should.eql();
+            lex('author:-joe+(tag:photo,image:-null,featured:true)').should.eql([
+                {token: 'PROP', matched: 'author:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'LITERAL', matched: 'joe'},
+                {token: 'AND', matched: '+'},
+                {token: 'LPAREN', matched: '('},
+                {token: 'PROP', matched: 'tag:'},
+                {token: 'LITERAL', matched: 'photo'},
+                {token: 'OR', matched: ','},
+                {token: 'PROP', matched: 'image:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'NULL', matched: 'null'},
+                {token: 'OR', matched: ','},
+                {token: 'PROP', matched: 'featured:'},
+                {token: 'TRUE', matched: 'true'},
+                {token: 'RPAREN', matched: ')'}
+            ]);
         });
 
         it('in expressions', function () {
@@ -547,9 +585,40 @@ describe('Lexer', function () {
                 {token: 'RBRACKET', matched: ']'}
             ]);
 
-            // lex("author:-joe+tag:-[photo,video]").should.eql();
+            lex('author:-joe+tag:-[photo,video]').should.eql([
+                {token: 'PROP', matched: 'author:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'LITERAL', matched: 'joe'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'tag:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'LBRACKET', matched: '['},
+                {token: 'LITERAL', matched: 'photo'},
+                {token: 'OR', matched: ','},
+                {token: 'LITERAL', matched: 'video'},
+                {token: 'RBRACKET', matched: ']'}
+            ]);
 
-            // lex("author:-joe+tag:[photo,video]+post.count:>5+post.count:<100").should.eql();
+            lex('author:-joe+tag:[photo,video]+post.count:>5+post.count:<100').should.eql([
+                {token: 'PROP', matched: 'author:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'LITERAL', matched: 'joe'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'tag:'},
+                {token: 'LBRACKET', matched: '['},
+                {token: 'LITERAL', matched: 'photo'},
+                {token: 'OR', matched: ','},
+                {token: 'LITERAL', matched: 'video'},
+                {token: 'RBRACKET', matched: ']'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'post.count:'},
+                {token: 'GT', matched: '>'},
+                {token: 'NUMBER', matched: '5'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'post.count:'},
+                {token: 'LT', matched: '<'},
+                {token: 'NUMBER', matched: '100'}
+            ]);
         });
     });
 });

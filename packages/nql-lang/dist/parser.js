@@ -652,7 +652,7 @@ pushState:function pushState (condition) {
 stateStackSize:function stateStackSize() {
         return this.conditionStack.length;
     },
-options: {"case-insensitive":true},
+options: {},
 performAction: function anonymous(yy,yy_,$avoiding_name_collisions,YY_START) {
 var YYSTATE=YY_START;
 switch($avoiding_name_collisions) {
@@ -696,7 +696,7 @@ case 18:return 27;
 break;
 }
 },
-rules: [/^(?:\s+)/i,/^(?:NULL\b)/i,/^(?:TRUE\b)/i,/^(?:FALSE\b)/i,/^(?:[a-zA-Z_][a-zA-Z0-9_\.]*[:])/i,/^(?:[0-9]+(\.[0-9]+)?\b(?![\-]))/i,/^(?:\[)/i,/^(?:\])/i,/^(?:([^\s'"\+\,\(\)\>\<=\[\]\-])(\\(['"\+\,\(\)\>\<=\[\]])|([^\s'"\+\,\(\)\>\<=\[\]]))+)/i,/^(?:['](\\['"]|[^'"])+?['])/i,/^(?:\()/i,/^(?:\))/i,/^(?:,)/i,/^(?:\+)/i,/^(?:-)/i,/^(?:>=)/i,/^(?:<=)/i,/^(?:>)/i,/^(?:<)/i],
+rules: [/^(?:\s+)/,/^(?:(?:null|NULL|Null)(?!(\\(['"\+\,\(\)\>\<=\[\]])|([^\s'"\+\,\(\)\>\<=\[\]]))+))/,/^(?:(?:true|TRUE|True)(?!(\\(['"\+\,\(\)\>\<=\[\]])|([^\s'"\+\,\(\)\>\<=\[\]]))+))/,/^(?:(?:false|FALSE|False)(?!(\\(['"\+\,\(\)\>\<=\[\]])|([^\s'"\+\,\(\)\>\<=\[\]]))+))/,/^(?:[a-zA-Z_][a-zA-Z0-9_\.]*[:])/,/^(?:[0-9]+(\.[0-9]+)?\b(?![\-]))/,/^(?:\[)/,/^(?:\])/,/^(?:([^\s'"\+\,\(\)\>\<=\[\]\-])(\\(['"\+\,\(\)\>\<=\[\]])|([^\s'"\+\,\(\)\>\<=\[\]]))+)/,/^(?:['](\\['"]|[^'"])+?['])/,/^(?:\()/,/^(?:\))/,/^(?:,)/,/^(?:\+)/,/^(?:-)/,/^(?:>=)/,/^(?:<=)/,/^(?:>)/,/^(?:<)/],
 conditions: {"INITIAL":{"rules":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18],"inclusive":true}}
 });
 lexer.parseError = function(errStr, object) {
