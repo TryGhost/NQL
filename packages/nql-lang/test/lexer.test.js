@@ -73,6 +73,30 @@ describe('Lexer', function () {
             lex('false').should.eql([{token: 'FALSE', matched: 'false'}]);
         });
 
+        it('can recognise NULL', function () {
+            lex('NULL').should.eql([{token: 'NULL', matched: 'NULL'}]);
+        });
+
+        it('can recognise TRUE', function () {
+            lex('TRUE').should.eql([{token: 'TRUE', matched: 'TRUE'}]);
+        });
+
+        it('can recognise FALSE', function () {
+            lex('FALSE').should.eql([{token: 'FALSE', matched: 'FALSE'}]);
+        });
+
+        it('can recognise Null', function () {
+            lex('Null').should.eql([{token: 'NULL', matched: 'Null'}]);
+        });
+
+        it('can recognise True', function () {
+            lex('True').should.eql([{token: 'TRUE', matched: 'True'}]);
+        });
+
+        it('can recognise False', function () {
+            lex('False').should.eql([{token: 'FALSE', matched: 'False'}]);
+        });
+
         it('can recognise a LITERAL', function () {
             lex('six').should.eql([{token: 'LITERAL', matched: 'six'}]);
         });
@@ -89,7 +113,11 @@ describe('Lexer', function () {
             lex('strueth').should.eql([{token: 'LITERAL', matched: 'strueth'}]);
             lex('trueth').should.eql([{token: 'LITERAL', matched: 'trueth'}]);
             lex('true_thing').should.eql([{token: 'LITERAL', matched: 'true_thing'}]);
-            // lex("true-thing").should.eql([{token: "LITERAL", matched: "true-thing"}]);
+            // lex('true-thing').should.eql([{token: 'LITERAL', matched: 'true-thing'}]);
+            lex('nullable').should.eql([{token: 'LITERAL', matched: 'nullable'}]);
+            lex('its-nullable').should.eql([{token: 'LITERAL', matched: 'its-nullable'}]);
+            lex('notnullable').should.eql([{token: 'LITERAL', matched: 'notnullable'}]);
+            // lex('null-thing').should.eql([{token: 'LITERAL', matched: 'null-thing'}]);
         });
 
         it('does not confuse values in STRINGs', function () {
@@ -97,6 +125,10 @@ describe('Lexer', function () {
             lex('\'trueth\'').should.eql([{token: 'STRING', matched: '\'trueth\''}]);
             lex('\'true_thing\'').should.eql([{token: 'STRING', matched: '\'true_thing\''}]);
             lex('\'true-thing\'').should.eql([{token: 'STRING', matched: '\'true-thing\''}]);
+            lex('\'nullable\'').should.eql([{token: 'STRING', matched: '\'nullable\''}]);
+            lex('\'its-nullable\'').should.eql([{token: 'STRING', matched: '\'its-nullable\''}]);
+            lex('\'notnullable\'').should.eql([{token: 'STRING', matched: '\'notnullable\''}]);
+            lex('\'null-thing\'').should.eql([{token: 'STRING', matched: '\'null-thing\''}]);
         });
     });
 
