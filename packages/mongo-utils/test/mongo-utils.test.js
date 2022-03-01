@@ -25,18 +25,6 @@ describe('Find statement', () => {
         mongoUtils.findStatement(statements, 'published').should.eql(false);
     });
 
-    it('should match in object statement array by key', function () {
-        const statements = [
-            {page: false},
-            {status: 'published'}
-        ];
-
-        mongoUtils.findStatement(statements, 'page').should.eql(true);
-        mongoUtils.findStatement(statements, 'status').should.eql(true);
-        mongoUtils.findStatement(statements, 'tags').should.eql(false);
-        mongoUtils.findStatement(statements, 'published').should.eql(false);
-    });
-
     describe('nested $and/$or groups', function () {
         it('should match inside nested $and group', function () {
             const statements = {$and: [
