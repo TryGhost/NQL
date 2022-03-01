@@ -164,6 +164,7 @@ class MongoToKnex {
                 groupKey = `${statement.table}_${idx})}`;
 
                 if (group[groupKey]) {
+                    //eslint-disable-next-line no-restricted-syntax
                     throw new Error('Key collision detected');
                 }
             }
@@ -413,7 +414,7 @@ class MongoToKnex {
             }
 
             // CASE: if the statement is part of a group, collect the relation statements to be able to group them later
-            if (!qb.hasOwnProperty('relations')) {
+            if (!Object.prototype.hasOwnProperty.call(qb, 'relations')) {
                 qb.relations = [];
             }
 
@@ -472,7 +473,7 @@ class MongoToKnex {
             }
 
             // CASE: now execute all relation statements of this group
-            if (_qb.hasOwnProperty('relations')) {
+            if (Object.prototype.hasOwnProperty.call(_qb, 'relations')) {
                 this.buildRelationQuery(_qb, _qb.relations, mode);
                 delete _qb.relations;
             }

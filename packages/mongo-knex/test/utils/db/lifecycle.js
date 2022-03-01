@@ -47,12 +47,8 @@ module.exports.setup = name => function innerSetup() {
     return schema.down(client)
         .then(() => schema.up(client))
         .then(() => {
-            try {
-                const base = require(`../../integration/${suite}/fixtures/base`);
-                return Promise.each(flatten(base), op => client(op.table).insert(op.entry));
-            } catch (e) {
-                throw e;
-            }
+            const base = require(`../../integration/${suite}/fixtures/base`);
+            return Promise.each(flatten(base), op => client(op.table).insert(op.entry));
         });
 };
 
@@ -72,14 +68,10 @@ module.exports.init = (suiteName, fixtureFileName) => {
         const suite = suiteName ? suiteName : 'suite1';
         debug('Running setup for', suite);
 
-        try {
-            let fixturesJSON = require(`../../integration/${suite}/fixtures/${fixtureFileName}.json`);
-            debug('Loading fixtures for', fixtureFileName);
+        let fixturesJSON = require(`../../integration/${suite}/fixtures/${fixtureFileName}.json`);
+        debug('Loading fixtures for', fixtureFileName);
 
-            return Promise.each(flatten(fixturesJSON), op => client(op.table).insert(op.entry));
-        } catch (e) {
-            throw e;
-        }
+        return Promise.each(flatten(fixturesJSON), op => client(op.table).insert(op.entry));
     };
 };
 

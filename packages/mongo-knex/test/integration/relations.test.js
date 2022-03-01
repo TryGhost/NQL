@@ -65,8 +65,10 @@ const makeQuery = (mongoJSON) => {
 // Integration tests build a test database and
 // check that we get the exact data we expect from each query
 describe('Relations', function () {
-    before(utils.db.teardown());
-    before(utils.db.setup());
+    before(async function () {
+        await utils.db.teardown()();
+        await utils.db.setup()();
+    });
     after(utils.db.teardown());
 
     describe('Virtual Table', function () {
@@ -305,7 +307,7 @@ describe('Relations', function () {
                     });
             });
 
-            it('tags.slug is animal and sort_order is 0 and tags.visibility=public', function () {
+            it('tags.slug is animal and sort_order is 0', function () {
                 const mongoJSON = {
                     $and: [
                         {

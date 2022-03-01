@@ -20,7 +20,7 @@ describe('Simple Expressions', function () {
             .should.eql('select * from `posts` where `posts`.`title` = \'Second post\'');
     });
 
-    it('should accept any table input and interprets it as destination where clause', function () {
+    it('should accept any table input and interprets it as destination where clause (number)', function () {
         runQuery({'count.posts': '3'})
             .should.eql('select * from `posts` where `count`.`posts` = \'3\'');
     });

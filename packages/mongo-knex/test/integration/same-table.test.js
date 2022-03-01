@@ -61,7 +61,7 @@ describe('Same Table', function () {
                 });
         });
 
-        it('status is draft and image is not null', function () {
+        it('status is published and image is not null', function () {
             const mongoJSON = {
                 $or: [
                     {
