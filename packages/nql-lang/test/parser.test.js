@@ -540,7 +540,7 @@ describe('Parser', function () {
             });
         });
 
-        describe('call to relDateToAbsolute results in the correct structure', function () {
+        describe('call to relDateToAbsolute results in the correct date format', function () {
             let relDateToAbsoluteSpy;
 
             beforeEach(function () {
@@ -557,12 +557,12 @@ describe('Parser', function () {
                 const subRes = parse('last_seen_at:>=now-2d');
                 subRes.should.be.an.Object().with.property('last_seen_at');
                 subRes.last_seen_at.should.be.an.Object().with.property('$gte');
-                subRes.last_seen_at.$gte.should.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/);
+                subRes.last_seen_at.$gte.should.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
 
                 const addRes = parse('last_seen_at:<=now+2d');
                 addRes.should.be.an.Object().with.property('last_seen_at');
                 addRes.last_seen_at.should.be.an.Object().with.property('$lte');
-                addRes.last_seen_at.$lte.should.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/);
+                addRes.last_seen_at.$lte.should.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
 
                 sinon.assert.calledTwice(relDateToAbsoluteSpy);
             });
