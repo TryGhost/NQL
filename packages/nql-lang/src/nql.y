@@ -50,7 +50,9 @@ propExpr
     ;
 
 valueExpr
-    : NOT LBRACKET inExpr RBRACKET { $$ = {$nin: $3}; }
+    : NOT REGEXPOP { $$ = {$not: $2}; }
+    | REGEXPOP { $$ = {$regex: $1}; }
+    | NOT LBRACKET inExpr RBRACKET { $$ = {$nin: $3}; }
     | LBRACKET inExpr RBRACKET { $$ = {$in: $2}; }
     | OP VALUE { $$ = {}; $$[$1] = $2; }
     | VALUE { $$ = $1; }
@@ -75,6 +77,12 @@ DATEOP
    : ADD      { $$ = "add"; }
    | SUB      { $$ = "sub"; }
    ;
+
+REGEXPOP
+    : CONTAINS LITERAL { $$ = yy.literalToRegExp($2); }
+    | STARTSWITH LITERAL { $$ = yy.literalToRegExp($2, '^'); }
+    | ENDSWITH LITERAL { $$ = yy.literalToRegExp($2, '$'); }
+    ;
 
 OP
     : NOT { $$ = "$ne"; }

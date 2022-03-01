@@ -43,6 +43,18 @@ module.exports = {
         return value.replace(re, '$1');
     },
 
+    literalToRegExp(value, modifier) {
+        let escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        if (modifier === '^') {
+            escapedValue = '^' + escapedValue;
+        } else if (modifier === '$') {
+            escapedValue = escapedValue + '$';
+        }
+
+        return new RegExp(escapedValue, 'i');
+    },
+
     relDateToAbsolute(op, amount, duration) {
         const now = new Date();
         const relDate = ops[op](now, {[intervals[duration]]: amount});

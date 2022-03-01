@@ -102,6 +102,20 @@ describe('Parser', function () {
             parse('author:-[\'Joe Bloggs\', \'John O\\\'Nolan\', \'Hello World\']')
                 .should.eql({author: {$nin: ['Joe Bloggs', 'John O\'Nolan', 'Hello World']}});
         });
+
+        it('can parse CONTAINS, STARTSWITH and ENDSWITH with and without NOT', function () {
+            parse('email:~gmail.com').should.eql({email: {$regex: /gmail\.com/i}});
+
+            parse('email:-~gmail.com').should.eql({email: {$not: /gmail\.com/i}});
+
+            parse('email:~^gmail.com').should.eql({email: {$regex: /^gmail\.com/i}});
+
+            parse('email:-~^gmail.com').should.eql({email: {$not: /^gmail\.com/i}});
+
+            parse('email:~$gmail.com').should.eql({email: {$regex: /gmail\.com$/i}});
+
+            parse('email:-~$gmail.com').should.eql({email: {$not: /gmail\.com$/i}});
+        });
     });
 
     describe('Values', function () {

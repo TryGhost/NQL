@@ -2,9 +2,9 @@
 
 %lex
 
-omitops                      [^\s'"\+\,\(\)\>\<=\[\]\-]
-omitopsbarnot                [^\s'"\+\,\(\)\>\<=\[\]]
-escapable                    ['"\+\,\(\)\>\<=\[\]]
+omitops                      [^\s'"\+\,\(\)\>\<=\[\]\~\-]
+omitopsbarnot                [^\s'"\+\,\(\)\>\<=\[\]\~]
+escapable                    ['"\+\,\(\)\>\<=\[\]\~\^\$]
 final                        [\+\,\(\)\[\]]
 
 %s reldate
@@ -40,6 +40,9 @@ now(?=[-+]\d+[dwMyhms](?:{final}|$))                        { this.pushState('re
 '<='                                                        return 'LTE';
 '>'                                                         return 'GT';
 '<'                                                         return 'LT';
+'~^'                                                        return 'STARTSWITH';
+'~$'                                                        return 'ENDSWITH';
+'~'                                                         return 'CONTAINS';
 
 
 %%

@@ -38,6 +38,15 @@ describe('Lexer', function () {
         it('can recognise <=', function () {
             lex('<=').should.eql([{token: 'LTE', matched: '<='}]);
         });
+        it('can recognise ~', function () {
+            lex('~').should.eql([{token: 'CONTAINS', matched: '~'}]);
+        });
+        it('can recognise ~^', function () {
+            lex('~^').should.eql([{token: 'STARTSWITH', matched: '~^'}]);
+        });
+        it('can recognise ~$', function () {
+            lex('~$').should.eql([{token: 'ENDSWITH', matched: '~$'}]);
+        });
 
         it('cannot recognise :', function () {
             (function () {
@@ -511,6 +520,47 @@ describe('Lexer', function () {
                 {token: 'LBRACKET', matched: '['},
                 {token: 'LITERAL', matched: 'getting-started'},
                 {token: 'RBRACKET', matched: ']'}
+            ]);
+        });
+
+        it('should permit contains operators with and without not', function () {
+            lex('email:~gmail.com').should.eql([
+                {token: 'PROP', matched: 'email:'},
+                {token: 'CONTAINS', matched: '~'},
+                {token: 'LITERAL', matched: 'gmail.com'}
+            ]);
+
+            lex('email:-~gmail.com').should.eql([
+                {token: 'PROP', matched: 'email:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'CONTAINS', matched: '~'},
+                {token: 'LITERAL', matched: 'gmail.com'}
+            ]);
+
+            lex('email:~^gmail.com').should.eql([
+                {token: 'PROP', matched: 'email:'},
+                {token: 'STARTSWITH', matched: '~^'},
+                {token: 'LITERAL', matched: 'gmail.com'}
+            ]);
+
+            lex('email:-~^gmail.com').should.eql([
+                {token: 'PROP', matched: 'email:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'STARTSWITH', matched: '~^'},
+                {token: 'LITERAL', matched: 'gmail.com'}
+            ]);
+
+            lex('email:~$gmail.com').should.eql([
+                {token: 'PROP', matched: 'email:'},
+                {token: 'ENDSWITH', matched: '~$'},
+                {token: 'LITERAL', matched: 'gmail.com'}
+            ]);
+
+            lex('email:-~$gmail.com').should.eql([
+                {token: 'PROP', matched: 'email:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'ENDSWITH', matched: '~$'},
+                {token: 'LITERAL', matched: 'gmail.com'}
             ]);
         });
     });
