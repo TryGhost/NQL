@@ -6,14 +6,25 @@ on:
       - main
       - 'renovate/*'
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         node: [ 12, 14, 16 ]
+        env:
+          - DB: sqlite3
+            NODE_ENV: testing
+          - DB: mysql5
+            NODE_ENV: testing-mysql
+          - DB: mysql8
+            NODE_ENV: testing-mysql
     env:
       FORCE_COLOR: 1
-    name: Node ${{ matrix.node }}
+      DB: ${{ matrix.env.DB }}
+      NODE_ENV: ${{ matrix.env.NODE_ENV }}
+      database__connection__password: root
+      database__connection__database: nql_testing
+    name: Node ${{ matrix.node }}, ${{ matrix.env.DB }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -23,6 +34,24 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: yarn
       - run: yarn global add lerna
+
+      - name: Shutdown MySQL
+        run: sudo service mysql stop
+        if: matrix.env.DB == 'mysql5' || matrix.env.DB == 'mysql8'
+
+      - uses: daniellockyer/mysql-action@main
+        if: matrix.env.DB == 'mysql5'
+        with:
+          mysql version: '5.7'
+          mysql database: 'nql_testing'
+          mysql root password: 'root'
+
+      - uses: daniellockyer/mysql-action@main
+        if: matrix.env.DB == 'mysql8'
+        with:
+          mysql version: '8.0'
+          mysql database: 'nql_testing'
+          mysql root password: 'root'
 
       - run: yarn
       - run: yarn test

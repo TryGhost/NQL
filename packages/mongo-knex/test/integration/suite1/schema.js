@@ -56,7 +56,7 @@ module.exports.up = function (knex) {
         }))
         .then(() => knex.schema.createTable('comments', (table) => {
             table.increments('id').primary();
-            table.string('comment_provider_id');
+            table.string('comment_provider_id').index();
             table.string('content');
         }))
         .then(() => knex.schema.createTable('posts_comments', (table) => {
