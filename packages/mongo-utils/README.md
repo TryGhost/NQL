@@ -2,11 +2,11 @@
 
 ## Install
 
-`npm install @nexes/mongo-utils --save`
+`npm install @tryghost/mongo-utils --save`
 
 or
 
-`yarn add @nexes/mongo-utils`
+`yarn add @tryghost/mongo-utils`
 
 
 ## Usage

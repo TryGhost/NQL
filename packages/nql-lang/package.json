@@ -1,5 +1,5 @@
 {
-  "name": "@nexes/nql-lang",
+  "name": "@tryghost/nql-lang",
   "version": "0.1.0",
   "description": "tbc",
   "repository": "https://github.com/TryGhost/NQL/tree/main/packages/nql-lang",

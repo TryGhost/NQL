@@ -1,7 +1,7 @@
 require('../utils');
 
 const mingo = require('mingo');
-const nqlLang = require('@nexes/nql-lang');
+const nqlLang = require('@tryghost/nql-lang');
 const nql = require('../../lib/nql');
 const knex = require('knex')({client: 'mysql'});
 const sandbox = sinon.createSandbox();

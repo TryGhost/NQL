@@ -1,5 +1,5 @@
 {
-  "name": "@nexes/nql",
+  "name": "@tryghost/nql",
   "version": "0.7.0",
   "description": "tbc",
   "repository": "https://github.com/TryGhost/NQL/tree/main/packages/nql",
@@ -26,9 +26,9 @@
     "sinon": "13.0.1"
   },
   "dependencies": {
-    "@nexes/mongo-knex": "0.5.0",
-    "@nexes/mongo-utils": "^0.3.1",
-    "@nexes/nql-lang": "0.1.0",
+    "@tryghost/mongo-knex": "^0.5.0",
+    "@tryghost/mongo-utils": "^0.3.1",
+    "@tryghost/nql-lang": "^0.1.0",
     "mingo": "^2.2.2"
   }
 }

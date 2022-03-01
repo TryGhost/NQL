@@ -1,6 +1,6 @@
 const mingo = require('mingo');
-const nql = require('@nexes/nql-lang');
-const mongoKnex = require('@nexes/mongo-knex');
+const nql = require('@tryghost/nql-lang');
+const mongoKnex = require('@tryghost/mongo-knex');
 const utils = require('./utils');
 
 module.exports = (queryString, options = {}) => {
@@ -58,6 +58,6 @@ module.exports = (queryString, options = {}) => {
 };
 
 module.exports.utils = {
-    mapQuery: require('@nexes/mongo-utils').mapQuery,
-    mapKeyValues: require('@nexes/mongo-utils').mapKeyValues
+    mapQuery: require('@tryghost/mongo-utils').mapQuery,
+    mapKeyValues: require('@tryghost/mongo-utils').mapKeyValues
 };

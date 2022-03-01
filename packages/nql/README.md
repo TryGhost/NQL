@@ -1,17 +1,17 @@
 # NQL
 The aim is putting together various nql related projects into single, easy to use api. It allows:
- - parsing of NQL expression into Mongo JSON (using [nql-lang](https://github.com/NexesJS/NQL-Lang))
- - enhancing a database query with additional filters based on provided expression (using [mongo-knex](https://github.com/NexesJS/mongo-knex))
+ - parsing of NQL expression into Mongo JSON (using [nql-lang](https://github.com/TryGhost/NQL/tree/main/packages/nql-lang))
+ - enhancing a database query with additional filters based on provided expression (using [mongo-knex](https://github.com/TryGhost/NQL/tree/main/packages/mongo-knex))
  - querying JSON objects with NQL expressions (using [mingo](https://github.com/kofrasa/mingo))
 
 ## Installation
 Using npm:
 ```
-npm install @nexes/nql --save
+npm install @tryghost/nql --save
 ```
 or with yarn:
 ```
-yarn add @nexes/nql
+yarn add @tryghost/nql
 ```
 
 ## Example

@@ -1,5 +1,5 @@
-const mongoUtils = require('@nexes/mongo-utils');
-const nqlLang = require('@nexes/nql-lang');
+const mongoUtils = require('@tryghost/mongo-utils');
+const nqlLang = require('@tryghost/nql-lang');
 
 const parseExpansions = (expansions) => {
     if (!expansions || Object.keys(expansions).length === 0) {
