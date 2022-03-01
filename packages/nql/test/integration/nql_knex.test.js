@@ -9,11 +9,11 @@ const knex = utils.db.client;
  * but that this can be used in real world settings to query SQL databases
  */
 
-describe('Integration with Knex', () => {
+describe('Integration with Knex', function () {
     before(utils.db.setup());
     after(utils.db.teardown());
 
-    it('should match based on simple id', () => {
+    it('should match based on simple id', function () {
         const query = nql('featured:true');
 
         return query

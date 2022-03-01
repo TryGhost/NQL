@@ -1,8 +1,8 @@
 const utils = require('../../lib/utils');
 
 describe('Utils', function () {
-    describe('Expand filters', () => {
-        it('should not fail when no expansions provided', () => {
+    describe('Expand filters', function () {
+        it('should not fail when no expansions provided', function () {
             utils.expandFilters({status: 'draft'}).should.eql({status: 'draft'});
         });
 
@@ -52,7 +52,7 @@ describe('Utils', function () {
         });
     });
 
-    describe('Parse expansions', () => {
+    describe('Parse expansions', function () {
         it('should transform single expansion', function () {
             const input = [
                 {

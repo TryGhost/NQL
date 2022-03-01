@@ -93,7 +93,7 @@ describe('Parser', function () {
                 .should.eql({author: {$in: ['Joe Bloggs', 'John O\'Nolan', 'Hello World']}});
         });
 
-        it('can parse NOT IN with single value', function () {
+        it('can parse NOT IN with multiple values', function () {
             parse('count:-[5, 8, 12]').should.eql({count: {$nin: [5, 8, 12]}});
 
             parse('tag:-[getting-started, ghost, really-long-1]')

@@ -4,7 +4,7 @@ const mingo = require('mingo');
 const nqlLang = require('@nexes/nql-lang');
 const nql = require('../../lib/nql');
 const knex = require('knex')({client: 'mysql'});
-const sandbox = sinon.sandbox.create();
+const sandbox = sinon.createSandbox();
 
 const expansions = [
     {key: 'tags', replacement: 'tags.slug'},
