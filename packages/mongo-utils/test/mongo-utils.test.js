@@ -1,7 +1,7 @@
 // Switch these lines once there are useful utils
 // const testUtils = require('./utils');
 require('./utils');
-const mongoUtils = require('../lib/mongo-utils');
+const mongoUtils = require('../');
 
 describe('Find statement', function () {
     it('should match with object statement by key', function () {
