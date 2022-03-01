@@ -3,7 +3,7 @@ require('./utils');
 const sinon = require('sinon');
 
 const scope = require('../lib/scope');
-const parse = require('../lib/nql').parse;
+const {parse} = require('../');
 
 describe('Parser', function () {
     var parserError = /^Query Error: unexpected character in filter at char/;

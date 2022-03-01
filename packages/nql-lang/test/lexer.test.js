@@ -1,5 +1,5 @@
 require('./utils');
-const lex = require('../lib/nql').lex;
+const {lex} = require('../');
 
 describe('Lexer', function () {
     const lexicalError = /^Query Error: unrecognized text/;

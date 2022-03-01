@@ -11,7 +11,7 @@
     "lint": "eslint . --ext .js --cache",
     "pretest": "yarn build",
     "posttest": "yarn lint",
-    "test": "NODE_ENV=testing c8 --all --reporter text --reporter cobertura mocha ./test/**/*.test.js",
+    "test": "NODE_ENV=testing c8 --all --reporter text --reporter html --reporter cobertura mocha ./test/**/*.test.js",
     "test:lex": "NODE_ENV=testing mocha ./test/**/lex*.test.js",
     "test:parse": "NODE_ENV=testing mocha ./test/**/pars*.test.js",
     "preship": "yarn test",
