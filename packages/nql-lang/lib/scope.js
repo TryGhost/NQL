@@ -39,7 +39,7 @@ module.exports = {
     },
 
     unescape(value) {
-        var re = new RegExp('\\\\([\'"])', 'g');
+        const re = new RegExp('\\\\([\'"])', 'g');
         return value.replace(re, '$1');
     },
 
@@ -55,9 +55,9 @@ module.exports = {
             return;
         }
 
-        var string = arguments[0];
-        var values = Array.prototype.slice.call(arguments, 1);
-        var newArgs = [string];
+        const string = arguments[0];
+        const values = Array.prototype.slice.call(arguments, 1);
+        const newArgs = [string];
 
         values.forEach(function (value) {
             newArgs.push(util.inspect(value, false, null));
