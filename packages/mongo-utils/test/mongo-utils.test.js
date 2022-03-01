@@ -3,7 +3,7 @@
 require('./utils');
 const mongoUtils = require('../lib/mongo-utils');
 
-describe('Find statement', () => {
+describe('Find statement', function () {
     it('should match with object statement by key', function () {
         const statements = {status: 'published'};
 
@@ -52,7 +52,7 @@ describe('Find statement', () => {
     });
 });
 
-describe('Reject statements', () => {
+describe('Reject statements', function () {
     let rejectStatements;
     let testFunction;
 
@@ -66,7 +66,7 @@ describe('Reject statements', () => {
         };
     });
 
-    it('should reject from a simple object', () => {
+    it('should reject from a simple object', function () {
         const statements = {featured: true};
         const filter = {featured: false};
 
@@ -74,7 +74,7 @@ describe('Reject statements', () => {
             .should.eql({});
     });
 
-    it('should NOT reject from a simple object when not matching', () => {
+    it('should NOT reject from a simple object when not matching', function () {
         const statements = {featured: true};
         const filter = {status: 'published'};
 
@@ -82,7 +82,7 @@ describe('Reject statements', () => {
             .should.eql({featured: true});
     });
 
-    it('returns filter intact if it is empty', () => {
+    it('returns filter intact if it is empty', function () {
         const statements = null;
         const filter = {featured: true};
 
@@ -91,7 +91,7 @@ describe('Reject statements', () => {
         should.equal(output, null);
     });
 
-    it('rejects statements that match in filter in $or group', () => {
+    it('rejects statements that match in filter in $or group', function () {
         const statements = {$or: [{
             featured: false
         }, {
@@ -109,7 +109,7 @@ describe('Reject statements', () => {
         rejectStatements(statements, testFunction(filter)).should.eql(output);
     });
 
-    it('should remove group if all statements are removed', () => {
+    it('should remove group if all statements are removed', function () {
         const statements = {$or: [{
             featured: false
         }]};
@@ -123,7 +123,7 @@ describe('Reject statements', () => {
         rejectStatements(statements, testFunction(filter)).should.eql(output);
     });
 
-    it('reduces statements if key matches with any keys in $and group', () => {
+    it('reduces statements if key matches with any keys in $and group', function () {
         const statements = {$or: [
             {page: false},
             {author: 'cameron'}
@@ -203,13 +203,13 @@ describe('Combine Filters', function () {
     });
 });
 
-describe('Merge filters', () => {
-    it('should return empty statement object when there are no filters', () => {
+describe('Merge filters', function () {
+    it('should return empty statement object when there are no filters', function () {
         mongoUtils.mergeFilters().should.eql({});
     });
 
-    describe('single filters', () => {
-        it('should return only overrides filter when it is passed', () => {
+    describe('single filters', function () {
+        it('should return only overrides filter when it is passed', function () {
             const input = {
                 overrides: {status: 'published'}
             };
@@ -221,7 +221,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.overrides).should.eql(output);
         });
 
-        it('should return only default filter when it is passed', () => {
+        it('should return only default filter when it is passed', function () {
             const input = {
                 defaults: {status: 'published'}
             };
@@ -233,7 +233,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.defaults).should.eql(output);
         });
 
-        it('should return only custom filter when it is passed', () => {
+        it('should return only custom filter when it is passed', function () {
             const input = {
                 custom: {status: 'published'}
             };
@@ -246,8 +246,8 @@ describe('Merge filters', () => {
         });
     });
 
-    describe('combination of filters', () => {
-        it('should merge overrides and default filters if both are provided', () => {
+    describe('combination of filters', function () {
+        it('should merge overrides and default filters if both are provided', function () {
             const input = {
                 overrides: {status: 'published'},
                 defaults: {page: false}
@@ -260,7 +260,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.overrides, input.defaults).should.eql(output);
         });
 
-        it('should combine custom and overrides filters', () => {
+        it('should combine custom and overrides filters', function () {
             const input = {
                 overrides: {status: 'published'},
                 custom: {tag: 'photo'}
@@ -273,7 +273,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.overrides, input.custom).should.eql(output);
         });
 
-        it('should remove custom filters if matches overrides', () => {
+        it('should remove custom filters if matches overrides', function () {
             const input = {
                 overrides: {status: 'published'},
                 custom: {status: 'draft'}
@@ -283,7 +283,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.overrides, input.custom).should.eql(output);
         });
 
-        it('should reduce custom filters if any matches overrides', () => {
+        it('should reduce custom filters if any matches overrides', function () {
             const input = {
                 overrides: {status: 'published'},
                 custom: {$or: [
@@ -301,7 +301,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.overrides, input.custom).should.eql(output);
         });
 
-        it('should combine default filters if default and custom are provided', () => {
+        it('should combine default filters if default and custom are provided', function () {
             const input = {
                 defaults: {page: false},
                 custom: {tag: 'photo'}
@@ -314,7 +314,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.custom, input.defaults).should.eql(output);
         });
 
-        it('should reduce default filters if default and custom are same', () => {
+        it('should reduce default filters if default and custom are same', function () {
             const input = {
                 defaults: {page: false},
                 custom: {page: true}
@@ -350,7 +350,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.custom, input.defaults).should.eql(output);
         });
 
-        it('should reduce default filters if default and custom overlap', () => {
+        it('should reduce default filters if default and custom overlap', function () {
             const input = {
                 defaults: {$or: [
                     {page: false},
@@ -374,7 +374,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.custom, input.defaults).should.eql(output);
         });
 
-        it('should return a merger of overrides and defaults plus custom filters if provided', () => {
+        it('should return a merger of overrides and defaults plus custom filters if provided', function () {
             const input = {
                 overrides: {status: 'published'},
                 defaults: {page: false},
@@ -391,7 +391,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.overrides, input.custom, input.defaults).should.eql(output);
         });
 
-        it('should handle getting overrides, default and multiple custom filters', () => {
+        it('should handle getting overrides, default and multiple custom filters', function () {
             const input = {
                 overrides: {status: 'published'},
                 defaults: {page: true},
@@ -429,7 +429,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.overrides, input.custom, input.defaults).should.eql(output);
         });
 
-        it('combination of all filters', () => {
+        it('combination of all filters', function () {
             const input = {
                 overrides: {featured: true},
                 defaults: {page: false},
@@ -450,7 +450,7 @@ describe('Merge filters', () => {
             mongoUtils.mergeFilters(input.overrides, input.custom, input.defaults).should.eql(output);
         });
 
-        it('does not match incorrect custom filters', () => {
+        it('does not match incorrect custom filters', function () {
             const input = {
                 overrides: {status: 'published'},
                 defaults: {page: false},
@@ -472,7 +472,7 @@ describe('Merge filters', () => {
     });
 });
 
-describe('Expand filters', () => {
+describe('Expand filters', function () {
     let expandFilters;
 
     beforeEach(function () {
