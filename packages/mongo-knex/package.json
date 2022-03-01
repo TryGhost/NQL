@@ -10,7 +10,7 @@
     "lint": "eslint . --ext .js --cache",
     "posttest": "yarn lint",
     "test": "yarn test-unit && yarn test-integration --timeout 10000",
-    "test-unit": "c8 --all --reporter text --reporter cobertura mocha ./test/unit/*.test.js --exit",
+    "test-unit": "c8 --all --reporter text --reporter html --reporter cobertura mocha ./test/unit/*.test.js --exit",
     "test-integration": "mocha ./test/integration/*.test.js --exit",
     "ship": "STATUS=$(git status --porcelain); echo $STATUS; if [ -z \"$STATUS\" ]; then yarn publish && git push --follow-tags; fi"
   },

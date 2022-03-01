@@ -2,7 +2,22 @@ require('../utils');
 const knex = require('knex')({client: 'mysql'});
 const convertor = require('../../lib/convertor');
 
-const runQuery = query => convertor(knex('posts'), query).toQuery();
+const runQuery = query => convertor(knex('posts'), query, {
+    relations: {
+        tags: {
+            tableName: 'tags',
+            type: 'manyToMany',
+            joinTable: 'posts_tags',
+            joinFrom: 'post_id',
+            joinTo: 'tag_id'
+        },
+        posts_meta: {
+            tableName: 'posts_meta',
+            type: 'oneToOne',
+            joinFrom: 'post_id'
+        }
+    }
+}).toQuery();
 
 describe('Simple Expressions', function () {
     it('should match based on simple id', function () {
@@ -290,5 +305,46 @@ describe('Logical Groups', function () {
             })
                 .should.eql('select * from `posts` where ((`posts`.`tags` in (\'photo\') or `posts`.`image` is not null or `posts`.`featured` = true) and `posts`.`author` != \'joe\')');
         });
+    });
+});
+
+describe('Relations', function () {
+    it('should be able to perform query on a many-to-many relation', function () {
+        runQuery({'tags.slug': 'fred'})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'fred\')');
+    });
+
+    it('should be able to perform a negated query on a many-to-many relation (works but is weird)', function () {
+        runQuery({'tags.slug': {$ne: 'fred'}})
+            .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` in (\'fred\'))');
+    });
+
+    // This case doesn't work
+    it.skip('should be able to perform a query on a many-to-many join table alone', function () {
+        runQuery({'posts_tags.sort_order': 0});
+    });
+
+    it('should be able to perform a query on a many-to-many join table and its relation', function () {
+        runQuery({
+            $and: [
+                {
+                    'tags.slug': 'cgi'
+                },
+                {
+                    'posts_tags.sort_order': 0
+                }
+            ]
+        })
+            .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` and `posts_tags`.`sort_order` = 0 where `tags`.`slug` = \'cgi\'))');
+    });
+
+    it('should be able to perform a query on a one-to-one relation', function () {
+        runQuery({'posts_meta.meta_title': 'Meta of A Whole New World'})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'Meta of A Whole New World\')');
+    });
+
+    it('should be able to perform a negated query on a one-to-one relation (works but is weird)', function () {
+        runQuery({'posts_meta.meta_title': {$ne: 'Meta of A Whole New World'}})
+            .should.eql('select * from `posts` where `posts`.`id` not in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` in (\'Meta of A Whole New World\'))');
     });
 });
