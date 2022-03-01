@@ -75,14 +75,15 @@ class MongoToKnex {
 
             if (!relation) {
                 // CASE: you want to filter by a column on the join table
-                relation = _.find(this.config.relations, (relation) => {
-                    return relation.joinTable === table;
+                relation = _.find(this.config.relations, (_relation) => {
+                    return _relation.joinTable === table;
                 });
 
                 // CASE: assume it's a column on the destination table
                 if (!relation) {
                     return {
                         column: column,
+                        operator: op,
                         value: value,
                         isRelation: false
                     };
@@ -109,9 +110,10 @@ class MongoToKnex {
             };
         }
 
-        // CASE: fallback, `status=draft` -> `posts.status`=draft
+        // CASE: fallback, status=draft -> posts.status=draft
         return {
             column: `${this.tableName}.${column}`,
+            operator: op,
             value: value,
             isRelation: false
         };
@@ -263,8 +265,8 @@ class MongoToKnex {
                             debug(`(buildRelationQuery) innerQB sql-pre: ${innerQB.toSQL().sql}`);
                         }
 
-                        _.each(statements, (statement, key) => {
-                            debug(`(buildRelationQuery) build relation where statements for ${key}`);
+                        _.each(statements, (statement, _key) => {
+                            debug(`(buildRelationQuery) build relation where statements for ${_key}`);
 
                             const statementColumn = `${statement.joinTable || statement.table}.${statement.column}`;
                             let statementOp;
@@ -343,8 +345,8 @@ class MongoToKnex {
                                 });
                             });
 
-                        _.each(statements, (statement, key) => {
-                            debug(`(buildRelationQuery) build relation where statements for ${key}`);
+                        _.each(statements, (statement, _key) => {
+                            debug(`(buildRelationQuery) build relation where statements for ${_key}`);
 
                             const statementColumn = `${statement.table}.${statement.column}`;
                             let statementOp;
@@ -404,6 +406,7 @@ class MongoToKnex {
 
         debug(`(buildComparison) mode: ${mode}, op: ${op}, isRelation: ${processedStatement.isRelation}, group: ${group}`);
 
+        // Call out to build any necessary relation queries
         if (processedStatement.isRelation) {
             processedStatement.whereType = whereType;
 
@@ -422,8 +425,13 @@ class MongoToKnex {
             return;
         }
 
+        // Build the comparisons using our processed data
+        const column = processedStatement.column;
+        op = processedStatement.operator;
+        value = processedStatement.value;
+
         debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value}`);
-        qb[whereType](processedStatement.column, comp, processedStatement.value);
+        qb[whereType](column, comp, value);
     }
 
     /**
