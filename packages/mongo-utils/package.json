@@ -1,6 +1,6 @@
 {
   "name": "@tryghost/mongo-utils",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "repository": "https://github.com/TryGhost/NQL/tree/main/packages/mongo-utils",
   "author": "Ghost Foundation",
   "license": "MIT",

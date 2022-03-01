@@ -1,6 +1,6 @@
 {
   "name": "@tryghost/nql-lang",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "tbc",
   "repository": "https://github.com/TryGhost/NQL/tree/main/packages/nql-lang",
   "author": "Ghost Foundation",
@@ -26,6 +26,5 @@
     "mocha": "9.2.1",
     "should": "13.2.3",
     "sinon": "13.0.1"
-  },
-  "dependencies": {}
+  }
 }
