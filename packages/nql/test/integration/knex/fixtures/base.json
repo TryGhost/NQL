@@ -6,8 +6,8 @@
             "featured": false,
             "image": null,
             "status": "published",
-            "created_at": "2020-01-05T18:16:49.000Z",
-            "updated_at": "2020-01-10T12:05:08.000Z"
+            "created_at": "2020-01-05 18:16:49",
+            "updated_at": "2020-01-10 12:05:08"
         },
         {
             "id": 2,
@@ -15,7 +15,7 @@
             "featured": false,
             "image": "myimage.jpg",
             "status": "draft",
-            "created_at": "2020-01-18T08:23:46.000Z",
+            "created_at": "2020-01-18 08:23:46",
             "updated_at": "2020-01-18 12:05:08"
         },
         {
@@ -24,7 +24,7 @@
             "featured": true,
             "image": null,
             "status": "published",
-            "created_at": "2022-02-02T10:05:49.000Z"
+            "created_at": "2022-02-02 10:05:49"
         },
         {
             "id": 4,
@@ -32,7 +32,7 @@
             "featured": true,
             "image": null,
             "status": "published",
-            "created_at": "2022-03-01T10:12:23.000Z"
+            "created_at": "2022-03-01 10:12:23"
         },
         {
             "id": 5,
@@ -40,7 +40,7 @@
             "featured": true,
             "image": null,
             "status": "published",
-            "created_at": "2022-03-02T11:06:49.000Z"
+            "created_at": "2022-03-02 11:06:49"
         },
         {
             "id": 6,
@@ -48,7 +48,7 @@
             "featured": true,
             "image": null,
             "status": "published",
-            "created_at": "2022-03-02T11:06:50.000Z"
+            "created_at": "2022-03-02 11:06:50"
         }
     ]
 }
