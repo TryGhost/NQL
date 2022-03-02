@@ -242,15 +242,9 @@ class MongoToKnex {
                             innerJoinOn = `${reference.config.tableNameAs}.${reference.config.joinToForeign || 'id'}`;
                         }
 
-                        let query = this
+                        const innerQB = this
                             .select(`${reference.config.joinTable}.${reference.config.joinFrom}`)
-                            .from(`${reference.config.joinTable}`);
-
-                        if (reference.config.virtualTable) {
-                            query = query.with(reference.config.tableName, reference.config.virtualTableDefinition);
-                        }
-
-                        const innerQB = query
+                            .from(`${reference.config.joinTable}`)
                             .innerJoin(innerJoinValue, function () {
                                 this.on(innerJoinOn, '=', `${reference.config.joinTable}.${reference.config.joinTo}`);
 
@@ -326,15 +320,9 @@ class MongoToKnex {
                             innerJoinOn = `${reference.config.tableNameAs}.${reference.config.joinFrom}`;
                         }
 
-                        let query = this
+                        const innerQB = this
                             .select(`${tableName}.id`)
-                            .from(`${tableName}`);
-
-                        if (reference.config.virtualTable) {
-                            query = query.with(reference.config.tableName, reference.config.virtualTableDefinition);
-                        }
-
-                        const innerQB = query
+                            .from(`${tableName}`)
                             .leftJoin(innerJoinValue, function () {
                                 this.on(innerJoinOn, '=', `${tableName}.id`);
 
