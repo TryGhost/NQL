@@ -1,5 +1,5 @@
 const debug = require('debug')('nql:test');
-const config = require('../../../config');
+const config = require('../../config');
 
 debug(config.get('database'));
 
