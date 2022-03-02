@@ -9,9 +9,7 @@
     "dev": "echo \"Implement me!\"",
     "test": "NODE_ENV=testing c8 --all --check-coverage mocha './test/**/*.test.js'",
     "lint": "eslint . --ext .js --cache",
-    "posttest": "yarn lint",
-    "preship": "yarn test",
-    "ship": "STATUS=$(git status --porcelain); echo $STATUS; if [ -z \"$STATUS\" ]; then yarn publish && git push --follow-tags; fi"
+    "posttest": "yarn lint"
   },
   "publishConfig": {
     "access": "public"

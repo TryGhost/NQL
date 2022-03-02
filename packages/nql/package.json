@@ -9,8 +9,7 @@
   "scripts": {
     "lint": "eslint . --ext .js --cache",
     "posttest": "yarn lint",
-    "test": "c8 --all --100 --reporter text --reporter html --reporter cobertura mocha ./test/**/*.test.js --exit",
-    "ship": "STATUS=$(git status --porcelain); echo $STATUS; if [ -z \"$STATUS\" ]; then yarn publish && git push --follow-tags; fi"
+    "test": "c8 --all --100 --reporter text --reporter html --reporter cobertura mocha ./test/**/*.test.js --exit"
   },
   "devDependencies": {
     "@vscode/sqlite3": "5.0.7",

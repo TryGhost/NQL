@@ -13,9 +13,7 @@
     "posttest": "yarn lint",
     "test": "NODE_ENV=testing c8 --all --reporter text --reporter html --reporter cobertura mocha ./test/**/*.test.js",
     "test:lex": "NODE_ENV=testing mocha ./test/**/lex*.test.js",
-    "test:parse": "NODE_ENV=testing mocha ./test/**/pars*.test.js",
-    "preship": "yarn test",
-    "ship": "STATUS=$(git status --porcelain); echo $STATUS; if [ -z \"$STATUS\" ]; then yarn publish && git push --follow-tags; fi"
+    "test:parse": "NODE_ENV=testing mocha ./test/**/pars*.test.js"
   },
   "devDependencies": {
     "c8": "7.11.0",
