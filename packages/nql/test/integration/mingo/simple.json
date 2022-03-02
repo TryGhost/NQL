@@ -32,7 +32,7 @@
         },
         {
             "id": 4,
-            "title": "The one that was number 4",
+            "title": "The post that was number 4",
             "html": "<p>It's always sunny.</p>",
             "author": "joanne",
             "featured": false,

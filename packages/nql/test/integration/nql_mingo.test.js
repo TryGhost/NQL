@@ -98,6 +98,72 @@ describe('Integration with Mingo', function () {
             query.queryJSON(simpleJSON.posts[3]).should.eql(true);
             query.queryJSON(simpleJSON.posts[4]).should.eql(true);
         });
+
+        it('$regex contains', function () {
+            const query = nql('title:~th');
+
+            query.queryJSON(simpleJSON.posts[0]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[1]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[2]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[3]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[4]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[5]).should.eql(true);
+        });
+
+        it('$not contains', function () {
+            const query = nql('title:-~th');
+
+            query.queryJSON(simpleJSON.posts[0]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[1]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[2]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[3]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[4]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[5]).should.eql(false);
+        });
+
+        it('$regex startswith', function () {
+            const query = nql('title:~^Th');
+
+            query.queryJSON(simpleJSON.posts[0]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[1]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[2]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[3]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[4]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[5]).should.eql(false);
+        });
+
+        it('$not startswith', function () {
+            const query = nql('title:-~^Th');
+
+            query.queryJSON(simpleJSON.posts[0]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[1]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[2]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[3]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[4]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[5]).should.eql(true);
+        });
+
+        it('$regex endswith', function () {
+            const query = nql('title:~$st');
+
+            query.queryJSON(simpleJSON.posts[0]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[1]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[2]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[3]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[4]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[5]).should.eql(false);
+        });
+
+        it('$not endswith', function () {
+            const query = nql('title:-~$st');
+
+            query.queryJSON(simpleJSON.posts[0]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[1]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[2]).should.eql(false);
+            query.queryJSON(simpleJSON.posts[3]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[4]).should.eql(true);
+            query.queryJSON(simpleJSON.posts[5]).should.eql(true);
+        });
     });
 
     describe('Logical Query Operators', function () {
