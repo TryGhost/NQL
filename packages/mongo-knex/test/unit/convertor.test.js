@@ -111,6 +111,21 @@ describe('Comparison Query Operators', function () {
         runQuery({tags: {$nin: ['video', 'audio']}})
             .should.eql('select * from `posts` where `posts`.`tags` not in (\'video\', \'audio\')');
     });
+
+    it('can match like', function () {
+        runQuery({email: {$regex: /Gmail\.com/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`email`) like \'%gmail.com%\'');
+    });
+
+    it('can match like with startswith', function () {
+        runQuery({email: {$regex: /^Gmail\.com/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`email`) like \'gmail.com%\'');
+    });
+
+    it('can match like with endswith', function () {
+        runQuery({email: {$regex: /Gmail\.com$/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`email`) like \'%gmail.com\'');
+    });
 });
 
 describe('Logical Query Operators', function () {

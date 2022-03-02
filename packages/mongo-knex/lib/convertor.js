@@ -15,7 +15,9 @@ const compOps = {
     $lt: '<',
     $lte: '<=',
     $in: 'in',
-    $nin: 'not in'
+    $nin: 'not in',
+    $regex: 'like',
+    $not: 'not like'
 };
 
 const isOp = key => key.charAt(0) === '$';
@@ -23,6 +25,39 @@ const isLogicOp = key => isOp(key) && _.includes(logicOps, key);
 const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
 const isNegationOp = key => isOp(key) && _.includes(['$ne', '$nin'], key);
 const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
+
+/**
+ * JSON Stringify with RegExp support
+ * @param {Object} json
+ * @returns
+ */
+const stringify = (json) => {
+    return JSON.stringify(json, function (key, value) {
+        if (value instanceof RegExp) {
+            return value.toString();
+        }
+        return value;
+    });
+};
+
+const processRegExp = ({source, ignoreCase}) => {
+    source = source.replace(/\\([.*+?^${}()|[\]\\])/g, '$1');
+
+    if (ignoreCase) {
+        source = source.toLowerCase();
+    }
+
+    // For starts with and ends with in SQL we have to put the wildcard at the opposite end of the string to the regex symbol!
+    if (source.startsWith('^')) {
+        source = source.replace('^', '') + '%';
+    } else if (source.endsWith('$')) {
+        source = '%' + source.replace('$', '');
+    } else {
+        source = '%' + source + '%';
+    }
+
+    return {source, ignoreCase};
+};
 
 class MongoToKnex {
     /**
@@ -199,13 +234,13 @@ class MongoToKnex {
         debug(`(buildRelationQuery)`);
 
         if (debugExtended.enabled) {
-            debugExtended(`(buildRelationQuery) ${JSON.stringify(relations)}`);
+            debugExtended(`(buildRelationQuery) ${stringify(relations)}`);
         }
 
         const groupedRelations = this.groupRelationStatements(relations, mode);
 
         if (debugExtended.enabled) {
-            debugExtended(`(buildRelationQuery) grouped: ${JSON.stringify(groupedRelations)}`);
+            debugExtended(`(buildRelationQuery) grouped: ${stringify(groupedRelations)}`);
         }
 
         // CASE: {tags: [where clause, where clause], tags_123: [where clause], authors: [where clause, where clause]}
@@ -389,8 +424,8 @@ class MongoToKnex {
      */
     buildComparison(qb, mode, statement, op, value, group) {
         const comp = compOps[op] || '=';
-        const whereType = this.processWhereType(mode, op, value);
         const processedStatement = this.processStatement(statement, op, value);
+        let whereType = this.processWhereType(mode, op, value);
 
         debug(`(buildComparison) mode: ${mode}, op: ${op}, isRelation: ${processedStatement.isRelation}, group: ${group}`);
 
@@ -418,6 +453,19 @@ class MongoToKnex {
         op = processedStatement.operator;
         value = processedStatement.value;
 
+        if (op === '$regex' || op === '$not') {
+            const {source, ignoreCase} = processRegExp(value);
+            value = source;
+
+            // CASE: regex with i flag needs whereRaw to wrap column in lower() else fall through
+            if (ignoreCase) {
+                whereType += 'Raw';
+                debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value} (REGEX/i)`);
+                qb[whereType](`lower(??) ${comp} ?`, [column, value]);
+                return;
+            }
+        }
+
         debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value}`);
         qb[whereType](column, comp, value);
     }
@@ -429,7 +477,7 @@ class MongoToKnex {
         debug(`(buildWhereClause) mode: ${mode}, statement: ${statement}`);
 
         if (debugExtended.enabled) {
-            debugExtended(`(buildWhereClause) ${JSON.stringify(sub)}`);
+            debugExtended(`(buildWhereClause) ${stringify(sub)}`);
         }
 
         // CASE sub is an atomic value, we use "eq" as default operator
@@ -458,7 +506,7 @@ class MongoToKnex {
         debug(`(buildWhereGroup) mode: ${mode}, whereType: ${whereType}`);
 
         if (debugExtended.enabled) {
-            debugExtended(`(buildWhereGroup) ${JSON.stringify(sub)}`);
+            debugExtended(`(buildWhereGroup) ${stringify(sub)}`);
         }
 
         qb[whereType]((_qb) => {
@@ -480,7 +528,7 @@ class MongoToKnex {
         debug(`(buildQuery) mode: ${mode}`);
 
         if (debugExtended.enabled) {
-            debugExtended(`(buildQuery) ${JSON.stringify(sub)}`);
+            debugExtended(`(buildQuery) ${stringify(sub)}`);
         }
 
         _.forIn(sub, (value, key) => {
@@ -505,7 +553,7 @@ class MongoToKnex {
 
         // DEBUG=mongo-knex:converter,mongo-knex:converter-extended
         if (debugExtended.enabled) {
-            debugExtended(`(processJSON) ${JSON.stringify(mongoJSON)}`);
+            debugExtended(`(processJSON) ${stringify(mongoJSON)}`);
         }
 
         // 'and' is the default behaviour
