@@ -5,42 +5,50 @@
             "title": "A Whole New World",
             "featured": false,
             "image": null,
-            "status": "published"
+            "status": "published",
+            "created_at": "2020-01-05T18:16:49.000Z",
+            "updated_at": "2020-01-10T12:05:08.000Z"
         },
         {
             "id": 2,
             "title": "The Bare Necessities",
             "featured": false,
             "image": "myimage.jpg",
-            "status": "draft"
+            "status": "draft",
+            "created_at": "2020-01-18T08:23:46.000Z",
+            "updated_at": "2020-01-18 12:05:08"
         },
         {
             "id": 3,
             "title": "When She Loved Me",
             "featured": true,
             "image": null,
-            "status": "published"
+            "status": "published",
+            "created_at": "2022-02-02T10:05:49.000Z"
         },
         {
             "id": 4,
             "title": "Circle of Life",
             "featured": true,
             "image": null,
-            "status": "published"
+            "status": "published",
+            "created_at": "2022-03-01T10:12:23.000Z"
         },
         {
             "id": 5,
             "title": "Be Our Guest",
             "featured": true,
             "image": null,
-            "status": "published"
+            "status": "published",
+            "created_at": "2022-03-02T11:06:49.000Z"
         },
         {
             "id": 6,
             "title": "He's a Tramp",
             "featured": true,
             "image": null,
-            "status": "published"
+            "status": "published",
+            "created_at": "2022-03-02T11:06:50.000Z"
         }
     ]
 }
