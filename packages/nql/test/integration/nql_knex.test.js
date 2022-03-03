@@ -25,40 +25,42 @@ describe('Integration with Knex', function () {
             });
     });
 
-    it('can do a contains query', function () {
-        const query = nql('title:~ne');
+    describe('Regex / Like queries', function () {
+        it('can do a contains query', function () {
+            const query = nql('title:~ne');
 
-        return query
-            .querySQL(knex('posts'))
-            .select()
-            .then((result) => {
-                result.should.be.an.Array().with.lengthOf(2);
-                result[0].title.should.equal('A Whole New World');
-                result[1].title.should.equal('The Bare Necessities');
-            });
-    });
+            return query
+                .querySQL(knex('posts'))
+                .select()
+                .then((result) => {
+                    result.should.be.an.Array().with.lengthOf(2);
+                    result[0].title.should.equal('A Whole New World');
+                    result[1].title.should.equal('The Bare Necessities');
+                });
+        });
 
-    it('can do a startswith query', function () {
-        const query = nql('title:~^wh');
+        it('can do a startswith query', function () {
+            const query = nql('title:~^wh');
 
-        return query
-            .querySQL(knex('posts'))
-            .select()
-            .then((result) => {
-                result.should.be.an.Array().with.lengthOf(1);
-                result[0].title.should.equal('When She Loved Me');
-            });
-    });
+            return query
+                .querySQL(knex('posts'))
+                .select()
+                .then((result) => {
+                    result.should.be.an.Array().with.lengthOf(1);
+                    result[0].title.should.equal('When She Loved Me');
+                });
+        });
 
-    it('can do an endswith query', function () {
-        const query = nql('title:~$es');
+        it('can do an endswith query', function () {
+            const query = nql('title:~$es');
 
-        return query
-            .querySQL(knex('posts'))
-            .select()
-            .then((result) => {
-                result.should.be.an.Array().with.lengthOf(1);
-                result[0].title.should.equal('The Bare Necessities');
-            });
+            return query
+                .querySQL(knex('posts'))
+                .select()
+                .then((result) => {
+                    result.should.be.an.Array().with.lengthOf(1);
+                    result[0].title.should.equal('The Bare Necessities');
+                });
+        });
     });
 });
