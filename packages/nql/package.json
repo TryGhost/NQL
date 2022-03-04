@@ -11,6 +11,9 @@
     "posttest": "yarn lint",
     "test": "c8 --all --100 --reporter text --reporter html --reporter cobertura mocha ./test/**/*.test.js --exit"
   },
+  "publishConfig": {
+      "access": "public"
+  },
   "devDependencies": {
     "@vscode/sqlite3": "5.0.7",
     "bluebird": "3.7.2",

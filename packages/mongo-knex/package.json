@@ -13,6 +13,9 @@
     "test-unit": "c8 --all --reporter text --reporter html --reporter cobertura mocha ./test/unit/*.test.js --exit",
     "test-integration": "mocha ./test/integration/*.test.js --exit"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@vscode/sqlite3": "5.0.7",
     "bluebird": "3.7.2",
