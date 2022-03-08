@@ -27,7 +27,7 @@ describe('Integration with Knex', function () {
 
     describe('Regex / Like queries', function () {
         it('can do a contains query', function () {
-            const query = nql('title:~ne');
+            const query = nql(`title:~'ne'`);
 
             return query
                 .querySQL(knex('posts'))
@@ -40,7 +40,7 @@ describe('Integration with Knex', function () {
         });
 
         it('can do a startswith query', function () {
-            const query = nql('title:~^wh');
+            const query = nql(`title:~^'wh'`);
 
             return query
                 .querySQL(knex('posts'))
@@ -52,7 +52,7 @@ describe('Integration with Knex', function () {
         });
 
         it('can do an endswith query', function () {
-            const query = nql('title:~$es');
+            const query = nql(`title:~$'es'`);
 
             return query
                 .querySQL(knex('posts'))

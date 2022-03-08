@@ -43,8 +43,8 @@ module.exports = {
         return value.replace(re, '$1');
     },
 
-    literalToRegExp(value, modifier) {
-        let escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    stringToRegExp(value, modifier) {
+        let escapedValue = value.replace(/[.*+?^$(){}|[\]\\]/g, '\\$&');
 
         if (modifier === '^') {
             escapedValue = '^' + escapedValue;

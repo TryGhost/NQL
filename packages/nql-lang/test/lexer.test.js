@@ -786,6 +786,23 @@ describe('Lexer', function () {
                 {token: 'GT', matched: '>'},
                 {token: 'NUMBER', matched: '5'}
             ]);
+
+            lex('tag:photo+image:-null,tag.count:>5+foo:~\'bar\'').should.eql([
+                {token: 'PROP', matched: 'tag:'},
+                {token: 'LITERAL', matched: 'photo'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'image:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'NULL', matched: 'null'},
+                {token: 'OR', matched: ','},
+                {token: 'PROP', matched: 'tag.count:'},
+                {token: 'GT', matched: '>'},
+                {token: 'NUMBER', matched: '5'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'foo:'},
+                {token: 'CONTAINS', matched: '~'},
+                {token: 'STRING', matched: '\'bar\''}
+            ]);
         });
 
         it('grouped expressions', function () {
