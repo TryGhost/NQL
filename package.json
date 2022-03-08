@@ -11,9 +11,11 @@
   ],
   "scripts": {
     "dev": "echo \"Implement me!\"",
+    "build": "lerna run --scope @tryghost/nql-lang build",
     "presetup": "yarn",
     "setup": "lerna bootstrap",
     "test": "lerna run test",
+    "pretest": "yarn build",
     "lint": "lerna run lint",
     "preship": "yarn test",
     "ship": "lerna publish"
