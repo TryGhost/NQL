@@ -397,12 +397,23 @@ describe('Lexer', function () {
             ]);
         });
 
+        it('can recognise a single character STRING', function () {
+            lex('\'x\'').should.eql([{token: 'STRING', matched: '\'x\''}]);
+            lex('\'+\'').should.eql([{token: 'STRING', matched: '\'+\''}]);
+            lex('\',\'').should.eql([{token: 'STRING', matched: '\',\''}]);
+            lex('\'-\'').should.eql([{token: 'STRING', matched: '\'-\''}]);
+            lex('\'>\'').should.eql([{token: 'STRING', matched: '\'>\''}]);
+            lex('\'<\'').should.eql([{token: 'STRING', matched: '\'<\''}]);
+            lex('\'~\'').should.eql([{token: 'STRING', matched: '\'~\''}]);
+        });
+
         it('can recognise STRING with special characters', function () {
             lex('\'magic+\'').should.eql([{token: 'STRING', matched: '\'magic+\''}]);
             lex('\'magic,\'').should.eql([{token: 'STRING', matched: '\'magic,\''}]);
             lex('\'magic-\'').should.eql([{token: 'STRING', matched: '\'magic-\''}]);
             lex('\'magic>\'').should.eql([{token: 'STRING', matched: '\'magic>\''}]);
             lex('\'magic<\'').should.eql([{token: 'STRING', matched: '\'magic<\''}]);
+            lex('\'magic~\'').should.eql([{token: 'STRING', matched: '\'magic~\''}]);
         });
 
         it('should permit special chars inside a STRING, not including quotes', function () {
@@ -415,6 +426,9 @@ describe('Lexer', function () {
             lex('\'t=st\'').should.eql([{token: 'STRING', matched: '\'t=st\''}]);
             lex('\'t[st\'').should.eql([{token: 'STRING', matched: '\'t[st\''}]);
             lex('\'t]st\'').should.eql([{token: 'STRING', matched: '\'t]st\''}]);
+            lex('\'t~st\'').should.eql([{token: 'STRING', matched: '\'t~st\''}]);
+            lex('\'t^st\'').should.eql([{token: 'STRING', matched: '\'t^st\''}]);
+            lex('\'t$st\'').should.eql([{token: 'STRING', matched: '\'t$st\''}]);
         });
 
         it('should NOT permit quotes inside a STRING', function () {
@@ -429,6 +443,13 @@ describe('Lexer', function () {
         it('should permit escaped quotes inside a String', function () {
             lex('\'t\\\'st\'').should.eql([{token: 'STRING', matched: '\'t\\\'st\''}]);
             lex('\'t\\"st\'').should.eql([{token: 'STRING', matched: '\'t\\"st\''}]);
+            lex(`'t\\'st'`).should.eql([{token: 'STRING', matched: '\'t\\\'st\''}]);
+            lex(`'john o\\'nolan'`).should.eql([{token: 'STRING', matched: '\'john o\\\'nolan\''}]);
+        });
+
+        // Would be amazing if we could support this
+        it.skip('should permit quotes in the middle of a string', function () {
+            lex(`'john o'nolan'`).should.eql([{token: 'STRING', matched: '\'john o\'nolan\''}]);
         });
     });
 
@@ -875,6 +896,57 @@ describe('Lexer', function () {
                 {token: 'AMOUNT', matched: '1'},
                 {token: 'INTERVAL', matched: 'd'},
                 {token: 'RBRACKET', matched: ']'}
+            ]);
+        });
+
+        it('creating strings with JS - double quotes', function () {
+            const slug = 'test';
+            const op = '>';
+            const publishedAt = '2022-03-04 10:15:04';
+            let filter = "slug:-" + slug + "+published_at:" + op + "'" + publishedAt + "'"; /* eslint-disable-line quotes */
+
+            lex(filter).should.eql([
+                {token: 'PROP', matched: 'slug:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'LITERAL', matched: 'test'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'published_at:'},
+                {token: 'GT', matched: '>'},
+                {token: 'STRING', matched: '\'2022-03-04 10:15:04\''}
+            ]);
+        });
+
+        it('creating strings with JS - single quotes', function () {
+            const slug = 'test';
+            const op = '>';
+            const publishedAt = '2022-03-04 10:15:04';
+            let filter = 'slug:-' + slug + '+published_at:' + op + '\'' + publishedAt + '\'';
+
+            lex(filter).should.eql([
+                {token: 'PROP', matched: 'slug:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'LITERAL', matched: 'test'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'published_at:'},
+                {token: 'GT', matched: '>'},
+                {token: 'STRING', matched: '\'2022-03-04 10:15:04\''}
+            ]);
+        });
+
+        it('creating strings with JS - template strings', function () {
+            const slug = 'test';
+            const op = '>';
+            const publishedAt = '2022-03-04 10:15:04';
+            let filter = `slug:-${slug}+published_at:${op}'${publishedAt}'`;
+
+            lex(filter).should.eql([
+                {token: 'PROP', matched: 'slug:'},
+                {token: 'NOT', matched: '-'},
+                {token: 'LITERAL', matched: 'test'},
+                {token: 'AND', matched: '+'},
+                {token: 'PROP', matched: 'published_at:'},
+                {token: 'GT', matched: '>'},
+                {token: 'STRING', matched: '\'2022-03-04 10:15:04\''}
             ]);
         });
     });
