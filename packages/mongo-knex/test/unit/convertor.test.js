@@ -363,3 +363,16 @@ describe('Relations', function () {
             .should.eql('select * from `posts` where `posts`.`id` not in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` in (\'Meta of A Whole New World\'))');
     });
 });
+
+describe('RegExp/Like queries', function () {
+    it('are well behaved', function () {
+        runQuery({title: {$regex: /'/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%\\\'%\'');
+
+        runQuery({title: {$regex: /;/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%;%\'');
+
+        runQuery({title: {$regex: /';select * from `settings` where `value` like '/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%\\\';select * from `settings` where `value` like \\\'%\'');
+    });
+});

@@ -79,9 +79,9 @@ DATEOP
    ;
 
 REGEXPOP
-    : CONTAINS LITERAL { $$ = yy.literalToRegExp($2); }
-    | STARTSWITH LITERAL { $$ = yy.literalToRegExp($2, '^'); }
-    | ENDSWITH LITERAL { $$ = yy.literalToRegExp($2, '$'); }
+    : CONTAINS STRING { $2 = $2.replace(/^'|'$/g, ''); $2 = yy.unescape($2); $$ = yy.stringToRegExp($2); }
+    | STARTSWITH STRING { $2 = $2.replace(/^'|'$/g, ''); $2 = yy.unescape($2); $$ = yy.stringToRegExp($2, '^'); }
+    | ENDSWITH STRING { $2 = $2.replace(/^'|'$/g, ''); $2 = yy.unescape($2); $$ = yy.stringToRegExp($2, '$'); }
     ;
 
 OP

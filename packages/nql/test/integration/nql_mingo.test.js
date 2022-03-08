@@ -100,7 +100,7 @@ describe('Integration with Mingo', function () {
         });
 
         it('$regex contains', function () {
-            const query = nql('title:~th');
+            const query = nql(`title:~'th'`);
 
             query.queryJSON(simpleJSON.posts[0]).should.eql(false);
             query.queryJSON(simpleJSON.posts[1]).should.eql(false);
@@ -111,7 +111,7 @@ describe('Integration with Mingo', function () {
         });
 
         it('$not contains', function () {
-            const query = nql('title:-~th');
+            const query = nql(`title:-~'th'`);
 
             query.queryJSON(simpleJSON.posts[0]).should.eql(true);
             query.queryJSON(simpleJSON.posts[1]).should.eql(true);
@@ -122,7 +122,7 @@ describe('Integration with Mingo', function () {
         });
 
         it('$regex startswith', function () {
-            const query = nql('title:~^Th');
+            const query = nql(`title:~^'Th'`);
 
             query.queryJSON(simpleJSON.posts[0]).should.eql(false);
             query.queryJSON(simpleJSON.posts[1]).should.eql(false);
@@ -133,7 +133,7 @@ describe('Integration with Mingo', function () {
         });
 
         it('$not startswith', function () {
-            const query = nql('title:-~^Th');
+            const query = nql(`title:-~^'Th'`);
 
             query.queryJSON(simpleJSON.posts[0]).should.eql(true);
             query.queryJSON(simpleJSON.posts[1]).should.eql(true);
@@ -144,7 +144,7 @@ describe('Integration with Mingo', function () {
         });
 
         it('$regex endswith', function () {
-            const query = nql('title:~$st');
+            const query = nql(`title:~$'st'`);
 
             query.queryJSON(simpleJSON.posts[0]).should.eql(true);
             query.queryJSON(simpleJSON.posts[1]).should.eql(true);
@@ -155,7 +155,7 @@ describe('Integration with Mingo', function () {
         });
 
         it('$not endswith', function () {
-            const query = nql('title:-~$st');
+            const query = nql(`title:-~$'st'`);
 
             query.queryJSON(simpleJSON.posts[0]).should.eql(false);
             query.queryJSON(simpleJSON.posts[1]).should.eql(false);

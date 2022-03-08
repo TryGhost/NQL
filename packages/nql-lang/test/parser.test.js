@@ -104,17 +104,37 @@ describe('Parser', function () {
         });
 
         it('can parse CONTAINS, STARTSWITH and ENDSWITH with and without NOT', function () {
-            parse('email:~gmail.com').should.eql({email: {$regex: /gmail\.com/i}});
+            parse(`email:~'gmail.com'`).should.eql({email: {$regex: /gmail\.com/i}});
 
-            parse('email:-~gmail.com').should.eql({email: {$not: /gmail\.com/i}});
+            parse(`email:-~'gmail.com'`).should.eql({email: {$not: /gmail\.com/i}});
 
-            parse('email:~^gmail.com').should.eql({email: {$regex: /^gmail\.com/i}});
+            parse(`email:~^'gmail.com'`).should.eql({email: {$regex: /^gmail\.com/i}});
 
-            parse('email:-~^gmail.com').should.eql({email: {$not: /^gmail\.com/i}});
+            parse(`email:-~^'gmail.com'`).should.eql({email: {$not: /^gmail\.com/i}});
 
-            parse('email:~$gmail.com').should.eql({email: {$regex: /gmail\.com$/i}});
+            parse(`email:~$'gmail.com'`).should.eql({email: {$regex: /gmail\.com$/i}});
 
-            parse('email:-~$gmail.com').should.eql({email: {$not: /gmail\.com$/i}});
+            parse(`email:-~$'gmail.com'`).should.eql({email: {$not: /gmail\.com$/i}});
+        });
+
+        it('can parse CONTAINS, STARTSWITH and ENDSWITH and handle regexchars', function () {
+            parse(`email:~'.*+?^$(){}|[]\\'`).should.eql({email: {$regex: /\.\*\+\?\^\$\(\)\{\}\|\[\]\\/i}});
+        });
+
+        it('can parse CONTAINS, STARTSWITH and ENDSWITH and handle quotes', function () {
+            parse(`name:~'john o\\'nolan'`).should.eql({name: {$regex: /john o'nolan/i}});
+
+            parse(`name:~'john o\\"nolan'`).should.eql({name: {$regex: /john o"nolan/i}});
+
+            // TODO: Fix this BUG
+            (function () {
+                parse(`name:~'john o"nolan'`);
+            }).should.throw();
+
+            // This will probably never be possible
+            (function () {
+                parse(`name:~'john o'nolan'`);
+            }).should.throw();
         });
     });
 
