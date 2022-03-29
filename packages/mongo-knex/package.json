@@ -17,7 +17,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@vscode/sqlite3": "5.0.7",
+    "@vscode/sqlite3": "5.0.8",
     "bluebird": "3.7.2",
     "c8": "7.11.0",
     "eslint": "8.11.0",
