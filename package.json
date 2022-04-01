@@ -18,7 +18,7 @@
     "pretest": "yarn build",
     "lint": "lerna run lint",
     "preship": "yarn test",
-    "ship": "lerna publish"
+    "ship": "lerna publish --git-remote ${GHOST_UPSTREAM:-origin}"
   },
   "devDependencies": {
     "eslint": "8.12.0",
