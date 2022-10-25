@@ -2,6 +2,8 @@
 // const testUtils = require('./utils');
 require('./utils');
 const mongoUtils = require('../');
+const assert = require('assert');
+const nql = require('../../nql');
 
 describe('Find statement', function () {
     it('should match with object statement by key', function () {
@@ -923,6 +925,413 @@ describe('mapKeyValues', function () {
                     }
                 }]
             }]
+        });
+    });
+});
+
+describe('getUsedKeys', function () {
+    it('Returns all keys', function () {
+        const query = {
+            yg: {
+                $and: [{
+                    good: {
+                        $ne: false
+                    }
+                }, {
+                    $or: [{
+                        something: 'else',
+                        multiple: 'keys'
+                    }, {
+                        other: {
+                            $ne: true
+                        }
+                    }]
+                }]
+            }
+        };
+
+        mongoUtils.getUsedKeys(query).should.eql(['good', 'something', 'multiple', 'other']);
+    });
+
+    it('Does not return duplicate keys', function () {
+        const query = {
+            $and: [
+                {good: {$ne: false}},
+                {good: 'other'}
+            ]
+        };
+
+        mongoUtils.getUsedKeys(query).should.eql(['good']);
+    });
+
+    it('Returns empty array for undefined filters', function () {
+        mongoUtils.getUsedKeys().should.eql([]);
+    });
+});
+
+describe('yg filter group', function () {
+    it('The NQL parser can return yg groups', function () {
+        nql('(hello:world)').parse().should.eql({
+            yg: {
+                hello: 'world'
+            }
+        });
+    });
+});
+
+describe('mapKeys', function () {
+    it('Maps multiple keys', function () {
+        const query = {
+            yg: {
+                $and: [{
+                    good: {
+                        $ne: false
+                    }
+                }, {
+                    $or: [{
+                        something: 'else'
+                    }, {
+                        other: {
+                            $ne: true
+                        }
+                    }]
+                }]
+            }
+        };
+
+        const chained = mongoUtils.chainTransformers(...mongoUtils.mapKeys({
+            good: 'bad',
+            something: 'elsewhere',
+            other: 'another'
+        }));
+
+        assert.deepEqual(chained(query), {
+            yg: {
+                $and: [{
+                    bad: {
+                        $ne: false
+                    }
+                }, {
+                    $or: [{
+                        elsewhere: 'else'
+                    }, {
+                        another: {
+                            $ne: true
+                        }
+                    }]
+                }]
+            }
+        });
+    });
+});
+
+describe('replaceFilters', function () {
+    it('Can replace a filter by key', function () {
+        const query = {
+            yg: {
+                $and: [{
+                    good: {
+                        $ne: false
+                    }
+                }, {
+                    $or: [{
+                        something: 'else'
+                    }, {
+                        other: {
+                            $ne: true
+                        }
+                    }]
+                }]
+            }
+        };
+
+        const updatedQuery = mongoUtils.replaceFilters(query, {
+            something: {
+                else: true
+            }
+        });
+
+        assert.deepEqual(updatedQuery, {
+            yg: {
+                $and: [{
+                    good: {
+                        $ne: false
+                    }
+                }, {
+                    $or: [{
+                        else: true
+                    }, {
+                        other: {
+                            $ne: true
+                        }
+                    }]
+                }]
+            }
+        });
+    });
+});
+
+describe('Chain transformers', function () {
+    it('Passes filter from transformer to transformer', function () {
+        const transformer1 = (f) => {
+            return {
+                transformer1: f
+            };
+        };
+        const transformer2 = (f) => {
+            return {
+                transformer2: f
+            };
+        };
+
+        const chained = mongoUtils.chainTransformers(transformer1, transformer2);
+        assert.deepEqual(chained('test'), {
+            transformer2: {
+                transformer1: 'test'
+            }
+        });
+    });
+});
+
+describe('splitFilter', function () {
+    it('Can split AND', function () {
+        const query = {
+            $and: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    something: 'else'
+                }, {
+                    other: {
+                        $ne: true
+                    }
+                }]
+            }]
+        };
+
+        const [first, second] = mongoUtils.splitFilter(query, ['good']);
+        first.should.eql({
+            good: {
+                $ne: false
+            }
+        });
+        second.should.eql({
+            $or: [{
+                something: 'else'
+            }, {
+                other: {
+                    $ne: true
+                }
+            }]
+        });
+    });
+
+    it('Does a simple pass through to yg contents', function () {
+        const query = {
+            yg: {
+                $and: [{
+                    good: {
+                        $ne: false
+                    }
+                }, {
+                    $or: [{
+                        something: 'else'
+                    }, {
+                        other: {
+                            $ne: true
+                        }
+                    }]
+                }]
+            }
+        };
+
+        const [first, second] = mongoUtils.splitFilter(query, ['good']);
+        assert.deepEqual(first, {
+            good: {
+                $ne: false
+            }
+        });
+        assert.deepEqual(second, {
+            $or: [{
+                something: 'else'
+            }, {
+                other: {
+                    $ne: true
+                }
+            }]
+        });
+    });
+
+    it('Can split long AND', function () {
+        const query = {
+            $and: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                good: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    something: 'else'
+                }, {
+                    other: {
+                        $ne: true
+                    }
+                }]
+            }, {
+                $or: [{
+                    something: 'else'
+                }, {
+                    other: {
+                        $ne: true
+                    }
+                }]
+            }]
+        };
+
+        const [first, second] = mongoUtils.splitFilter(query, ['good']);
+        first.should.eql({
+            $and: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                good: {
+                    $ne: false
+                }
+            }]
+        });
+        second.should.eql({
+            $and: [{
+                $or: [{
+                    something: 'else'
+                }, {
+                    other: {
+                        $ne: true
+                    }
+                }]
+            }, {
+                $or: [{
+                    something: 'else'
+                }, {
+                    other: {
+                        $ne: true
+                    }
+                }]
+            }]
+        });
+    });
+
+    it('Can\'t split subfilter in AND using both', function () {
+        const query = {
+            $and: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    good: 'else'
+                }, {
+                    other: {
+                        $ne: true
+                    }
+                }]
+            }]
+        };
+
+        assert.throws(() => mongoUtils.splitFilter(query, ['good']), /This filter is not supported because you cannot combine good filters with other filters except at the root level in an AND/);
+    });
+
+    it('Cannot split OR', function () {
+        const query = {
+            $or: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    something: 'else'
+                }, {
+                    other: {
+                        $ne: true
+                    }
+                }]
+            }]
+        };
+
+        assert.throws(() => mongoUtils.splitFilter(query, ['good']), /This filter is not supported because you cannot combine good filters with other filters in an OR/);
+    });
+
+    it('Can use OR if everything belongs in second group', function () {
+        const query = {
+            $or: [{
+                other2: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    something: 'else'
+                }, {
+                    other: {
+                        $ne: true
+                    }
+                }]
+            }]
+        };
+
+        const [first, second] = mongoUtils.splitFilter(query, ['good']);
+        assert.equal(first, undefined);
+        assert.equal(second, query);
+    });
+
+    it('Can use OR if everything belongs in first group', function () {
+        const query = {
+            $or: [{
+                other2: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    something: 'else'
+                }, {
+                    other: {
+                        $ne: true
+                    }
+                }]
+            }]
+        };
+
+        const [first, second] = mongoUtils.splitFilter(query, ['other2', 'something', 'other']);
+        assert.equal(first, query);
+        assert.equal(second, undefined);
+    });
+
+    it('Returns both undefined for undefined filter', function () {
+        const [first, second] = mongoUtils.splitFilter(undefined, ['other2', 'something', 'other']);
+        assert.equal(first, undefined);
+        assert.equal(second, undefined);
+    });
+
+    it('Can split object', function () {
+        const query = {
+            good: true,
+            good2: true,
+            bad: false,
+            bad2: false
+        };
+
+        const [first, second] = mongoUtils.splitFilter(query, ['good', 'good2']);
+        assert.deepEqual(first, {
+            good: true,
+            good2: true
+        });
+        assert.deepEqual(second, {
+            bad: false,
+            bad2: false
         });
     });
 });
