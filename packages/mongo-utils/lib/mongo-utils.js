@@ -20,6 +20,10 @@ const mapQuery = (query, fn) => {
             mappedObject = _.isEmpty(mappedValue) ? null : {
                 [key]: mappedValue
             };
+        } else if (key === 'yg') {
+            mappedObject = {
+                [key]: mapQuery(value, fn)
+            };
         } else {
             mappedObject = fn(value, key);
         }
@@ -106,7 +110,7 @@ const mergeFilters = (...filters) => {
                 });
 
                 if (filter) {
-                    merged = merged ? combineFilters(merged, filter) : filter;
+                    merged = Object.keys(merged).length > 0 ? combineFilters(merged, filter) : filter;
                 }
             }
         });
@@ -235,6 +239,202 @@ function mapKeyValues(mapping) {
     };
 }
 
+/**
+ * Replace all filters with a given key by a given filter
+ */
+const replaceFilters = (statements, replacements) => {
+    return mapQuery(statements, function (value, key) {
+        const replacement = Object.keys(replacements).includes(key); // we use this because the replacement can be undefined too
+
+        if (!replacement) {
+            return {
+                [key]: value
+            };
+        }
+
+        return replacements[key] ?? {};
+    });
+};
+
+/**
+ * Returns a mongo transformer that chains multiple transformers together.
+ */
+function chainTransformers(...transformers) {
+    return function (filter) {
+        for (const transformer of transformers) {
+            filter = transformer(filter);
+        }
+        return filter;
+    };
+}
+
+/**
+ * Returns a list of the keys that are used in this Mongo filter
+ */
+function getUsedKeys(filter) {
+    if (!filter) {
+        return [];
+    }
+    const usedKeys = [];
+    if (filter.$and) {
+        for (const subfilter of filter.$and) {
+            for (const key of getUsedKeys(subfilter)) {
+                if (!usedKeys.includes(key)) {
+                    usedKeys.push(key);
+                }
+            }
+        }
+    } else if (filter.$or) {
+        for (const subfilter of filter.$or) {
+            for (const key of getUsedKeys(subfilter)) {
+                if (!usedKeys.includes(key)) {
+                    usedKeys.push(key);
+                }
+            }
+        }
+    } else if (filter.yg) {
+        // Single filter grouped in brackets
+        usedKeys.push(...getUsedKeys(filter.yg));
+    } else {
+        usedKeys.push(...Object.keys(filter));
+    }
+
+    return usedKeys;
+}
+
+/**
+ * Split a mongo filter into two mongo filters that can be AND'ed together. The first returned filter will only contain the filtered keys, while the second filter only contains the leftover keys. It throws an error if this is not possible.
+ * Both the first and second filter can be undefined if no keys are found for them.
+ * 
+ * @param {*} filter 
+ * @param {string[]} keys A list of keys that should be returned in the first returned filter
+ */
+function splitFilter(filter, keys) {
+    let withKeysFilter = undefined;
+    let withoutKeysFilter = undefined;
+
+    // If filter is not an object
+    if (typeof filter !== 'object') {
+        return [withKeysFilter, withoutKeysFilter];
+    }
+
+    if (filter.$and) {
+        // And filter
+        for (const subfilter of filter.$and) {
+            const usedKeys = getUsedKeys(subfilter);
+
+            // If this filter is using a combination of keys: not possible to split this filter
+            let hasKeys = false;
+            for (const key of usedKeys) {
+                if (keys.includes(key)) {
+                    hasKeys = true;
+                } else {
+                    if (hasKeys) {
+                        //eslint-disable-next-line no-restricted-syntax
+                        throw new Error(`This filter is not supported because you cannot combine ${keys.join(', ')} filters with other filters except at the root level in an AND.`);
+                    }
+                }
+            }
+
+            if (hasKeys) {
+                if (withKeysFilter) {
+                    withKeysFilter.$and.push(subfilter);
+                } else {
+                    withKeysFilter = {$and: [subfilter]};
+                }
+            } else {
+                if (withoutKeysFilter) {
+                    withoutKeysFilter.$and.push(subfilter);
+                } else {
+                    withoutKeysFilter = {$and: [subfilter]};
+                }
+            }
+        }
+
+        // Simplify $and with only one filter
+        if (withKeysFilter && withKeysFilter.$and.length === 1) {
+            withKeysFilter = withKeysFilter.$and[0];
+        }
+        if (withoutKeysFilter && withoutKeysFilter.$and.length === 1) {
+            withoutKeysFilter = withoutKeysFilter.$and[0];
+        }
+    } else if (filter.$or) {
+        // OR is only allowed if all the filters belong in one group (all in allowed keys or none in allowed keys)
+        let hasKeys = false;
+
+        for (const subfilter of filter.$or) {
+            const usedKeys = getUsedKeys(subfilter);
+            
+            for (const key of usedKeys) {
+                if (keys.includes(key)) {
+                    hasKeys = true;
+                    continue;
+                } else {
+                    if (hasKeys) {
+                        //eslint-disable-next-line no-restricted-syntax
+                        throw new Error(`This filter is not supported because you cannot combine ${keys.join(', ')} filters with other filters in an OR.`);
+                    }
+                }
+            }
+        }
+
+        if (hasKeys) {
+            withKeysFilter = filter;
+        } else {
+            withoutKeysFilter = filter;
+        }
+    } else if (filter.yg) {
+        // Single filter grouped in brackets
+        return this.splitFilter(filter.yg, keys);
+    } else {
+        const filterKeys = Object.keys(filter);
+
+        for (const key of filterKeys) {
+            if (keys.includes(key)) {
+                if (withKeysFilter) {
+                    withKeysFilter[key] = filter[key];
+                } else {
+                    withKeysFilter = {[key]: filter[key]};
+                }
+            } else {
+                if (withoutKeysFilter) {
+                    withoutKeysFilter[key] = filter[key];
+                } else {
+                    withoutKeysFilter = {[key]: filter[key]};
+                }
+            }
+        }
+    }
+
+    return [withKeysFilter, withoutKeysFilter];
+}
+
+/**
+ * Same as mapKeyValues, but with easier syntax and no support for value mapping.
+ * Returns a list of transformers (one for every key). Use `chainTransformers` to merge multiple transformers into one.
+ * 
+ * Example usage:
+ * mapKeys({
+ *  'data.created_at': 'created_at',
+ *  'data.member_id': 'member_id'
+ * })
+ */
+function mapKeys(keys) {
+    const mapping = [];
+    for (const key of Object.keys(keys)) {
+        if (keys[key]) {
+            mapping.push({
+                key: {
+                    from: key,
+                    to: keys[key]
+                },
+                values: [] // No mapping in values
+            });
+        }
+    }
+    return mapping.map(m => mapKeyValues(m));
+}
+
 module.exports = {
     mapKeyValues,
     combineFilters,
@@ -242,5 +442,10 @@ module.exports = {
     rejectStatements,
     mergeFilters,
     expandFilters,
-    mapQuery
+    mapQuery,
+    replaceFilters,
+    chainTransformers,
+    getUsedKeys,
+    splitFilter,
+    mapKeys
 };
