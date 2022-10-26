@@ -11,6 +11,14 @@ const runQuery = query => convertor(knex('posts'), query, {
             joinFrom: 'post_id',
             joinTo: 'tag_id'
         },
+        optional_tags: {
+            tableName: 'optional_tags',
+            type: 'manyToMany',
+            joinTable: 'posts_tags',
+            joinFrom: 'post_id',
+            joinTo: 'tag_id',
+            joinType: 'leftJoin'
+        },
         posts_meta: {
             tableName: 'posts_meta',
             type: 'oneToOne',
@@ -332,6 +340,11 @@ describe('Relations', function () {
     it('should be able to perform NULL query on a many-to-many relation', function () {
         runQuery({'tags.slug': null})
             .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` is null)');
+    });
+
+    it('should be able to perform NULL query on a many-to-many relation with left join', function () {
+        runQuery({'optional_tags.slug': null})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` left join `optional_tags` on `optional_tags`.`id` = `posts_tags`.`tag_id` where `optional_tags`.`slug` is null)');
     });
 
     it('should be able to perform a negated query on a many-to-many relation (works but is weird)', function () {
