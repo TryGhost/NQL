@@ -263,9 +263,11 @@ class MongoToKnex {
                     const comp = negateGroup
                         ? compOps.$nin
                         : compOps.$in;
+                    
+                    const whereType = ['whereNull', 'whereNotNull'].includes(reference.whereType) ? 'andWhere' : (['orWhereNull', 'orWhereNotNull'].includes(reference.whereType) ? 'orWhere' : reference.whereType);
 
                     // CASE: WHERE resource.id (IN | NOT IN) (SELECT ...)
-                    qb[reference.whereType](`${this.tableName}.id`, comp, function () {
+                    qb[whereType](`${this.tableName}.id`, comp, function () {
                         const joinFilterStatements = groupedRelations[key].joinFilterStatements;
 
                         let innerJoinValue = reference.config.tableName;
@@ -277,10 +279,11 @@ class MongoToKnex {
                             innerJoinOn = `${reference.config.tableNameAs}.${reference.config.joinToForeign || 'id'}`;
                         }
 
+                        const joinType = reference.config.joinType || 'innerJoin';
+
                         const innerQB = this
                             .select(`${reference.config.joinTable}.${reference.config.joinFrom}`)
-                            .from(`${reference.config.joinTable}`)
-                            .innerJoin(innerJoinValue, function () {
+                            .from(`${reference.config.joinTable}`)[joinType](innerJoinValue, function () {
                                 this.on(innerJoinOn, '=', `${reference.config.joinTable}.${reference.config.joinTo}`);
 
                                 // CASE: when applying AND con junction and having multiple groups the filter
