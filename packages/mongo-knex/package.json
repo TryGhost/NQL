@@ -1,6 +1,6 @@
 {
   "name": "@tryghost/mongo-knex",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "tbc",
   "repository": "https://github.com/TryGhost/NQL/tree/main/packages/mongo-knex",
   "author": "Ghost Foundation",
