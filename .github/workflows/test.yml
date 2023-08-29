@@ -31,7 +31,6 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: yarn
-      - run: yarn global add lerna
 
       - name: Shutdown MySQL
         run: sudo service mysql stop
