@@ -68,6 +68,9 @@ describe('Public API', function () {
     });
 
     it('ensure caching works as expected', function () {
+        // Ensure mingo.Query can be spied on
+        Object.defineProperty(mingo, 'Query', {writable: true, value: mingo.Query});
+
         sandbox.spy(mingo, 'Query');
         sandbox.spy(nqlLang, 'parse');
 
