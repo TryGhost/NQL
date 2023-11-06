@@ -7,7 +7,7 @@
   "license": "MIT",
   "main": "index.js",
   "scripts": {
-    "build": "jison src/nql.y src/nql.l -o dist/parser.js",
+    "build": "jison src/nql.y src/nql.l -o dist/parser.js && node clean-parser.js",
     "lint": "eslint . --ext .js --cache",
     "pretest": "yarn build",
     "posttest": "yarn lint",
