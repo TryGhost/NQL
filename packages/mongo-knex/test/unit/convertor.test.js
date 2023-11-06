@@ -122,17 +122,44 @@ describe('Comparison Query Operators', function () {
 
     it('can match like', function () {
         runQuery({email: {$regex: /Gmail\.com/i}})
-            .should.eql('select * from `posts` where lower(`posts`.`email`) like \'%gmail.com%\'');
+            .should.eql('select * from `posts` where lower(`posts`.`email`) like \'%gmail.com%\' ESCAPE \'*\'');
     });
 
     it('can match like with startswith', function () {
         runQuery({email: {$regex: /^Gmail\.com/i}})
-            .should.eql('select * from `posts` where lower(`posts`.`email`) like \'gmail.com%\'');
+            .should.eql('select * from `posts` where lower(`posts`.`email`) like \'gmail.com%\' ESCAPE \'*\'');
+    });
+
+    it('can match like with startswith containing a slash', function () {
+        runQuery({email: {$regex: /^https:\/\/www.google.com\//i}})
+            .should.eql('select * from `posts` where lower(`posts`.`email`) like \'https://www.google.com/%\' ESCAPE \'*\'');
     });
 
     it('can match like with endswith', function () {
         runQuery({email: {$regex: /Gmail\.com$/i}})
-            .should.eql('select * from `posts` where lower(`posts`.`email`) like \'%gmail.com\'');
+            .should.eql('select * from `posts` where lower(`posts`.`email`) like \'%gmail.com\' ESCAPE \'*\'');
+    });
+
+    // % and _ don't have a meaning in regexes, but they do in LIKE, so they should be escaped in the resulting query
+    it('correctly escapes _ LIKE special character', function () {
+        // Get all posts that contain __GHOST_URL__
+        // Since _ is a special character in LIKE, we need to escape it with * (our chosen escape character)
+        runQuery({url: {$regex: /__GHOST_URL__/}})
+            .should.eql('select * from `posts` where `posts`.`url` like \'%*_*_GHOST*_URL*_*_%\' ESCAPE \'*\'');
+    });
+
+    it('correctly escapes % LIKE special character', function () {
+        // Get all posts with titles that contain '100%'
+        // Since % is a special character in LIKE, we need to escape it with * (our chosen escape character)
+        runQuery({title: {$regex: /100%/}})
+            .should.eql('select * from `posts` where `posts`.`title` like \'%100*%%\' ESCAPE \'*\'');
+    });
+
+    it('correctly escapes * LIKE escape character', function () {
+        // Get all posts with titles that contain '*'
+        // Since * is the escape character, we need to escape it with itself
+        runQuery({title: {$regex: /\*/}})
+            .should.eql('select * from `posts` where `posts`.`title` like \'%**%\' ESCAPE \'*\'');
     });
 });
 
@@ -385,12 +412,12 @@ describe('Relations', function () {
 describe('RegExp/Like queries', function () {
     it('are well behaved', function () {
         runQuery({title: {$regex: /'/i}})
-            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%\\\'%\'');
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%\\\'%\' ESCAPE \'*\'');
 
         runQuery({title: {$regex: /;/i}})
-            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%;%\'');
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%;%\' ESCAPE \'*\'');
 
         runQuery({title: {$regex: /';select * from `settings` where `value` like '/i}})
-            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%\\\';select * from `settings` where `value` like \\\'%\'');
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%\\\';select ** from `settings` where `value` like \\\'%\' ESCAPE \'*\'');
     });
 });
