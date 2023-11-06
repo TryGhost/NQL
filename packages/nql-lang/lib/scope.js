@@ -1,6 +1,7 @@
 const util = require('util');
 
-const {add, sub} = require('date-fns');
+const add = require('date-fns/add');
+const sub = require('date-fns/sub');
 
 const ops = {
     add,
