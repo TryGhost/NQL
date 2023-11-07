@@ -1,6 +1,6 @@
 require('../utils');
 
-const mingo = require('mingo');
+const mingo = require('mingo/query');
 const nqlLang = require('@tryghost/nql-lang');
 const nql = require('../../');
 const knex = require('knex')({client: 'mysql'});
