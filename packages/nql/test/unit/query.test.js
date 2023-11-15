@@ -17,7 +17,7 @@ describe('NQL -> SQL', function () {
             ]);
 
             query.toJSON().should.eql({name: {$regex: /John O'Nolan/i}});
-            query.querySQL(knex('users')).toQuery().should.eql('select * from `users` where lower(`users`.`name`) like \'%john o\\\'nolan%\'');
+            query.querySQL(knex('users')).toQuery().should.eql('select * from `users` where lower(`users`.`name`) like \'%john o\\\'nolan%\' ESCAPE \'*\'');
 
             query = nql(`name:~'John O\\"Nolan'`);
             query.toJSON().should.eql({name: {$regex: /John O"Nolan/i}});
@@ -28,7 +28,7 @@ describe('NQL -> SQL', function () {
                 {token: 'STRING', matched: '\'John O\\"Nolan\''}
             ]);
 
-            query.querySQL(knex('users')).toQuery().should.eql('select * from `users` where lower(`users`.`name`) like \'%john o\\"nolan%\'');
+            query.querySQL(knex('users')).toQuery().should.eql('select * from `users` where lower(`users`.`name`) like \'%john o\\"nolan%\' ESCAPE \'*\'');
 
             query = nql(`name:~'A\\'B\\"C\\"D\\''`);
             query.toJSON().should.eql({name: {$regex: /A'B"C"D'/i}});
@@ -39,7 +39,7 @@ describe('NQL -> SQL', function () {
                 {token: 'STRING', matched: '\'A\\\'B\\"C\\"D\\\'\''}
             ]);
 
-            query.querySQL(knex('users')).toQuery().should.eql('select * from `users` where lower(`users`.`name`) like \'%a\\\'b\\"c\\"d\\\'%\'');
+            query.querySQL(knex('users')).toQuery().should.eql('select * from `users` where lower(`users`.`name`) like \'%a\\\'b\\"c\\"d\\\'%\' ESCAPE \'*\'');
         });
 
         it('errors for unescaped quotes / injection patterns', function () {
@@ -62,7 +62,7 @@ describe('NQL -> SQL', function () {
             query.toJSON().should.eql({name: {$regex: /';select \* from `settings` where `value` like '/i}});
 
             //SQL still ends up correctly escaped. This is all handled by knex... but having a test feels right
-            query.querySQL(knex('users')).toQuery().should.eql('select * from `users` where lower(`users`.`name`) like \'%\\\';select * from `settings` where `value` like \\\'%\'');
+            query.querySQL(knex('users')).toQuery().should.eql('select * from `users` where lower(`users`.`name`) like \'%\\\';select ** from `settings` where `value` like \\\'%\' ESCAPE \'*\'');
         });
     });
 });

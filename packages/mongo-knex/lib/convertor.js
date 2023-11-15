@@ -20,6 +20,9 @@ const compOps = {
     $not: 'not like'
 };
 
+// We don't use a backslash as escpae character, because knex reescapes backslashes in binded parameters
+const likeEscapeCharacter = '*';
+
 const isOp = key => key.charAt(0) === '$';
 const isLogicOp = key => isOp(key) && _.includes(logicOps, key);
 const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
@@ -41,17 +44,27 @@ const stringify = (json) => {
 };
 
 const processRegExp = ({source, ignoreCase}) => {
-    source = source.replace(/\\([.*+?^${}()|[\]\\])/g, '$1');
+    // A regexp is transformed into a LIKE SQL query.
+    // So we need to remove all the regexp escaped characters
+    // We don't support any special regexp operators apart from startsWith and endsWith (or both) queries
+    source = source.replace(/\\([.*+?^${}()|[\]\\/])/g, '$1');
 
     if (ignoreCase) {
         source = source.toLowerCase();
     }
 
+    // Escape escape character itself
+    source = source.replace(new RegExp(_.escapeRegExp(likeEscapeCharacter), 'g'), likeEscapeCharacter + likeEscapeCharacter);
+
+    // Escape special LIKE characters (% and _)
+    source = source.replace(/%/g, likeEscapeCharacter + '%');
+    source = source.replace(/_/g, likeEscapeCharacter + '_');
+
     // For starts with and ends with in SQL we have to put the wildcard at the opposite end of the string to the regex symbol!
     if (source.startsWith('^')) {
-        source = source.replace('^', '') + '%';
+        source = source.substring(1) + '%';
     } else if (source.endsWith('$')) {
-        source = '%' + source.replace('$', '');
+        source = '%' + source.substring(0, source.length - 1);
     } else {
         source = '%' + source + '%';
     }
@@ -263,7 +276,7 @@ class MongoToKnex {
                     const comp = negateGroup
                         ? compOps.$nin
                         : compOps.$in;
-                    
+
                     const whereType = ['whereNull', 'whereNotNull'].includes(reference.whereType) ? 'andWhere' : (['orWhereNull', 'orWhereNotNull'].includes(reference.whereType) ? 'orWhere' : reference.whereType);
 
                     // CASE: WHERE resource.id (IN | NOT IN) (SELECT ...)
@@ -464,9 +477,13 @@ class MongoToKnex {
             if (ignoreCase) {
                 whereType += 'Raw';
                 debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value} (REGEX/i)`);
-                qb[whereType](`lower(??) ${comp} ?`, [column, value]);
+                qb[whereType](`lower(??) ${comp} ? ESCAPE ?`, [column, value, likeEscapeCharacter]);
                 return;
             }
+            whereType += 'Raw';
+            debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value} (REGEX)`);
+            qb[whereType](`?? ${comp} ? ESCAPE ?`, [column, value, likeEscapeCharacter]);
+            return;
         }
 
         debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value}`);
