@@ -1,6 +1,6 @@
 {
   "name": "@tryghost/nql",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "tbc",
   "repository": "https://github.com/TryGhost/NQL/tree/main/packages/nql",
   "author": "Ghost Foundation",
@@ -28,9 +28,9 @@
     "sqlite3": "5.1.6"
   },
   "dependencies": {
-    "@tryghost/mongo-knex": "^0.8.0",
-    "@tryghost/mongo-utils": "^0.5.0",
-    "@tryghost/nql-lang": "^0.5.0",
+    "@tryghost/mongo-knex": "^0.9.0",
+    "@tryghost/mongo-utils": "^0.6.0",
+    "@tryghost/nql-lang": "^0.6.0",
     "mingo": "^2.2.2"
   }
 }
