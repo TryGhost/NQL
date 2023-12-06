@@ -1,4 +1,8 @@
-const _ = require('lodash');
+const isEmpty = require('lodash/isEmpty');
+const reduce = require('lodash/reduce');
+const some = require('lodash/some');
+const find = require('lodash/find');
+const isObject = require('lodash/isObject');
 
 const GROUPS = ['$and', '$or'];
 
@@ -10,14 +14,14 @@ const mapQuery = (query, fn) => {
     if (Array.isArray(query)) {
         return query.map(obj => mapQuery(obj, fn))
             // Allow removal of empty children from lists
-            .filter(obj => !_.isEmpty(obj));
+            .filter(obj => !isEmpty(obj));
     }
-    return _.reduce(query, (modifiedNQLMongoJSON, value, key) => {
+    return reduce(query, (modifiedNQLMongoJSON, value, key) => {
         let mappedObject;
         if (GROUPS.includes(key)) {
             const mappedValue = mapQuery(value, fn);
             // Allow removal of parent with empty children
-            mappedObject = _.isEmpty(mappedValue) ? null : {
+            mappedObject = isEmpty(mappedValue) ? null : {
                 [key]: mappedValue
             };
         } else if (key === 'yg') {
@@ -28,7 +32,7 @@ const mapQuery = (query, fn) => {
             mappedObject = fn(value, key);
         }
 
-        return _.assign({}, modifiedNQLMongoJSON, mappedObject);
+        return {...modifiedNQLMongoJSON, ...mappedObject};
     }, {});
 };
 
@@ -36,11 +40,11 @@ const mapQuery = (query, fn) => {
  * Combines two filters with $and conjunction
  */
 const combineFilters = (primary, secondary) => {
-    if (_.isEmpty(primary)) {
+    if (isEmpty(primary)) {
         return secondary;
     }
 
-    if (_.isEmpty(secondary)) {
+    if (isEmpty(secondary)) {
         return primary;
     }
 
@@ -50,13 +54,13 @@ const combineFilters = (primary, secondary) => {
 };
 
 const findStatement = (statements, match) => {
-    return _.some(statements, (value, key, obj) => {
+    return some(statements, (value, key, obj) => {
         if (key === '$and') {
             return findStatement(obj.$and, match);
         } else if (key === '$or') {
             return findStatement(obj.$or, match);
         } else {
-            if ((key !== match) && _.isObject(value)) {
+            if ((key !== match) && isObject(value)) {
                 return findStatement(value, match);
             } else {
                 return (key === match);
@@ -140,7 +144,7 @@ const expandFilters = (statements, expansions) => {
     };
 
     return mapQuery(statements, function (value, key) {
-        const expansion = _.find(expansions, {key});
+        const expansion = find(expansions, {key});
 
         if (!expansion) {
             return {
@@ -227,7 +231,7 @@ function mapKeyValues(mapping) {
 
             // Complex query of the form "key: { $in: [value, value] }" or "key: { $ne: value }"
             return {
-                [mapping.key.to]: _.reduce(value, (updatedQuery, objValue, objKey) => {
+                [mapping.key.to]: reduce(value, (updatedQuery, objValue, objKey) => {
                     // objKey = $in | $ne | etc...
                     // objValue = vallue | [value, value] | etc...
                     return Object.assign(updatedQuery, {
@@ -305,8 +309,8 @@ function getUsedKeys(filter) {
 /**
  * Split a mongo filter into two mongo filters that can be AND'ed together. The first returned filter will only contain the filtered keys, while the second filter only contains the leftover keys. It throws an error if this is not possible.
  * Both the first and second filter can be undefined if no keys are found for them.
- * 
- * @param {*} filter 
+ *
+ * @param {*} filter
  * @param {string[]} keys A list of keys that should be returned in the first returned filter
  */
 function splitFilter(filter, keys) {
@@ -364,7 +368,7 @@ function splitFilter(filter, keys) {
 
         for (const subfilter of filter.$or) {
             const usedKeys = getUsedKeys(subfilter);
-            
+
             for (const key of usedKeys) {
                 if (keys.includes(key)) {
                     hasKeys = true;
@@ -412,7 +416,7 @@ function splitFilter(filter, keys) {
 /**
  * Same as mapKeyValues, but with easier syntax and no support for value mapping.
  * Returns a list of transformers (one for every key). Use `chainTransformers` to merge multiple transformers into one.
- * 
+ *
  * Example usage:
  * mapKeys({
  *  'data.created_at': 'created_at',
