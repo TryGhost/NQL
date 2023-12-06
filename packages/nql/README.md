@@ -14,6 +14,16 @@ or with yarn:
 yarn add @tryghost/nql
 ```
 
+Then either:
+
+```javascript
+// Full package including SQL querying - for server side apps
+const nql = require('@tryghost/nql');
+
+// Isomorphic package with JSON but not SQL querying - for frontend apps
+const nql = require('@tryghost/nql/core');
+```
+
 ## Example
 A simple NQL expression could have following form: `featured:true+slug:['photo', 'video']`
 When parsing it to Mongo JSON with `nql(expression).parse()` the output would be:
