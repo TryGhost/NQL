@@ -1,6 +1,6 @@
 require('../utils');
 
-const nqlCore = require('../../lib/core');
+const nqlCore = require('../../core');
 const sandbox = sinon.createSandbox();
 
 describe('Core API', function () {
