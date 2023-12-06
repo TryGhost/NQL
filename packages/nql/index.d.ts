@@ -1,8 +1,8 @@
 declare interface NQLQuery {
     lex: () => any;
     parse: () => any;
-    queryJSON: () => boolean;
-    querySQL: () => any;
+    queryJSON: (object: any) => boolean;
+    querySQL: (qb: any) => any;
     toString: () => string;
     toJSON: () => any;
 }
@@ -14,6 +14,6 @@ declare interface NQLOptions {
     expansions?: Array<{key: string; replacement: string; expansion?: string}>
 }
 
-declare function nql(queryString: string, options: NQLOptions): NQLQuery;
+declare function nql(queryString: string, options?: NQLOptions): NQLQuery;
 
 export = nql;
