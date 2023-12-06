@@ -6,6 +6,10 @@
   "author": "Ghost Foundation",
   "license": "MIT",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./core": "./core.js"
+  },
   "scripts": {
     "lint": "eslint . --ext .js --cache",
     "posttest": "yarn lint",

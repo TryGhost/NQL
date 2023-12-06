@@ -1,4 +1,3 @@
-const mongoKnex = require('@tryghost/mongo-knex');
 const nql = require('@tryghost/nql-lang');
 const {Context, OperatorType} = require('mingo/core');
 const mingo = require('mingo/query');
@@ -55,8 +54,11 @@ module.exports = (queryString, options = {}) => {
         return this.query.test(obj);
     };
 
-    // Use MongoKnex to apply the query to a query builder object
-    api.querySQL = qb => mongoKnex(qb, api.parse(), options);
+    // Only implemented on the server
+    api.querySQL = () => {
+        // eslint-disable-next-line no-restricted-syntax
+        throw new Error('querySQL is not implemented in the browser');
+    };
 
     // Get back the original query string
     api.toString = () => queryString;

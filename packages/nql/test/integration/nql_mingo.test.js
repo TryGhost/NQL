@@ -1,6 +1,6 @@
 require('../utils');
 
-const nql = require('../../lib/nql');
+const nql = require('../../lib/core');
 const simpleJSON = require('./mingo/simple');
 const advancedJSON = require('./mingo/advanced');
 

@@ -1,5 +1,5 @@
 const utils = require('../utils');
-const nql = require('../../lib/nql');
+const nql = require('../../lib/server');
 
 const knex = utils.db.client;
 
