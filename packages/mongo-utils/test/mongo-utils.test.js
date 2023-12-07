@@ -3,7 +3,6 @@
 require('./utils');
 const mongoUtils = require('../');
 const assert = require('assert');
-const nql = require('../../nql');
 
 describe('Find statement', function () {
     it('should match with object statement by key', function () {
@@ -932,22 +931,20 @@ describe('mapKeyValues', function () {
 describe('getUsedKeys', function () {
     it('Returns all keys', function () {
         const query = {
-            yg: {
-                $and: [{
-                    good: {
-                        $ne: false
-                    }
+            $and: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    something: 'else',
+                    multiple: 'keys'
                 }, {
-                    $or: [{
-                        something: 'else',
-                        multiple: 'keys'
-                    }, {
-                        other: {
-                            $ne: true
-                        }
-                    }]
+                    other: {
+                        $ne: true
+                    }
                 }]
-            }
+            }]
         };
 
         mongoUtils.getUsedKeys(query).should.eql(['good', 'something', 'multiple', 'other']);
@@ -969,34 +966,22 @@ describe('getUsedKeys', function () {
     });
 });
 
-describe('yg filter group', function () {
-    it('The NQL parser can return yg groups', function () {
-        nql('(hello:world)').parse().should.eql({
-            yg: {
-                hello: 'world'
-            }
-        });
-    });
-});
-
 describe('mapKeys', function () {
     it('Maps multiple keys', function () {
         const query = {
-            yg: {
-                $and: [{
-                    good: {
-                        $ne: false
-                    }
+            $and: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    something: 'else'
                 }, {
-                    $or: [{
-                        something: 'else'
-                    }, {
-                        other: {
-                            $ne: true
-                        }
-                    }]
+                    other: {
+                        $ne: true
+                    }
                 }]
-            }
+            }]
         };
 
         const chained = mongoUtils.chainTransformers(...mongoUtils.mapKeys({
@@ -1006,21 +991,19 @@ describe('mapKeys', function () {
         }));
 
         assert.deepEqual(chained(query), {
-            yg: {
-                $and: [{
-                    bad: {
-                        $ne: false
-                    }
+            $and: [{
+                bad: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    elsewhere: 'else'
                 }, {
-                    $or: [{
-                        elsewhere: 'else'
-                    }, {
-                        another: {
-                            $ne: true
-                        }
-                    }]
+                    another: {
+                        $ne: true
+                    }
                 }]
-            }
+            }]
         });
     });
 });
@@ -1028,21 +1011,19 @@ describe('mapKeys', function () {
 describe('replaceFilters', function () {
     it('Can replace a filter by key', function () {
         const query = {
-            yg: {
-                $and: [{
-                    good: {
-                        $ne: false
-                    }
+            $and: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    something: 'else'
                 }, {
-                    $or: [{
-                        something: 'else'
-                    }, {
-                        other: {
-                            $ne: true
-                        }
-                    }]
+                    other: {
+                        $ne: true
+                    }
                 }]
-            }
+            }]
         };
 
         const updatedQuery = mongoUtils.replaceFilters(query, {
@@ -1052,21 +1033,19 @@ describe('replaceFilters', function () {
         });
 
         assert.deepEqual(updatedQuery, {
-            yg: {
-                $and: [{
-                    good: {
-                        $ne: false
-                    }
+            $and: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    else: true
                 }, {
-                    $or: [{
-                        else: true
-                    }, {
-                        other: {
-                            $ne: true
-                        }
-                    }]
+                    other: {
+                        $ne: true
+                    }
                 }]
-            }
+            }]
         });
     });
 });
@@ -1130,21 +1109,19 @@ describe('splitFilter', function () {
 
     it('Does a simple pass through to yg contents', function () {
         const query = {
-            yg: {
-                $and: [{
-                    good: {
-                        $ne: false
-                    }
+            $and: [{
+                good: {
+                    $ne: false
+                }
+            }, {
+                $or: [{
+                    something: 'else'
                 }, {
-                    $or: [{
-                        something: 'else'
-                    }, {
-                        other: {
-                            $ne: true
-                        }
-                    }]
+                    other: {
+                        $ne: true
+                    }
                 }]
-            }
+            }]
         };
 
         const [first, second] = mongoUtils.splitFilter(query, ['good']);
