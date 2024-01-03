@@ -189,6 +189,32 @@ describe('Parser', function () {
         });
     });
 
+    describe('Grouping', function () {
+        it('ungroups top level group', function () {
+            parse('(status:published)').should.eql({status: 'published'});
+        });
+
+        it('ungroups top level group with logical query operator', function () {
+            parse('(page:false+status:published)')
+                .should.eql({$and: [{page: false}, {status: 'published'}]});
+        });
+
+        it('ungroups top level group with nested groups', function () {
+            parse('(page:false,(status:published+featured:true))')
+                .should.eql({
+                    $or: [
+                        {page: false},
+                        {
+                            $and: [
+                                {status: 'published'},
+                                {featured: true}
+                            ]
+                        }
+                    ]
+                });
+        });
+    });
+
     describe('complex examples', function () {
         it('Many expressions', function () {
             parse('tag:photo+featured:true,tag.count:>5').should.eql({

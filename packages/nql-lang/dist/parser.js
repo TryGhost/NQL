@@ -84,7 +84,14 @@ performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate /* actio
 var $0 = $$.length - 1;
 switch (yystate) {
 case 1:
- yy.debug('expression', $$[$0]); yy.debug('opt', opt); return $$[$0]; 
+
+        yy.debug('expression', $$[$0]);
+        yy.debug('opt', opt);
+        if ($$[$0] && $$[$0].yg) {
+            return $$[$0].yg; // Unwrap from 'yg' if present
+        }
+        return $$[$0];
+    
 break;
 case 2:
  yy.debug('andCondition', $$[$0]); this.$ = $$[$0]; 

@@ -18,7 +18,14 @@
 %% /* language grammar */
 
 expressions
-    : expression { yy.debug('expression', $1); yy.debug('opt', opt); return $1; }
+    : expression {
+        yy.debug('expression', $1);
+        yy.debug('opt', opt);
+        if ($1 && $1.yg) {
+            return $1.yg; // Unwrap from 'yg' if present
+        }
+        return $1;
+    }
     ;
 
 expression
