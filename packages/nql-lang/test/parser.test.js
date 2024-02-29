@@ -628,4 +628,45 @@ describe('Parser', function () {
             });
         });
     });
+
+    describe('ENG-685', function () {
+        const filters = [
+            `(created_at:<=2024-02-27T22:25:10.000Z)+(post_id='65de454416d4b5ef4d1ed7e4')`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(created_at:<=2024-02-27T22:25:10.000Z)`,
+            `cool:true+(id=65de454416d4b5ef4d1ed7e4)`,
+            `(post_id:'published')+(thing:true)`,
+            `(post_id:'65de454416d4b5ef4d1ed7e4')+(thing:true)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(createdat:true)`,
+            `(post_id:'65de454416d4b5ef4d1ed7e4')+(thing:true)`,
+            `post_id='65de454416d4b5ef4d1ed7e4'+(created_at:<=2024-02-27T22:25:10.000Z)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(num:true)`,
+            `(post_id:'65de454416d4b5ef4d1ed7e4')+(thing:true)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(num:true)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(num:6)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(num:six)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(a:six)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(ab:six)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(abc:six)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(abcd:six)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(abcde:six)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(abcdef:six)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(fedcba:six)`,
+            `id='65de454416d4b5ef4d1ed7e4'+(created_at:<=2024-02-27T22:58:50.000Z)`,
+            `(post_id:'65de454416d4b5ef4d1ed7e4')+(thing:true)`,
+            `(post_id:'65de454416d4b5ef4d1ed7e4')+(think:true)`,
+            `(post_id:'65de454416d4b5ef4d1ed7e4')+(drink:true)`,
+            `(post_id:'65de454416d4b5ef4d1ed7e4')+(thin:true)`,
+            `(post_id:'65de454416d4b5ef4d1ed7e4')+(thi:true)`,
+            `(post_id:'65de454416d4b5ef4d1ed7e4')+(th:true)`,
+            `(post_id:'65de454416d4b5ef4d1ed7e4')+(t:true)`,
+            `(post_id='65de454416d4b5ef4d1ed7e4')+(num:true)`
+        ];
+
+        // eslint-disable-next-line ghost/mocha/no-setup-in-describe
+        for (let i = 0; i < filters.length; i++) {
+            it(`Can parse a valid filter ${i + 1}/${filters.length}`, function () {
+                parse(filters[i]);
+            });
+        }
+    });
 });
