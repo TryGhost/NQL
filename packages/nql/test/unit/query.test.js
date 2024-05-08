@@ -65,4 +65,14 @@ describe('NQL -> SQL', function () {
             query.querySQL(knex('users')).toQuery().should.eql('select * from `users` where lower(`users`.`name`) like \'%\\\';select ** from `settings` where `value` like \\\'%\' ESCAPE \'*\'');
         });
     });
+
+    describe('Will collapse multiple NOT IN filters into a single NOT IN', function () {
+        it('can collapse multiple NOT IN filters into a single NOT IN', function () {
+            let query;
+
+            query = nql('tag:-tag1+tag:-tag2');
+            query.toJSON().should.eql({tag: {$nin: ['tag1', 'tag2']}});
+            query.querySQL(knex('posts')).toQuery().should.eql('select * from `posts` where `posts`.`tag` not in (\'tag1\', \'tag2\')');
+        });
+    });
 });
