@@ -1,3 +1,7 @@
+/**
+ * @fileoverview This file contains utility functions for working with MongoDB queries.
+ * @module mongo-utils
+ */
 const _ = require('lodash');
 
 const GROUPS = ['$and', '$or'];
@@ -5,6 +9,17 @@ const GROUPS = ['$and', '$or'];
 /**
  * Maps over a mongo query, calling `fn` on each non-operator object
  * using the return value as the new query object at that level/layer
+ * 
+ * Maps the given query object using the provided mapping function.
+ * If the query is an array, it recursively maps each object in the array.
+ * If the query is an object, it maps each key-value pair using the mapping function.
+ * If the key is in the GROUPS array, it maps the value recursively.
+ * If the key is 'yg', it maps the value recursively.
+ * Otherwise, it applies the mapping function to the value and key.
+ *
+ * @param {Object|Array} query - The query object to be mapped.
+ * @param {Function} fn - The mapping function to be applied to each value and key.
+ * @returns {Object|Array} - The mapped query object.
  */
 const mapQuery = (query, fn) => {
     if (Array.isArray(query)) {
@@ -33,7 +48,11 @@ const mapQuery = (query, fn) => {
 };
 
 /**
- * Combines two filters with $and conjunction
+ * Combines two filters into a single filter with the $and conjuction.
+ *
+ * @param {object} primary - The primary filter.
+ * @param {object} secondary - The secondary filter.
+ * @returns {object} - The combined filter.
  */
 const combineFilters = (primary, secondary) => {
     if (_.isEmpty(primary)) {
@@ -49,6 +68,13 @@ const combineFilters = (primary, secondary) => {
     };
 };
 
+/**
+ * Finds a statement in an object recursively.
+ *
+ * @param {Object} statements - The object containing statements.
+ * @param {string} match - The statement to match.
+ * @returns {boolean} - Returns true if the statement is found, otherwise false.
+ */
 const findStatement = (statements, match) => {
     return _.some(statements, (value, key, obj) => {
         if (key === '$and') {
@@ -66,14 +92,18 @@ const findStatement = (statements, match) => {
 };
 
 /**
- * ## Reject statements
- *
+ * Filters out statements from an object based on a given condition.
+ * 
  * Removes statements keys when matching `func` returns true
  * in the primary filter, e.g.:
  *
  * In NQL results equivalent to:
  * ('featured:true', 'featured:false') => ''
  * ('featured:true', 'featured:false,status:published') => 'status:published'
+ *
+ * @param {Object} statements - The object containing the statements to filter.
+ * @param {Function} func - The condition function used to filter the statements.
+ * @returns {Object} - The filtered object.
  */
 const rejectStatements = (statements, func) => {
     if (!statements) {
@@ -91,12 +121,15 @@ const rejectStatements = (statements, func) => {
 };
 
 /**
- * ## Merge Filters
- * Util to combine multiple filters based on the priority how
- * they are passed into the method. For example:
- *      mergeFilter(overrides, custom, defaults);
+ * Merges multiple filters into a single filter object.
+ * 
+ * Util to combine multiple filters based on the priority how they are passed into the method.
+ * For example: mergeFilter(overrides, custom, defaults);
  * would merge these three filters having overrides on highers priority
  * and defaults on the lowest priority
+ *
+ * @param {...Object} filters - The filters to be merged.
+ * @returns {Object} The merged filter object.
  */
 const mergeFilters = (...filters) => {
     let merged = {};
@@ -119,8 +152,11 @@ const mergeFilters = (...filters) => {
 };
 
 /**
- * ## Expand Filters
- * Util that expands Mongo JSON statements with custom statements
+ * Expands Mongo JSON statements with custom statements
+ *
+ * @param {Array} statements - The array of statements to be expanded.
+ * @param {Array} expansions - The array of expansions to be applied to the statements.
+ * @returns {Array} - The expanded statements array.
  */
 const expandFilters = (statements, expansions) => {
     const expand = (primary, secondary) => {
@@ -242,6 +278,13 @@ function mapKeyValues(mapping) {
 /**
  * Replace all filters with a given key by a given filter
  */
+/**
+ * Replaces filters in the given statements with the corresponding replacements.
+ *
+ * @param {Object} statements - The statements to be processed.
+ * @param {Object} replacements - The replacements to be applied.
+ * @returns {Object} - The updated statements with filters replaced.
+ */
 const replaceFilters = (statements, replacements) => {
     return mapQuery(statements, function (value, key) {
         const replacement = Object.keys(replacements).includes(key); // we use this because the replacement can be undefined too
@@ -257,7 +300,10 @@ const replaceFilters = (statements, replacements) => {
 };
 
 /**
- * Returns a mongo transformer that chains multiple transformers together.
+ * Chains multiple transformers together to create a new transformer function.
+ *
+ * @param {...function} transformers - The transformer functions to be chained.
+ * @returns {function} - The chained transformer function.
  */
 function chainTransformers(...transformers) {
     return function (filter) {
@@ -269,7 +315,10 @@ function chainTransformers(...transformers) {
 }
 
 /**
- * Returns a list of the keys that are used in this Mongo filter
+ * Retrieves all the keys used in the given filter object.
+ *
+ * @param {Object} filter - The filter object to analyze.
+ * @returns {string[]} An array of keys used in the filter object.
  */
 function getUsedKeys(filter) {
     if (!filter) {
@@ -410,6 +459,8 @@ function splitFilter(filter, keys) {
 }
 
 /**
+ * Maps keys from an object to an array of key-value pairs.
+ * 
  * Same as mapKeyValues, but with easier syntax and no support for value mapping.
  * Returns a list of transformers (one for every key). Use `chainTransformers` to merge multiple transformers into one.
  * 
@@ -418,6 +469,9 @@ function splitFilter(filter, keys) {
  *  'data.created_at': 'created_at',
  *  'data.member_id': 'member_id'
  * })
+ * 
+ * @param {Object} keys - The object containing the keys to be mapped.
+ * @returns {Array} - An array of key-value pairs.
  */
 function mapKeys(keys) {
     const mapping = [];
