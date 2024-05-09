@@ -66,13 +66,29 @@ describe('NQL -> SQL', function () {
         });
     });
 
-    describe('Will collapse multiple NOT IN filters into a single NOT IN', function () {
-        it('can collapse multiple NOT IN filters into a single NOT IN', function () {
+    describe('Can combine not-equals filters into NIN correctly', function () {
+        it('can collapse two NE filters into a single NOT IN', function () {
             let query;
 
             query = nql('tag:-tag1+tag:-tag2');
             query.toJSON().should.eql({tag: {$nin: ['tag1', 'tag2']}});
             query.querySQL(knex('posts')).toQuery().should.eql('select * from `posts` where `posts`.`tag` not in (\'tag1\', \'tag2\')');
+        });
+
+        it('can collapse multiple NE filters into a single NOT IN', function () {
+            let query;
+
+            query = nql('tag:-tag1+tag:-tag2+tag:-tag3+tag:-tag4+tag:-tag5');
+            query.toJSON().should.eql({tag: {$nin: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5']}});
+            query.querySQL(knex('posts')).toQuery().should.eql('select * from `posts` where `posts`.`tag` not in (\'tag1\', \'tag2\', \'tag3\', \'tag4\', \'tag5\')');
+        });
+
+        it('will not collapse not equals and nequals on the same property', function () {
+            let query;
+
+            query = nql('tag:-tag1+tag:tag2');
+            query.toJSON().should.eql({$and: [{tag: {$ne: 'tag1'}}, {tag: 'tag2'}]});
+            query.querySQL(knex('posts')).toQuery().should.eql('select * from `posts` where (`posts`.`tag` != \'tag1\' and `posts`.`tag` = \'tag2\')');
         });
     });
 });

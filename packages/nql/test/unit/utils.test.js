@@ -137,5 +137,32 @@ describe('Utils', function () {
 
             utils.combineNeFilters(input).should.eql(input);
         });
+
+        it('should not combine $ne filters with $eq filters', function () {
+            const input = {
+                $and: [
+                    {tag: {$ne: '8d2ofjoijsd9s09dc'}},
+                    {tag: 'hash-secondary_feature_2'}
+                ]
+            };
+
+            utils.combineNeFilters(input).should.eql(input);
+        });
+
+        it('does not yet combine groups', function () {
+            const input = {
+                $and: [
+                    {tag: {$ne: 'tag1'}},
+                    {
+                        $and: [
+                            {tag: {$ne: 'tag2'}},
+                            {tag: {$ne: 'tag3'}}
+                        ]
+                    }
+                ]
+            };
+
+            utils.combineNeFilters(input).should.eql(input);
+        });
     });
 });
