@@ -42,12 +42,14 @@ const expandFilters = (mongoJSON, expansions) => {
 
 /**
  * Combines multiple '$ne' filters of the same type within an '$and' operator into a single '$nin' filter.
+ *  Can handle nested '$and' operators.
+ * 
  * @param {Object} mongoJSON - The MongoDB query object.
  * @returns {Object} - The modified MongoDB query object.
  */
 const combineNeFilters = (mongoJSON) => {
     // this should only be necessary when we have '$and' with multiple child '$ne' filters of the same type
-    if (mongoUtils.findStatement(mongoJSON, '$ne') && mongoJSON.$and) {
+    if (mongoJSON.$and && mongoUtils.findStatement(mongoJSON, '$ne')) {
         const andFilters = mongoJSON.$and;
         const neFilters = andFilters.filter(filter => mongoUtils.findStatement(filter, '$ne'));
         const neGroups = _.groupBy(neFilters, filter => Object.keys(filter)[0]);
@@ -62,6 +64,14 @@ const combineNeFilters = (mongoJSON) => {
         });
         if (andFilters.length === 0) {
             delete mongoJSON.$and;
+        }
+    }
+    // recursively call to handle nested $and operators
+    for (const key in mongoJSON) {
+        if (key === '$and') {
+            mongoJSON[key] = mongoJSON[key].map((filter) => {
+                return combineNeFilters(filter);
+            });
         }
     }
     return mongoJSON;

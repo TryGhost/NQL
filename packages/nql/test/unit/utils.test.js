@@ -164,5 +164,19 @@ describe('Utils', function () {
 
             utils.combineNeFilters(input).should.eql(input);
         });
+
+        it('should combine $ne filters in nested $and', function () {
+            const input = {
+                $and: [
+                    {tag: {$ne: 'tag1'}},
+                    {tag: {$ne: 'tag2'}}
+                ]
+            };
+            const output = {
+                tag: {$nin: ['tag1', 'tag2']}
+            };
+
+            utils.combineNeFilters(input).should.eql(output);
+        });
     });
 });
