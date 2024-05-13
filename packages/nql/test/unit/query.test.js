@@ -75,6 +75,14 @@ describe('NQL -> SQL', function () {
             query.querySQL(knex('posts')).toQuery().should.eql('select * from `posts` where `posts`.`tag` not in (\'tag1\', \'tag2\')');
         });
 
+        it('can collapse NE filters that are in nested $and statements', function () {
+            let query;
+
+            query = nql('(tag:-tag1+tag:-tag2)+type:post');
+            query.toJSON().should.eql({$and: [{tag: {$nin: ['tag1', 'tag2']}}, {type: 'post'}]});
+            query.querySQL(knex('posts')).toQuery().should.eql('select * from `posts` where (`posts`.`tag` not in (\'tag1\', \'tag2\') and `posts`.`type` = \'post\')');
+        });
+
         it('can collapse multiple NE filters into a single NOT IN', function () {
             let query;
 
