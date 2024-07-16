@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [ 16, 18 ]
+        node: [ 16, 18, 20 ]
         env:
           - DB: sqlite3
             NODE_ENV: testing
