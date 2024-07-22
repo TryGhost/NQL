@@ -150,21 +150,21 @@
   resolved "https://registry.yarnpkg.com/@kapouer/eslint-plugin-no-return-in-loop/-/eslint-plugin-no-return-in-loop-1.0.0.tgz#9fdbe83deca12156c0b5fcbfae1f387e9f2baff5"
   integrity sha512-IXQp8N68L2fkk7p7RckBBhT/KwAX04GooIGjwzmY5THQanQvsmJpYgwC7A1Io2XDXBJzlGelQkP/C1SRM/aq8w==
 
-"@lerna/child-process@7.2.0":
-  version "7.2.0"
-  resolved "https://registry.yarnpkg.com/@lerna/child-process/-/child-process-7.2.0.tgz#42de5b0a4eb7479c2a72b4bf61685616740cf818"
-  integrity sha512-8cRsYYX8rGZTXL1KcLBv0RHD9PMvphWZay8yg4qf2giX6x86dQyTetSU4SplG2LBGVClilmNHJa/CQwvPQNUFA==
+"@lerna/child-process@7.4.2":
+  version "7.4.2"
+  resolved "https://registry.yarnpkg.com/@lerna/child-process/-/child-process-7.4.2.tgz#a2fd013ac2150dc288270d3e0d0b850c06bec511"
+  integrity sha512-je+kkrfcvPcwL5Tg8JRENRqlbzjdlZXyaR88UcnCdNW0AJ1jX9IfHRys1X7AwSroU2ug8ESNC+suoBw1vX833Q==
   dependencies:
     chalk "^4.1.0"
     execa "^5.0.0"
     strong-log-transformer "^2.1.0"
 
-"@lerna/create@7.2.0":
-  version "7.2.0"
-  resolved "https://registry.yarnpkg.com/@lerna/create/-/create-7.2.0.tgz#a8080b419c1f8ab5d575693fcb883a6a0d82c7e0"
-  integrity sha512-bBypNfwqOQNcfR2nXJ3mWUeIAIoSFpXg8MjuFSf87PzIiyeTEKa3Z57vAa3bDbHQtcB7x6f0rWysK1eQZSH15Q==
+"@lerna/create@7.4.2":
+  version "7.4.2"
+  resolved "https://registry.yarnpkg.com/@lerna/create/-/create-7.4.2.tgz#f845fad1480e46555af98bd39af29571605dddc9"
+  integrity sha512-1wplFbQ52K8E/unnqB0Tq39Z4e+NEoNrpovEnl6GpsTUrC6WDp8+w0Le2uCBV0hXyemxChduCkLz4/y1H1wTeg==
   dependencies:
-    "@lerna/child-process" "7.2.0"
+    "@lerna/child-process" "7.4.2"
     "@npmcli/run-script" "6.0.2"
     "@nx/devkit" ">=16.5.1 < 17"
     "@octokit/plugin-enterprise-rest" "6.0.1"
@@ -195,7 +195,7 @@
     libnpmpublish "7.3.0"
     load-json-file "6.2.0"
     lodash "^4.17.21"
-    make-dir "3.1.0"
+    make-dir "4.0.0"
     minimatch "3.0.5"
     multimatch "5.0.0"
     node-fetch "2.6.7"
@@ -1350,10 +1350,10 @@ console-control-strings@^1.0.0, console-control-strings@^1.1.0:
   resolved "https://registry.yarnpkg.com/console-control-strings/-/console-control-strings-1.1.0.tgz#3d7cf4464db6446ea644bf4b39507f9851008e8e"
   integrity sha512-ty/fTekppD2fIwRvnZAVdeOiGd1c7YXEixbgJTNzqcxJWKQnjJ/V1bNEEE6hygpM3WjwHFUVK6HTjWSzV4a8sQ==
 
-conventional-changelog-angular@6.0.0:
-  version "6.0.0"
-  resolved "https://registry.yarnpkg.com/conventional-changelog-angular/-/conventional-changelog-angular-6.0.0.tgz#a9a9494c28b7165889144fd5b91573c4aa9ca541"
-  integrity sha512-6qLgrBF4gueoC7AFVHu51nHL9pF9FRjXrH+ceVf7WmAfH3gs+gEYOkvxhjMPjZu57I4AGUGoNTY8V7Hrgf1uqg==
+conventional-changelog-angular@7.0.0:
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/conventional-changelog-angular/-/conventional-changelog-angular-7.0.0.tgz#5eec8edbff15aa9b1680a8dcfbd53e2d7eb2ba7a"
+  integrity sha512-ROjNchA9LgfNMTTFSIWPzebCwOGFdgkEq45EnvvrmSLvCtAw0HSmrCs7/ty+wAeYUZyNay0YMUNYFTRL72PkBQ==
   dependencies:
     compare-func "^2.0.0"
 
@@ -3027,13 +3027,13 @@ knex@2.4.2:
     tarn "^3.0.2"
     tildify "2.0.0"
 
-lerna@7.2.0:
-  version "7.2.0"
-  resolved "https://registry.yarnpkg.com/lerna/-/lerna-7.2.0.tgz#55ab3de42032168a75fc7a2ce184a8acb7efc5ea"
-  integrity sha512-E13iAY4Tdo+86m4ClAe0j0bP7f8QG2neJReglILPOe+gAOoX17TGqEWanmkDELlUXOrTTwnte0ewc6I6/NOqpg==
+lerna@7.4.2:
+  version "7.4.2"
+  resolved "https://registry.yarnpkg.com/lerna/-/lerna-7.4.2.tgz#03497125d7b7c8d463eebfe17a701b16bde2ad09"
+  integrity sha512-gxavfzHfJ4JL30OvMunmlm4Anw7d7Tq6tdVHzUukLdS9nWnxCN/QB21qR+VJYp5tcyXogHKbdUEGh6qmeyzxSA==
   dependencies:
-    "@lerna/child-process" "7.2.0"
-    "@lerna/create" "7.2.0"
+    "@lerna/child-process" "7.4.2"
+    "@lerna/create" "7.4.2"
     "@npmcli/run-script" "6.0.2"
     "@nx/devkit" ">=16.5.1 < 17"
     "@octokit/plugin-enterprise-rest" "6.0.1"
@@ -3043,7 +3043,7 @@ lerna@7.2.0:
     clone-deep "4.0.1"
     cmd-shim "6.0.1"
     columnify "1.6.0"
-    conventional-changelog-angular "6.0.0"
+    conventional-changelog-angular "7.0.0"
     conventional-changelog-core "5.0.1"
     conventional-recommended-bump "7.0.1"
     cosmiconfig "^8.2.0"
@@ -3070,7 +3070,7 @@ lerna@7.2.0:
     libnpmpublish "7.3.0"
     load-json-file "6.2.0"
     lodash "^4.17.21"
-    make-dir "3.1.0"
+    make-dir "4.0.0"
     minimatch "3.0.5"
     multimatch "5.0.0"
     node-fetch "2.6.7"
@@ -3267,12 +3267,12 @@ lru-cache@^7.4.4, lru-cache@^7.5.1, lru-cache@^7.7.1:
   resolved "https://registry.yarnpkg.com/lru-cache/-/lru-cache-7.18.3.tgz#f793896e0fd0e954a59dfdd82f0773808df6aa89"
   integrity sha512-jumlc0BIUrS3qJGgIkWZsyfAM7NCWiBcCDhnd+3NNM5KbBmLTgHVfWBcg6W+rLUsIpzpERPsvwUP7CckAQSOoA==
 
-make-dir@3.1.0, make-dir@^3.1.0:
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/make-dir/-/make-dir-3.1.0.tgz#415e967046b3a7f1d185277d84aa58203726a13f"
-  integrity sha512-g3FeP20LNwhALb/6Cz6Dd4F2ngze0jz7tbzrD2wAV+o9FeNHe4rL+yK2md0J/fiSf1sa1ADhXqi5+oVwOM/eGw==
+make-dir@4.0.0, make-dir@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/make-dir/-/make-dir-4.0.0.tgz#c3c2307a771277cd9638305f915c29ae741b614e"
+  integrity sha512-hXdUTZYIVOt1Ex//jAQi+wTZZpUpwBj/0QsOzqegb3rGMMeJiSEu5xLHnYfBrRV4RH2+OCSOO95Is/7x1WJ4bw==
   dependencies:
-    semver "^6.0.0"
+    semver "^7.5.3"
 
 make-dir@^2.1.0:
   version "2.1.0"
@@ -3282,12 +3282,12 @@ make-dir@^2.1.0:
     pify "^4.0.1"
     semver "^5.6.0"
 
-make-dir@^4.0.0:
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/make-dir/-/make-dir-4.0.0.tgz#c3c2307a771277cd9638305f915c29ae741b614e"
-  integrity sha512-hXdUTZYIVOt1Ex//jAQi+wTZZpUpwBj/0QsOzqegb3rGMMeJiSEu5xLHnYfBrRV4RH2+OCSOO95Is/7x1WJ4bw==
+make-dir@^3.1.0:
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/make-dir/-/make-dir-3.1.0.tgz#415e967046b3a7f1d185277d84aa58203726a13f"
+  integrity sha512-g3FeP20LNwhALb/6Cz6Dd4F2ngze0jz7tbzrD2wAV+o9FeNHe4rL+yK2md0J/fiSf1sa1ADhXqi5+oVwOM/eGw==
   dependencies:
-    semver "^7.5.3"
+    semver "^6.0.0"
 
 make-fetch-happen@^10.0.3:
   version "10.2.1"
