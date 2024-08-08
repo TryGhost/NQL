@@ -199,6 +199,21 @@ describe('Parser', function () {
                 .should.eql({$and: [{page: false}, {status: 'published'}]});
         });
 
+        it.only('merp', function () {
+            parse('(tag.slug:-animal)+(tag.slug:-cgi)')
+                .should.eql({$and: [{'tag.slug': {$ne: 'animal'}}, {'tag.slug': {$ne: 'cgi'}}]});
+
+            function print(x) {
+                return require('util').inspect(x, true, null);
+            }
+
+            console.log('grouped tag', print(parse('(tags.slug:-animal)+(tags.slug:-cgi)')));
+            console.log('ungrouped tag', print(parse('tags.slug:-animal+tags.slug:-cgi')));
+            console.log('tag grouped with or', print(parse('(tags.slug:-animal,featured:false)+(tags.slug:-cgi,featured:false)')));
+            console.log('tag grouped with or and date', print(parse('created_at:>=\'2024-08-08 18:45:05\'+(tags.slug:-animal,featured:false)+(tags.slug:-cgi,featured:false)')));
+            console.log('tag query with external or', print(parse('(tags.slug:-animal+tags.slug:-cgi),featured:false')));
+        });
+
         it('ungroups top level group with nested groups', function () {
             parse('(page:false,(status:published+featured:true))')
                 .should.eql({

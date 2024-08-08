@@ -3,6 +3,7 @@ const utils = require('../utils');
 const knex = utils.db.client;
 
 const convertor = require('../../lib/convertor');
+const nql = require('../../');
 
 /* eslint-disable no-console*/
 
@@ -359,7 +360,7 @@ describe('Relations', function () {
                         },
                         {
                             'tags.slug': {
-                                $ne: 'cgi'
+                                $ne: 'classic'
                             }
                         }
                     ]
@@ -372,6 +373,66 @@ describe('Relations', function () {
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(4);
                         result.should.matchIds([1, 5, 7, 8]);
+                    });
+            });
+
+            it('(tags.slug:-animal+tags.slug:-cgi),featured:1', function () {
+                // equivalent to $nin: ['animal', 'cgi']
+                const mongoJSON = {
+                    $or: [
+                        {
+                            $and: [
+                                {'tags.slug': {$ne: 'animal'}},
+                                {'tags.slug': {$ne: 'cgi'}}
+                            ]
+                        },
+                        {featured: 1}
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                // no tag: 1,5,7,8;
+                // featured: 3,4,5,6,7,8
+                // combined: 1,3,4,5,6,7,8
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(7);
+                        result.should.matchIds([1, 3, 4, 5, 6, 7, 8]);
+                    });
+            });
+
+            it.only('published_at:<=\'2024-08-08 18:45:05\'+(tags.slug:-animal,featured:1)+(tags.slug:-cgi,featured:1)', function () {
+                // equivalent to $nin: ['animal', 'cgi']
+                const mongoJSON = {
+                    $and: [
+                        {published_at: {$lte: '2024-08-08 18:45:05'}},
+                        {
+                            $or: [
+                                {'tags.slug': {$ne: 'animal'}},
+                                {featured: 1}
+                            ]
+                        },
+                        {
+                            $or: [
+                                {'tags.slug': {$ne: 'cgi'}},
+                                {featured: 1}
+                            ]
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                console.log(query.toSQL());
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(7);
+                        result.should.matchIds([1, 3, 4, 5, 6, 7, 8]);
                     });
             });
 
