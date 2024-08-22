@@ -91,6 +91,7 @@ class MongoToKnex {
      */
     constructor(options = {}, config = {}) {
         this.tableName = options.tableName;
+        this.cte = config.cte;
         this.config = {};
 
         Object.assign(this.config, {relations: {}}, config);
@@ -160,7 +161,7 @@ class MongoToKnex {
 
         // CASE: fallback, status=draft -> posts.status=draft
         return {
-            column: `${this.tableName}.${column}`,
+            column: (this.cte && this.cte === true) ? `${column}` : `${this.tableName}.${column}`,
             operator: op,
             value: value,
             isRelation: false
