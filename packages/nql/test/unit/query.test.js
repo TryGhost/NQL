@@ -98,5 +98,41 @@ describe('NQL -> SQL', function () {
             query.toJSON().should.eql({$and: [{tag: {$ne: 'tag1'}}, {tag: 'tag2'}]});
             query.querySQL(knex('posts')).toQuery().should.eql('select * from `posts` where (`posts`.`tag` != \'tag1\' and `posts`.`tag` = \'tag2\')');
         });
+
+        it('keeps not-equal filters when combined with other filters', function () {
+            let query;
+
+            query = nql('(status:-free,email_disabled:1)+(status:-active,email_disabled:1)');
+            query.toJSON().should.eql({
+                $and: [
+                    {
+                        $or: [
+                            {
+                                status: {
+                                    $ne: 'free'
+                                }
+                            },
+                            {
+                                email_disabled: 1
+                            }
+                        ]
+                    },
+                    {
+                        $or: [
+                            {
+                                status: {
+                                    $ne: 'active'
+                                }
+                            },
+                            {
+                                email_disabled: 1
+                            }
+                        ]
+                    }
+                ]
+            });
+
+            query.querySQL(knex('members')).toQuery().should.eql('select * from `members` where ((`members`.`status` != \'free\' or `members`.`email_disabled` = 1) and (`members`.`status` != \'active\' or `members`.`email_disabled` = 1))');
+        });
     });
 });

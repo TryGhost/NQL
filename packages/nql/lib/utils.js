@@ -42,38 +42,57 @@ const expandFilters = (mongoJSON, expansions) => {
 
 /**
  * Combines multiple '$ne' filters of the same type within an '$and' operator into a single '$nin' filter.
- *  Can handle nested '$and' operators.
- * 
+ * Can handle nested '$and' operators.
+ *
  * @param {Object} mongoJSON - The MongoDB query object.
  * @returns {Object} - The modified MongoDB query object.
  */
 const combineNeFilters = (mongoJSON) => {
-    // this should only be necessary when we have '$and' with multiple child '$ne' filters of the same type
-    if (mongoJSON.$and && mongoUtils.findStatement(mongoJSON, '$ne')) {
-        const andFilters = mongoJSON.$and;
-        const neFilters = andFilters.filter(filter => mongoUtils.findStatement(filter, '$ne'));
-        const neGroups = _.groupBy(neFilters, filter => Object.keys(filter)[0]);
-        const neKeys = Object.keys(neGroups);
-        const neKeysWithMultipleFilters = neKeys.filter(key => neGroups[key].length > 1);
-        neKeysWithMultipleFilters.forEach((key) => {
-            const neValues = neGroups[key].map(filter => filter[key].$ne);
-            mongoJSON[key] = {$nin: neValues};
-            neGroups[key].forEach((filter) => {
-                andFilters.splice(andFilters.indexOf(filter), 1);
-            });
-        });
-        if (andFilters.length === 0) {
-            delete mongoJSON.$and;
-        }
+    // Early return if there is no '$and' or no '$ne' filters to process
+    if (!mongoJSON.$and || !mongoUtils.findStatement(mongoJSON, '$ne')) {
+        return mongoJSON;
     }
-    // recursively call to handle nested $and operators
+
+    const andFilters = mongoJSON.$and;
+
+    // Extract all filters containing '$ne' and group them by their keys
+    const neFilters = andFilters.filter(filter => mongoUtils.findStatement(filter, '$ne'));
+    const neGroups = _.groupBy(neFilters, filter => Object.keys(filter)[0]);
+
+    // Filter for keys that have multiple '$ne' filters
+    const neKeysWithMultipleFilters = Object.keys(neGroups).filter(key => neGroups[key].length > 1);
+
+    // Process each key with multiple '$ne' filters
+    neKeysWithMultipleFilters.forEach((key) => {
+        const neValues = neGroups[key].map(filter => filter[key].$ne).filter(value => value !== undefined);
+
+        // If no valid '$ne' values, skip this group
+        if (neValues.length === 0) {
+            return;
+        }
+
+        // Replace multiple '$ne' with a single '$nin' and remove original filters
+        mongoJSON[key] = {$nin: neValues};
+        neGroups[key].forEach((filter) => {
+            const index = andFilters.indexOf(filter);
+            if (index > -1) {
+                andFilters.splice(index, 1);
+            }
+        });
+    });
+
+    // Clean up the '$and' filter if it's empty after processing
+    if (andFilters.length === 0) {
+        delete mongoJSON.$and;
+    }
+
+    // Recursively process nested '$and' filters
     for (const key in mongoJSON) {
         if (key === '$and') {
-            mongoJSON[key] = mongoJSON[key].map((filter) => {
-                return combineNeFilters(filter);
-            });
+            mongoJSON[key] = mongoJSON[key].map(combineNeFilters);
         }
     }
+
     return mongoJSON;
 };
 
