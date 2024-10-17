@@ -627,5 +627,11 @@ describe('Parser', function () {
                 sinon.assert.calledTwice(relDateToAbsoluteSpy);
             });
         });
+
+        describe('Single character literals', function () {
+            it('can handle single character literals', function () {
+                parse('name:a').should.eql({name: 'a'});
+            });
+        });
     });
 });

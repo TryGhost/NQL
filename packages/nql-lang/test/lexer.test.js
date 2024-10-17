@@ -165,6 +165,17 @@ describe('Lexer', function () {
             (function () {
                 lex('my&valu\'e!');
             }).should.throw(lexicalError);
+            lex('a').should.eql([
+                {token: 'LITERAL', matched: 'a'}
+            ]);
+            lex('a-b').should.eql([
+                {token: 'LITERAL', matched: 'a-b'}
+            ]);
+            lex('a+bc').should.eql([
+                {token: 'LITERAL', matched: 'a'},
+                {token: 'AND', matched: '+'},
+                {token: 'LITERAL', matched: 'bc'}
+            ]);
         });
 
         it('should separate NOT at beginning of literal', function () {
@@ -180,9 +191,6 @@ describe('Lexer', function () {
         });
 
         it('should NOT permit special chars inside a literal', function () {
-            (function () {
-                lex('t+st');
-            }).should.throw(lexicalError);
             (function () {
                 lex('t,st');
             }).should.throw(lexicalError);

@@ -43,6 +43,7 @@ now(?=[-+]\d+[dwMyhms](?:{final}|$))                        { this.pushState('re
 '~^'                                                        return 'STARTSWITH';
 '~$'                                                        return 'ENDSWITH';
 '~'                                                         return 'CONTAINS';
+([a-zA-Z])(?![a-zA-Z'"\,\(\)\>\<=\[\]\~])                   return 'LITERAL';
 
 
 %%
