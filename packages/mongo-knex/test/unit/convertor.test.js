@@ -407,6 +407,30 @@ describe('Relations', function () {
         runQuery({'posts_meta.meta_title': {$ne: 'Meta of A Whole New World'}})
             .should.eql('select * from `posts` where `posts`.`id` not in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` in (\'Meta of A Whole New World\'))');
     });
+
+    it('should be able to perform a match query on a one-to-one relation', function () {
+        const innerQuery = 'select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where lower(`posts_meta`.`meta_title`) like \'%world%\' ESCAPE \'*\'';
+        runQuery({'posts_meta.meta_title': {$regex: /world/i}})
+            .should.eql(`select * from \`posts\` where \`posts\`.\`id\` in (${innerQuery})`);
+    });
+
+    it('should be able to perform a negated match query on a one-to-one relation', function () {
+        const innerQuery = 'select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where lower(`posts_meta`.`meta_title`) not like \'%world%\' ESCAPE \'*\'';
+        runQuery({'posts_meta.meta_title': {$not: /world/i}})
+            .should.eql(`select * from \`posts\` where \`posts\`.\`id\` in (${innerQuery})`);
+    });
+
+    it('should be able to perform a match query on a many-to-many relation', function () {
+        const innerQuery = 'select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`name` like \'%wor*%ld%\' ESCAPE \'*\'';
+        runQuery({'tags.name': {$regex: /wor%ld/}})
+            .should.eql(`select * from \`posts\` where \`posts\`.\`id\` in (${innerQuery})`);
+    });
+
+    it('should be able to perform a negated match query on a many-to-many relation', function () {
+        const innerQuery = 'select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`name` not like \'%wor*%ld%\' ESCAPE \'*\'';
+        runQuery({'tags.name': {$not: /wor%ld/}})
+            .should.eql(`select * from \`posts\` where \`posts\`.\`id\` in (${innerQuery})`);
+    });
 });
 
 describe('RegExp/Like queries', function () {
