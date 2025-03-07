@@ -379,6 +379,22 @@ describe('Relations', function () {
             .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` in (\'fred\'))');
     });
 
+    it('should be able to perform a regexp query on a many-to-many relation', function () {
+        runQuery({'tags.slug': {$regex: /foo/}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` like \'%foo%\')');
+
+        runQuery({'tags.slug': {$regex: /foo/i}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where lower(`tags`.`slug`) like \'%foo%\')');
+    });
+
+    it('should be able to perform a negate regexp query on a many-to-many relation', function () {
+        runQuery({'tags.slug': {$not: /bar/}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` not like \'%bar%\')');
+
+        runQuery({'tags.slug': {$not: /bar/i}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where lower(`tags`.`slug`) not like \'%bar%\')');
+    });
+
     // This case doesn't work
     it.skip('should be able to perform a query on a many-to-many join table alone', function () {
         runQuery({'posts_tags.sort_order': 0});
@@ -411,6 +427,9 @@ describe('Relations', function () {
 
 describe('RegExp/Like queries', function () {
     it('are well behaved', function () {
+        runQuery({title: {$regex: /bar/}})
+            .should.eql('select * from `posts` where `posts`.`title` like \'%bar%\'');
+
         runQuery({title: {$regex: /'/i}})
             .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%\\\'%\' ESCAPE \'*\'');
 
