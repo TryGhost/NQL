@@ -334,7 +334,25 @@ class MongoToKnex {
                                 statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
                             }
 
-                            innerQB[statement.whereType](statementColumn, statementOp, statementValue);
+                            if ([compOps.$regex, compOps.$not].indexOf(statementOp) === -1) {
+                                innerQB[statement.whereType](statementColumn, statementOp, statementValue);
+                            } else {
+                                // knex ILike won't work because of `COLLATION 'utf8_bin'`
+                                // e.g. COLLATION 'utf8_bin' is not valid for CHARACTER SET 'latin1'
+                                // for MySQL, case-sensitive LIKEs won't work without casting to BINARY
+                                // the behavior aligns with commit 7b8798a6fa7870c98648cae5a494eb761638a208
+                                // for an actual database agnostic solution, we need to rework everything around this
+
+                                let whereType = statement.whereType;
+                                const {source, ignoreCase} = processRegExp(statementValue);
+                                if (!ignoreCase) {
+                                    innerQB[whereType](statementColumn, statementOp, source);
+                                } else {
+                                    whereType += 'Raw';
+                                    debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${statement.operator}, comp: ${statementOp}, value: ${source} (REGEX/i)`);
+                                    innerQB[whereType](`lower(??) ${statementOp} ?`, [statementColumn, source]);
+                                }
+                            }
                         });
 
                         if (debugExtended.enabled) {
