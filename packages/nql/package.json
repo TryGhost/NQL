@@ -31,6 +31,6 @@
     "@tryghost/mongo-knex": "^0.9.1",
     "@tryghost/mongo-utils": "^0.6.2",
     "@tryghost/nql-lang": "^0.6.3",
-    "mingo": "^2.2.2"
+    "mingo": "^6.0.0"
   }
 }
