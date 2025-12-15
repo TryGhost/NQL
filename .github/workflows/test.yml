@@ -24,7 +24,7 @@ jobs:
       database__connection__database: nql_testing
     name: Node ${{ matrix.node }}, ${{ matrix.env.DB }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
         env:
           FORCE_COLOR: 0
