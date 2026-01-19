@@ -379,7 +379,7 @@ function splitFilter(filter, keys) {
                     hasKeys = true;
                 } else {
                     if (hasKeys) {
-                        //eslint-disable-next-line no-restricted-syntax
+                        //eslint-disable-next-line ghost/ghost-custom/no-native-error
                         throw new Error(`This filter is not supported because you cannot combine ${keys.join(', ')} filters with other filters except at the root level in an AND.`);
                     }
                 }
@@ -420,7 +420,7 @@ function splitFilter(filter, keys) {
                     continue;
                 } else {
                     if (hasKeys) {
-                        //eslint-disable-next-line no-restricted-syntax
+                        //eslint-disable-next-line ghost/ghost-custom/no-native-error
                         throw new Error(`This filter is not supported because you cannot combine ${keys.join(', ')} filters with other filters in an OR.`);
                     }
                 }
