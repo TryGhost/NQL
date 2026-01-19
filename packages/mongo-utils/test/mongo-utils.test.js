@@ -2,7 +2,7 @@
 // const testUtils = require('./utils');
 require('./utils');
 const mongoUtils = require('../');
-const assert = require('assert');
+const assert = require('node:assert/strict');
 
 describe('Find statement', function () {
     it('should match with object statement by key', function () {
