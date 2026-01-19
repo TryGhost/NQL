@@ -215,7 +215,7 @@ class MongoToKnex {
                 groupKey = `${statement.table}_${idx})}`;
 
                 if (group[groupKey]) {
-                    //eslint-disable-next-line no-restricted-syntax
+                    //eslint-disable-next-line ghost/ghost-custom/no-native-error
                     throw new Error('Key collision detected');
                 }
             }
