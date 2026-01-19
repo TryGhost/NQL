@@ -20,7 +20,7 @@
     "eslint-plugin-ghost": "2.16.0",
     "mocha": "11.7.5",
     "should": "13.2.3",
-    "sinon": "15.2.0"
+    "sinon": "21.0.1"
   },
   "dependencies": {
     "lodash": "^4.17.11"
