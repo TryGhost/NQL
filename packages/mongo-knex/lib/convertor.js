@@ -204,6 +204,14 @@ class MongoToKnex {
             if (!createSubGroup && group[statement.table]) {
                 createSubGroup = _.find(group[statement.table].innerWhereStatements, (innerStatement) => {
                     if (innerStatement.column === statement.column) {
+                        // Range operators on the same column define a range on a single row
+                        // and should stay in the same subquery (e.g. created_at >= X AND created_at <= Y).
+                        // Equality/set operators need separate subqueries because each condition
+                        // must match a different row in manyToMany relations.
+                        const rangeOps = ['$gt', '$gte', '$lt', '$lte'];
+                        if (rangeOps.includes(innerStatement.operator) && rangeOps.includes(statement.operator)) {
+                            return false;
+                        }
                         return true;
                     }
                 });

@@ -375,6 +375,130 @@ describe('Relations', function () {
                     });
             });
 
+            describe('date range on same column with other same-table conditions', function () {
+                it('range conditions should stay in same subquery with other same-table conditions ($gte before $lte)', function () {
+                    // tags.slug = 'classic' AND tags.created_at >= '2015-01-02' AND tags.created_at <= '2015-06-20'
+                    // Classic tag has created_at = 2015-01-01, which does NOT satisfy >= 2015-01-02
+                    // So no single tag satisfies all three conditions → 0 results
+                    const mongoJSON = {
+                        $and: [
+                            {
+                                'tags.slug': 'classic'
+                            },
+                            {
+                                'tags.created_at': {
+                                    $gte: '2015-01-02'
+                                }
+                            },
+                            {
+                                'tags.created_at': {
+                                    $lte: '2015-06-20'
+                                }
+                            }
+                        ]
+                    };
+
+                    const query = makeQuery(mongoJSON);
+
+                    return query
+                        .select()
+                        .then((result) => {
+                            result.should.be.an.Array().with.lengthOf(0);
+                        });
+                });
+
+                it('range conditions should stay in same subquery with other same-table conditions ($lte before $gte)', function () {
+                    // Same filter as above but with date conditions in reversed order
+                    // Must produce the same result (0) regardless of order
+                    const mongoJSON = {
+                        $and: [
+                            {
+                                'tags.slug': 'classic'
+                            },
+                            {
+                                'tags.created_at': {
+                                    $lte: '2015-06-20'
+                                }
+                            },
+                            {
+                                'tags.created_at': {
+                                    $gte: '2015-01-02'
+                                }
+                            }
+                        ]
+                    };
+
+                    const query = makeQuery(mongoJSON);
+
+                    return query
+                        .select()
+                        .then((result) => {
+                            result.should.be.an.Array().with.lengthOf(0);
+                        });
+                });
+
+                it('range on same column without other conditions should use single subquery', function () {
+                    // tags.created_at > '2015-01-01' AND tags.created_at < '2015-01-02'
+                    // No tag has created_at strictly between Jan 1 and Jan 2
+                    // With separate subqueries, posts 4 & 6 (which have both classic and animal)
+                    // would incorrectly match because classic satisfies < Jan 2 and animal satisfies > Jan 1
+                    const mongoJSON = {
+                        $and: [
+                            {
+                                'tags.created_at': {
+                                    $gt: '2015-01-01'
+                                }
+                            },
+                            {
+                                'tags.created_at': {
+                                    $lt: '2015-01-02'
+                                }
+                            }
+                        ]
+                    };
+
+                    const query = makeQuery(mongoJSON);
+
+                    return query
+                        .select()
+                        .then((result) => {
+                            result.should.be.an.Array().with.lengthOf(0);
+                        });
+                });
+
+                it('range that matches should return correct results', function () {
+                    // tags.slug = 'classic' AND tags.created_at >= '2015-01-01' AND tags.created_at <= '2015-01-01'
+                    // Classic tag has created_at = 2015-01-01 which is in range [Jan 1, Jan 1]
+                    // Posts with classic tag: 1, 4, 5, 6
+                    const mongoJSON = {
+                        $and: [
+                            {
+                                'tags.slug': 'classic'
+                            },
+                            {
+                                'tags.created_at': {
+                                    $gte: '2015-01-01'
+                                }
+                            },
+                            {
+                                'tags.created_at': {
+                                    $lte: '2015-01-01'
+                                }
+                            }
+                        ]
+                    };
+
+                    const query = makeQuery(mongoJSON);
+
+                    return query
+                        .select()
+                        .then((result) => {
+                            result.should.be.an.Array().with.lengthOf(4);
+                            result.should.matchIds([1, 4, 5, 6]);
+                        });
+                });
+            });
+
             it('tags.slug NOT equal "classic" and tags.visibility is equal "public"', function () {
                 const mongoJSON = {
                     'tags.visibility': 'public',
