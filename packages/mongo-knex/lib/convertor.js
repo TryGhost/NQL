@@ -27,6 +27,7 @@ const isOp = key => key.charAt(0) === '$';
 const isLogicOp = key => isOp(key) && _.includes(logicOps, key);
 const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
 const isNegationOp = key => isOp(key) && _.includes(['$ne', '$nin'], key);
+const isRangeOp = key => isOp(key) && _.includes(['$gt', '$gte', '$lt', '$lte'], key);
 const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
 
 /**
@@ -208,8 +209,7 @@ class MongoToKnex {
                         // and should stay in the same subquery (e.g. created_at >= X AND created_at <= Y).
                         // Equality/set operators need separate subqueries because each condition
                         // must match a different row in manyToMany relations.
-                        const rangeOps = ['$gt', '$gte', '$lt', '$lte'];
-                        if (rangeOps.includes(innerStatement.operator) && rangeOps.includes(statement.operator)) {
+                        if (isRangeOp(innerStatement.operator) && isRangeOp(statement.operator)) {
                             return false;
                         }
                         return true;
