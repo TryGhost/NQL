@@ -7,6 +7,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: ${{ matrix.env.DB == 'mysql8' && 'mysql:8.0' || '' }}
+        env:
+          MYSQL_DATABASE: nql_testing
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306
+        options: >-
+          --tmpfs /var/lib/mysql
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
     strategy:
       matrix:
         node: [ 22, 24 ]
@@ -31,16 +45,11 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: yarn
 
-      - name: Shutdown MySQL
-        run: sudo service mysql stop
-        if: matrix.env.DB == 'mysql8'
-
-      - uses: tryghost/mysql-action@main
-        if: matrix.env.DB == 'mysql8'
-        with:
-          mysql version: '8.0'
-          mysql database: 'nql_testing'
-          mysql root password: 'root'
+      - name: Set env vars (MySQL)
+        if: contains(matrix.env.DB, 'mysql')
+        run: |
+          echo "database__connection__host=127.0.0.1" >> $GITHUB_ENV
+          echo "database__connection__port=${{ job.services.mysql.ports['3306'] }}" >> $GITHUB_ENV
 
       - run: yarn
       - run: yarn test
