@@ -1,7 +1,7 @@
 require('../utils');
 
 const nql = require('../../');
-const knex = require('knex')({client: 'mysql'});
+const knex = require('knex')({client: 'mysql2'});
 
 describe('NQL -> SQL', function () {
     describe('Can handle regexes safely', function () {
