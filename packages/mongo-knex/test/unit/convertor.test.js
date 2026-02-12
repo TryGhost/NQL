@@ -1,5 +1,5 @@
 require('../utils');
-const knex = require('knex')({client: 'mysql'});
+const knex = require('knex')({client: 'mysql2'});
 const convertor = require('../../lib/convertor');
 
 const runQuery = query => convertor(knex('posts'), query, {

@@ -3,7 +3,7 @@ require('../utils');
 const mingo = require('mingo');
 const nqlLang = require('@tryghost/nql-lang');
 const nql = require('../../');
-const knex = require('knex')({client: 'mysql'});
+const knex = require('knex')({client: 'mysql2'});
 const sandbox = sinon.createSandbox();
 
 const expansions = [
