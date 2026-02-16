@@ -28,6 +28,7 @@ const isLogicOp = key => isOp(key) && _.includes(logicOps, key);
 const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
 const isNegationOp = key => isOp(key) && _.includes(['$ne', '$nin'], key);
 const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
+const isLikeOp = key => isOp(key) && _.includes(['$regex', '$not'], key);
 
 /**
  * JSON Stringify with RegExp support
@@ -281,7 +282,7 @@ class MongoToKnex {
                     const whereType = ['whereNull', 'whereNotNull'].includes(reference.whereType) ? 'andWhere' : (['orWhereNull', 'orWhereNotNull'].includes(reference.whereType) ? 'orWhere' : reference.whereType);
 
                     // CASE: WHERE resource.id (IN | NOT IN) (SELECT ...)
-                    qb[whereType](`${this.tableName}.id`, comp, function () {
+                    qb[whereType](`${this.tableName}.id`, comp, (whereQb) => {
                         const joinFilterStatements = groupedRelations[key].joinFilterStatements;
 
                         let innerJoinValue = reference.config.tableName;
@@ -295,7 +296,7 @@ class MongoToKnex {
 
                         const joinType = reference.config.joinType || 'innerJoin';
 
-                        const innerQB = this
+                        const innerQB = whereQb
                             .select(`${reference.config.joinTable}.${reference.config.joinFrom}`)
                             .from(`${reference.config.joinTable}`)[joinType](innerJoinValue, function () {
                                 this.on(innerJoinOn, '=', `${reference.config.joinTable}.${reference.config.joinTo}`);
@@ -313,9 +314,14 @@ class MongoToKnex {
 
                         _.each(statements, (statement, _key) => {
                             debug(`(buildRelationQuery) build relation where statements for ${_key}`);
-
                             const statementColumn = `${statement.joinTable || statement.table}.${statement.column}`;
                             let statementOp;
+
+                            // CASE: LIKE query --> use the existing builder
+                            if (isLikeOp(statement.operator)) {
+                                this.buildLikeComparison(innerQB, {...statement, column: statementColumn}, statement.whereType);
+                                return;
+                            }
 
                             if (negateGroup) {
                                 statementOp = compOps.$in;
@@ -360,7 +366,7 @@ class MongoToKnex {
                     const tableName = this.tableName;
 
                     const where = reference.whereType === 'orWhere' ? 'orWhere' : 'where';
-                    qb[where](`${this.tableName}.id`, comp, function () {
+                    qb[where](`${this.tableName}.id`, comp, (whereQb) => {
                         const joinFilterStatements = groupedRelations[key].joinFilterStatements;
 
                         let innerJoinValue = reference.config.tableName;
@@ -372,7 +378,7 @@ class MongoToKnex {
                             innerJoinOn = `${reference.config.tableNameAs}.${reference.config.joinFrom}`;
                         }
 
-                        const innerQB = this
+                        const innerQB = whereQb
                             .select(`${tableName}.id`)
                             .from(`${tableName}`)
                             .leftJoin(innerJoinValue, function () {
@@ -390,6 +396,12 @@ class MongoToKnex {
 
                             const statementColumn = `${statement.table}.${statement.column}`;
                             let statementOp;
+
+                            // CASE: LIKE query --> use the existing builder
+                            if (isLikeOp(statement.operator)) {
+                                this.buildLikeComparison(innerQB, {...statement, column: statementColumn}, statement.whereType);
+                                return;
+                            }
 
                             // NOTE: this negation is here to ensure records with no relation are
                             //       include in negation (e.g. `relation.columnName: {$ne: null})
@@ -470,25 +482,30 @@ class MongoToKnex {
         op = processedStatement.operator;
         value = processedStatement.value;
 
-        if (op === '$regex' || op === '$not') {
-            const {source, ignoreCase} = processRegExp(value);
-            value = source;
-
-            // CASE: regex with i flag needs whereRaw to wrap column in lower() else fall through
-            if (ignoreCase) {
-                whereType += 'Raw';
-                debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value} (REGEX/i)`);
-                qb[whereType](`lower(??) ${comp} ? ESCAPE ?`, [column, value, likeEscapeCharacter]);
-                return;
-            }
-            whereType += 'Raw';
-            debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value} (REGEX)`);
-            qb[whereType](`?? ${comp} ? ESCAPE ?`, [column, value, likeEscapeCharacter]);
+        if (isLikeOp(op)) {
+            this.buildLikeComparison(qb, processedStatement, whereType);
             return;
         }
 
         debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value}`);
         qb[whereType](column, comp, value);
+    }
+
+    buildLikeComparison(qb, {column, operator: op, value}, whereType) {
+        const comp = compOps[op] || '=';
+        const {source, ignoreCase} = processRegExp(value);
+        value = source;
+
+        // CASE: regex with i flag needs whereRaw to wrap column in lower() else fall through
+        if (ignoreCase) {
+            whereType += 'Raw';
+            debug(`(buildLikeComparison) whereType: ${whereType}, op: ${op}, comp: ${comp}, value: ${value} (REGEX/i)`);
+            qb[whereType](`lower(??) ${comp} ? ESCAPE ?`, [column, value, likeEscapeCharacter]);
+            return;
+        }
+        whereType += 'Raw';
+        debug(`(buildLikeComparison) whereType: ${whereType}, op: ${op}, comp: ${comp}, value: ${value} (REGEX)`);
+        qb[whereType](`?? ${comp} ? ESCAPE ?`, [column, value, likeEscapeCharacter]);
     }
 
     /**
