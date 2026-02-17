@@ -398,6 +398,34 @@ describe('Relations', function () {
             .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` and `posts_tags`.`sort_order` = 0 where `tags`.`slug` = \'cgi\'))');
     });
 
+    it('should keep same-column range conditions in a single many-to-many subquery', function () {
+        runQuery({
+            $and: [
+                {
+                    'tags.created_at': {$gte: '2015-01-01'}
+                },
+                {
+                    'tags.created_at': {$lte: '2015-12-31'}
+                }
+            ]
+        })
+            .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`created_at` >= \'2015-01-01\' and `tags`.`created_at` <= \'2015-12-31\'))');
+    });
+
+    it('should split same-column equality conditions into separate many-to-many subqueries', function () {
+        runQuery({
+            $and: [
+                {
+                    'tags.slug': 'animal'
+                },
+                {
+                    'tags.slug': 'classic'
+                }
+            ]
+        })
+            .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'animal\') and `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'classic\'))');
+    });
+
     it('should be able to perform a query on a one-to-one relation', function () {
         runQuery({'posts_meta.meta_title': 'Meta of A Whole New World'})
             .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'Meta of A Whole New World\')');
