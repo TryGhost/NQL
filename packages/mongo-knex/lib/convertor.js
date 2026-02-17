@@ -200,26 +200,28 @@ class MongoToKnex {
              *
              * - we should also not use grouping of negated values for the same reasons as above
              */
-            let createSubGroup = isNegationOp(statement.operator);
-
-            if (!createSubGroup && group[statement.table]) {
-                createSubGroup = _.find(group[statement.table].innerWhereStatements, (innerStatement) => {
-                    if (innerStatement.column === statement.column) {
-                        // Range operators on the same column define a range on a single row
-                        // and should stay in the same subquery (e.g. created_at >= X AND created_at <= Y).
-                        // Equality/set operators need separate subqueries because each condition
-                        // must match a different row in manyToMany relations.
-                        if (isRangeOp(innerStatement.operator) && isRangeOp(statement.operator)) {
-                            return false;
-                        }
-                        return true;
+            let shouldCreateSubGroup = isNegationOp(statement.operator);
+            if (!shouldCreateSubGroup && group[statement.table]) {
+                shouldCreateSubGroup = _.some(group[statement.table].innerWhereStatements, (innerStatement) => {
+                    if (innerStatement.column !== statement.column) {
+                        return false;
                     }
+
+                    // Range operators on the same column define a range on a single row
+                    // and should stay in the same subquery (e.g. created_at >= X AND created_at <= Y).
+                    // Equality/set operators need separate subqueries because each condition
+                    // must match a different row in manyToMany relations.
+                    if (isRangeOp(innerStatement.operator) && isRangeOp(statement.operator)) {
+                        return false;
+                    }
+
+                    return true;
                 });
             }
 
             let groupKey = statement.table;
 
-            if (createSubGroup) {
+            if (shouldCreateSubGroup) {
                 groupKey = `${statement.table}_${idx})}`;
 
                 if (group[groupKey]) {
