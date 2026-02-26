@@ -63,4 +63,50 @@ describe('Integration with Knex', function () {
                 });
         });
     });
+
+    describe('Dates', function () {
+        it('can match based on dates - this is the format that works across MySQL and SQLite3', function () {
+            const query = nql('created_at:>=\'2022-03-02 11:06:49\'');
+
+            return query
+                .querySQL(knex('posts'))
+                .select()
+                .then((result) => {
+                    result.should.be.an.Array().with.lengthOf(2);
+                    result[0].title.should.eql('Be Our Guest');
+                    result[1].title.should.eql('He\'s a Tramp');
+                });
+        });
+
+        // NOTE: I believe this will work in MySQL but not SQLite3
+        it('can match based on dates in iso format ISO', function () {
+            const query = nql('created_at:>=\'2022-03-02T11:06:49.000Z\'');
+
+            return query
+                .querySQL(knex('posts'))
+                .select()
+                .then((result) => {
+                    result.should.be.an.Array().with.lengthOf(2);
+                    result[0].title.should.eql('Be Our Guest');
+                    result[1].title.should.eql('He\'s a Tramp');
+                });
+        });
+
+        it('can match based on relative dates', function () {
+            // This test relies on the fact that knex inserts an updated_at of now for all fixtures that are blank
+            // Only 2 tests have explicit updated_at dates, these should not be returned
+            const query = nql('updated_at:>now-1d');
+
+            return query
+                .querySQL(knex('posts'))
+                .select()
+                .then((result) => {
+                    result.should.be.an.Array().with.lengthOf(4);
+                    result[0].title.should.eql('When She Loved Me');
+                    result[1].title.should.eql('Circle of Life');
+                    result[2].title.should.eql('Be Our Guest');
+                    result[3].title.should.eql('He\'s a Tramp');
+                });
+        });
+    });
 });
