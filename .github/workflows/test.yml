@@ -54,7 +54,7 @@ jobs:
       - run: yarn
       - run: yarn test
 
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v6
 
       - uses: tryghost/actions/actions/slack-build@main
         if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
