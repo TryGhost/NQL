@@ -57,6 +57,14 @@ module.exports = {
     },
 
     relDateToAbsolute(op, amount, duration) {
+        // When the parse caller has opted in via `preserveRelativeDates: true`,
+        // emit a tagged value so consumers can distinguish a relative-date
+        // expression from an absolute one. The default path resolves the
+        // relative form to an absolute SQL-formatted date as before.
+        if (this.preserveRelativeDates) {
+            return {$relativeDate: {op, amount: Number(amount), unit: intervals[duration]}};
+        }
+
         const now = new Date();
         const relDate = ops[op](now, {[intervals[duration]]: amount});
 

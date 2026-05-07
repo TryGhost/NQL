@@ -628,6 +628,69 @@ describe('Parser', function () {
             });
         });
 
+        describe('preserveRelativeDates option', function () {
+            it('emits a tagged $relativeDate value instead of an absolute date when enabled', function () {
+                parse('last_seen_at:>=now-7d', {preserveRelativeDates: true}).should.eql({
+                    last_seen_at: {$gte: {$relativeDate: {op: 'sub', amount: 7, unit: 'days'}}}
+                });
+
+                parse('last_seen_at:<=now+14d', {preserveRelativeDates: true}).should.eql({
+                    last_seen_at: {$lte: {$relativeDate: {op: 'add', amount: 14, unit: 'days'}}}
+                });
+            });
+
+            it('preserves relative dates inside grouped/compound expressions', function () {
+                parse('(label:vip+created_at:>=now-30d)', {preserveRelativeDates: true}).should.eql({
+                    $and: [
+                        {label: 'vip'},
+                        {created_at: {$gte: {$relativeDate: {op: 'sub', amount: 30, unit: 'days'}}}}
+                    ]
+                });
+
+                parse('created_at:>=now-7d,status:paid', {preserveRelativeDates: true}).should.eql({
+                    $or: [
+                        {created_at: {$gte: {$relativeDate: {op: 'sub', amount: 7, unit: 'days'}}}},
+                        {status: 'paid'}
+                    ]
+                });
+            });
+
+            it('leaves absolute dates untouched when enabled', function () {
+                parse('created_at:>=\'2024-01-01\'', {preserveRelativeDates: true}).should.eql({
+                    created_at: {$gte: '2024-01-01'}
+                });
+            });
+
+            it('preserves the same units the lexer recognises', function () {
+                const intervals = [
+                    ['d', 'days'],
+                    ['w', 'weeks'],
+                    ['M', 'months'],
+                    ['y', 'years'],
+                    ['h', 'hours'],
+                    ['m', 'minutes'],
+                    ['s', 'seconds']
+                ];
+
+                intervals.forEach(function ([short, long]) {
+                    parse(`last_seen_at:>=now-2${short}`, {preserveRelativeDates: true}).should.eql({
+                        last_seen_at: {$gte: {$relativeDate: {op: 'sub', amount: 2, unit: long}}}
+                    });
+                });
+            });
+
+            it('does not affect later parses that omit the option', function () {
+                parse('last_seen_at:>=now-7d', {preserveRelativeDates: true}).should.eql({
+                    last_seen_at: {$gte: {$relativeDate: {op: 'sub', amount: 7, unit: 'days'}}}
+                });
+
+                const followUp = parse('last_seen_at:>=now-7d');
+                followUp.should.be.an.Object().with.property('last_seen_at');
+                followUp.last_seen_at.should.have.property('$gte');
+                followUp.last_seen_at.$gte.should.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+            });
+        });
+
         describe('Single character literals', function () {
             it('can handle single character literals', function () {
                 parse('name:a').should.eql({name: 'a'});
