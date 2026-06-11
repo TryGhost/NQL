@@ -558,6 +558,11 @@ describe('Aggregate Relations', function () {
             runQuery({$and: [{'posts_tags.sort_order': 0}, {'tag_count.count': {$gt: 1}}]})
                 .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`sort_order` = 0 group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 1))');
         });
+
+        it('with a join table filter in an inverted $and group', function () {
+            runQuery({$and: [{'posts_tags.sort_order': 0}, {'tag_count.count': 0}]})
+                .should.eql('select * from `posts` where (`posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null and `posts_tags`.`sort_order` = 0 group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) != 0))');
+        });
     });
 
     describe('config-driven joins and wheres', function () {
@@ -626,6 +631,36 @@ describe('Aggregate Relations', function () {
                     relations: {
                         bad_count: {
                             type: 'aggregate',
+                            tableName: 'posts_tags',
+                            joinFrom: 'post_id'
+                        }
+                    }
+                }).toQuery();
+            }).should.throw('Aggregate relations require an aggregate config with fn and column');
+        });
+
+        it('throws when aggregate.fn is missing', function () {
+            (function () {
+                convertor(knex('posts'), {'bad_count.count': 1}, {
+                    relations: {
+                        bad_count: {
+                            type: 'aggregate',
+                            aggregate: {column: 'posts_tags.tag_id'},
+                            tableName: 'posts_tags',
+                            joinFrom: 'post_id'
+                        }
+                    }
+                }).toQuery();
+            }).should.throw('Aggregate relations require an aggregate config with fn and column');
+        });
+
+        it('throws when aggregate.column is missing', function () {
+            (function () {
+                convertor(knex('posts'), {'bad_count.count': 1}, {
+                    relations: {
+                        bad_count: {
+                            type: 'aggregate',
+                            aggregate: {fn: 'count'},
                             tableName: 'posts_tags',
                             joinFrom: 'post_id'
                         }
