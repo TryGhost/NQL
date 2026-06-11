@@ -1678,9 +1678,9 @@ describe('Relations', function () {
         });
 
         describe('EQUALS $eq', function () {
-            it('tag_count.count equals 2', function () {
+            it('tag_count equals 2', function () {
                 const mongoJSON = {
-                    'tag_count.count': 2
+                    tag_count: 2
                 };
 
                 const query = makeQuery(mongoJSON);
@@ -1693,9 +1693,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_count.count equals 1', function () {
+            it('tag_count equals 1', function () {
                 const mongoJSON = {
-                    'tag_count.count': 1
+                    tag_count: 1
                 };
 
                 const query = makeQuery(mongoJSON);
@@ -1708,9 +1708,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_count.count equals 0 includes posts with no tags', function () {
+            it('tag_count equals 0 includes posts with no tags', function () {
                 const mongoJSON = {
-                    'tag_count.count': 0
+                    tag_count: 0
                 };
 
                 const query = makeQuery(mongoJSON);
@@ -1725,9 +1725,9 @@ describe('Relations', function () {
         });
 
         describe('NEGATION $ne', function () {
-            it('tag_count.count is NOT 1 includes posts with no tags', function () {
+            it('tag_count is NOT 1 includes posts with no tags', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $ne: 1
                     }
                 };
@@ -1742,9 +1742,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_count.count is NOT 0 excludes posts with no tags', function () {
+            it('tag_count is NOT 0 excludes posts with no tags', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $ne: 0
                     }
                 };
@@ -1761,9 +1761,9 @@ describe('Relations', function () {
         });
 
         describe('COMPARISONS $gt / $gte / $lt / $lte', function () {
-            it('tag_count.count is > 1', function () {
+            it('tag_count is > 1', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $gt: 1
                     }
                 };
@@ -1778,9 +1778,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_count.count is >= 1', function () {
+            it('tag_count is >= 1', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $gte: 1
                     }
                 };
@@ -1795,9 +1795,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_count.count is >= 0 matches all posts', function () {
+            it('tag_count is >= 0 matches all posts', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $gte: 0
                     }
                 };
@@ -1812,9 +1812,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_count.count is < 2 includes posts with no tags', function () {
+            it('tag_count is < 2 includes posts with no tags', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $lt: 2
                     }
                 };
@@ -1829,9 +1829,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_count.count is < 1 only matches posts with no tags', function () {
+            it('tag_count is < 1 only matches posts with no tags', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $lt: 1
                     }
                 };
@@ -1846,9 +1846,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_count.count is <= 1 includes posts with no tags', function () {
+            it('tag_count is <= 1 includes posts with no tags', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $lte: 1
                     }
                 };
@@ -1865,9 +1865,9 @@ describe('Relations', function () {
         });
 
         describe('IN $in', function () {
-            it('tag_count.count is in [1, 2]', function () {
+            it('tag_count is in [1, 2]', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $in: [1, 2]
                     }
                 };
@@ -1882,9 +1882,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_count.count is in [0, 2] includes posts with no tags', function () {
+            it('tag_count is in [0, 2] includes posts with no tags', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $in: [0, 2]
                     }
                 };
@@ -1901,9 +1901,9 @@ describe('Relations', function () {
         });
 
         describe('NOT IN $nin', function () {
-            it('tag_count.count is NOT in [1] includes posts with no tags', function () {
+            it('tag_count is NOT in [1] includes posts with no tags', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $nin: [1]
                     }
                 };
@@ -1918,9 +1918,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_count.count is NOT in [0, 1] excludes posts with no tags', function () {
+            it('tag_count is NOT in [0, 1] excludes posts with no tags', function () {
                 const mongoJSON = {
-                    'tag_count.count': {
+                    tag_count: {
                         $nin: [0, 1]
                     }
                 };
@@ -1941,12 +1941,12 @@ describe('Relations', function () {
                 const mongoJSON = {
                     $and: [
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $gt: 0
                             }
                         },
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $lt: 2
                             }
                         }
@@ -1967,12 +1967,12 @@ describe('Relations', function () {
                 const mongoJSON = {
                     $and: [
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $ne: 1
                             }
                         },
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $lt: 5
                             }
                         }
@@ -1997,7 +1997,7 @@ describe('Relations', function () {
                             'tags.slug': 'animal'
                         },
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $gt: 1
                             }
                         }
@@ -2018,7 +2018,7 @@ describe('Relations', function () {
                 const mongoJSON = {
                     $and: [
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $ne: 1
                             }
                         },
@@ -2045,7 +2045,7 @@ describe('Relations', function () {
                             'posts_meta.like_count': 42
                         },
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $gt: 1
                             }
                         }
@@ -2069,7 +2069,7 @@ describe('Relations', function () {
                             featured: true
                         },
                         {
-                            'tag_count.count': 0
+                            tag_count: 0
                         }
                     ]
                 };
@@ -2088,12 +2088,12 @@ describe('Relations', function () {
                 const mongoJSON = {
                     $and: [
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $gt: 1
                             }
                         },
                         {
-                            'author_count.count': {
+                            author_count: {
                                 $gt: 1
                             }
                         }
@@ -2117,7 +2117,7 @@ describe('Relations', function () {
                             'posts_tags.sort_order': 1
                         },
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $gt: 0
                             }
                         }
@@ -2141,10 +2141,10 @@ describe('Relations', function () {
                 const mongoJSON = {
                     $or: [
                         {
-                            'tag_count.count': 0
+                            tag_count: 0
                         },
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $gt: 1
                             }
                         }
@@ -2165,12 +2165,12 @@ describe('Relations', function () {
                 const mongoJSON = {
                     $or: [
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $lt: 1
                             }
                         },
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $gt: 1
                             }
                         }
@@ -2194,7 +2194,7 @@ describe('Relations', function () {
                             status: 'draft'
                         },
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $gt: 1
                             }
                         }
@@ -2218,7 +2218,7 @@ describe('Relations', function () {
                             'tags.slug': 'cgi'
                         },
                         {
-                            'tag_count.count': {
+                            tag_count: {
                                 $gt: 1
                             }
                         }
@@ -2237,9 +2237,9 @@ describe('Relations', function () {
         });
 
         describe('config-driven joins and wheres', function () {
-            it('public_tag_count.count is > 1 only counts qualifying rows', function () {
+            it('public_tag_count is > 1 only counts qualifying rows', function () {
                 const mongoJSON = {
-                    'public_tag_count.count': {
+                    public_tag_count: {
                         $gt: 1
                     }
                 };
@@ -2254,9 +2254,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('public_tag_count.count equals 1', function () {
+            it('public_tag_count equals 1', function () {
                 const mongoJSON = {
-                    'public_tag_count.count': 1
+                    public_tag_count: 1
                 };
 
                 const query = makeQuery(mongoJSON);
@@ -2269,9 +2269,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('public_tag_count.count equals 0 includes posts with only non-qualifying rows', function () {
+            it('public_tag_count equals 0 includes posts with only non-qualifying rows', function () {
                 const mongoJSON = {
-                    'public_tag_count.count': 0
+                    public_tag_count: 0
                 };
 
                 const query = makeQuery(mongoJSON);
@@ -2286,7 +2286,7 @@ describe('Relations', function () {
 
             it('aliased tables return the same results as unaliased', function () {
                 const mongoJSON = {
-                    'aliased_public_tag_count.count': {
+                    aliased_public_tag_count: {
                         $gt: 1
                     }
                 };
@@ -2303,7 +2303,7 @@ describe('Relations', function () {
 
             it('aliased tables return the same results as unaliased when inverted', function () {
                 const mongoJSON = {
-                    'aliased_public_tag_count.count': 0
+                    aliased_public_tag_count: 0
                 };
 
                 const query = makeQuery(mongoJSON);
@@ -2318,9 +2318,9 @@ describe('Relations', function () {
         });
 
         describe('SUM', function () {
-            it('tag_sort_order_total.sum is > 0', function () {
+            it('tag_sort_order_total is > 0', function () {
                 const mongoJSON = {
-                    'tag_sort_order_total.sum': {
+                    tag_sort_order_total: {
                         $gt: 0
                     }
                 };
@@ -2335,9 +2335,9 @@ describe('Relations', function () {
                     });
             });
 
-            it('tag_sort_order_total.sum equals 0 includes posts with no related rows and rows summing to zero', function () {
+            it('tag_sort_order_total equals 0 includes posts with no related rows and rows summing to zero', function () {
                 const mongoJSON = {
-                    'tag_sort_order_total.sum': 0
+                    tag_sort_order_total: 0
                 };
 
                 const query = makeQuery(mongoJSON);

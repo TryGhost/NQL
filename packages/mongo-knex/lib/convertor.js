@@ -141,8 +141,8 @@ class MongoToKnex {
      *  }
      *
      * `aggregate` relations compare a computed value over related rows instead of
-     * a column, e.g. `tag_count.count:>1`. The dotted suffix (`count`) is purely
-     * descriptive - what is computed is defined by the relation config:
+     * a column, so they are queried by bare relation name, e.g. `tag_count:>1` -
+     * what is computed is defined by the relation config:
      *  {[relation-name]}: {
      *      type: 'aggregate'
      *      aggregate: {fn: String (e.g. countDistinct), column: String (e.g. posts_tags.tag_id)}
@@ -188,6 +188,14 @@ class MongoToKnex {
             const table = tableName;
             let relation = this.config.relations[table];
 
+            // CASE: aggregate relations compare a single computed value, there is no
+            //       column to select - a dotted suffix is meaningless and only invites
+            //       aliased spellings of the same query, so it's rejected outright
+            if (relation && relation.type === 'aggregate') {
+                //eslint-disable-next-line ghost/ghost-custom/no-native-error
+                throw new Error(`Aggregate relation "${table}" is queried by name only, without a column (e.g. "${table}:0")`);
+            }
+
             if (!relation) {
                 // CASE: you want to filter by a column on the join table
                 relation = _.find(this.config.relations, (_relation) => {
@@ -221,6 +229,21 @@ class MongoToKnex {
                 operator: op,
                 value: value,
                 config: relation,
+                isRelation: true
+            };
+        }
+
+        // CASE: aggregate relations are queried by bare name (e.g. `tag_count:>1`),
+        //       the relation config takes precedence over a parent table column of
+        //       the same name
+        const aggregateRelation = this.config.relations[column];
+        if (aggregateRelation && aggregateRelation.type === 'aggregate') {
+            return {
+                table: column,
+                column: null,
+                operator: op,
+                value: value,
+                config: aggregateRelation,
                 isRelation: true
             };
         }
@@ -524,7 +547,7 @@ class MongoToKnex {
     }
 
     /**
-     * Build a grouped subquery for an `aggregate` relation, e.g. for `tag_count.count > 1`:
+     * Build a grouped subquery for an `aggregate` relation, e.g. for `tag_count > 1`:
      *
      *      WHERE posts.id IN (
      *          SELECT posts_tags.post_id FROM posts_tags

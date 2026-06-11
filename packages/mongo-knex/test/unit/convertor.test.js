@@ -463,145 +463,145 @@ describe('Relations', function () {
 describe('Aggregate Relations', function () {
     describe('operators not matching a zero aggregate use IN + HAVING as stated', function () {
         it('$eq with a non-zero value', function () {
-            runQuery({'tag_count.count': 2})
+            runQuery({tag_count: 2})
                 .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) = 2)');
         });
 
         it('$ne 0', function () {
-            runQuery({'tag_count.count': {$ne: 0}})
+            runQuery({tag_count: {$ne: 0}})
                 .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) != 0)');
         });
 
         it('$gt', function () {
-            runQuery({'tag_count.count': {$gt: 1}})
+            runQuery({tag_count: {$gt: 1}})
                 .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 1)');
         });
 
         it('$gte with a non-zero value', function () {
-            runQuery({'tag_count.count': {$gte: 1}})
+            runQuery({tag_count: {$gte: 1}})
                 .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) >= 1)');
         });
 
         it('$in without zero', function () {
-            runQuery({'tag_count.count': {$in: [1, 2]}})
+            runQuery({tag_count: {$in: [1, 2]}})
                 .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) in (1, 2))');
         });
 
         it('$nin containing zero', function () {
-            runQuery({'tag_count.count': {$nin: [0]}})
+            runQuery({tag_count: {$nin: [0]}})
                 .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) not in (0))');
         });
     });
 
     describe('operators matching a zero aggregate are inverted to NOT IN + complement HAVING', function () {
         it('$eq 0', function () {
-            runQuery({'tag_count.count': 0})
+            runQuery({tag_count: 0})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) != 0)');
         });
 
         it('$ne with a non-zero value', function () {
-            runQuery({'tag_count.count': {$ne: 1}})
+            runQuery({tag_count: {$ne: 1}})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) = 1)');
         });
 
         it('$lt', function () {
-            runQuery({'tag_count.count': {$lt: 2}})
+            runQuery({tag_count: {$lt: 2}})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) >= 2)');
         });
 
         it('$lte 0', function () {
-            runQuery({'tag_count.count': {$lte: 0}})
+            runQuery({tag_count: {$lte: 0}})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 0)');
         });
 
         it('$gte 0 (matches everything)', function () {
-            runQuery({'tag_count.count': {$gte: 0}})
+            runQuery({tag_count: {$gte: 0}})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) < 0)');
         });
 
         it('$in containing zero', function () {
-            runQuery({'tag_count.count': {$in: [0, 2]}})
+            runQuery({tag_count: {$in: [0, 2]}})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) not in (0, 2))');
         });
 
         it('$nin without zero', function () {
-            runQuery({'tag_count.count': {$nin: [1]}})
+            runQuery({tag_count: {$nin: [1]}})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) in (1))');
         });
     });
 
     describe('grouping', function () {
         it('combines $and range conditions on the same aggregate into a single subquery', function () {
-            runQuery({$and: [{'tag_count.count': {$gt: 1}}, {'tag_count.count': {$lt: 5}}]})
+            runQuery({$and: [{tag_count: {$gt: 1}}, {tag_count: {$lt: 5}}]})
                 .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 1 and count(`posts_tags`.`tag_id`) < 5))');
         });
 
         it('inverts an $or range group matching zero, flipping the HAVING conjunction (De Morgan)', function () {
-            runQuery({$or: [{'tag_count.count': {$lt: 1}}, {'tag_count.count': {$gt: 1}}]})
+            runQuery({$or: [{tag_count: {$lt: 1}}, {tag_count: {$gt: 1}}]})
                 .should.eql('select * from `posts` where (`posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) >= 1 and count(`posts_tags`.`tag_id`) <= 1))');
         });
 
         it('combines mixed-direction $or statements into a single inverted subquery', function () {
-            runQuery({$or: [{'tag_count.count': 0}, {'tag_count.count': {$gt: 5}}]})
+            runQuery({$or: [{tag_count: 0}, {tag_count: {$gt: 5}}]})
                 .should.eql('select * from `posts` where (`posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) != 0 and count(`posts_tags`.`tag_id`) <= 5))');
         });
 
         it('combines negated and regular conditions on the same aggregate into a single subquery', function () {
-            runQuery({$and: [{'tag_count.count': {$ne: 1}}, {'tag_count.count': {$gt: 0}}]})
+            runQuery({$and: [{tag_count: {$ne: 1}}, {tag_count: {$gt: 0}}]})
                 .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) != 1 and count(`posts_tags`.`tag_id`) > 0))');
         });
 
         it('combines multiple negated conditions into a single inverted subquery', function () {
-            runQuery({$and: [{'tag_count.count': {$ne: 1}}, {'tag_count.count': {$ne: 3}}]})
+            runQuery({$and: [{tag_count: {$ne: 1}}, {tag_count: {$ne: 3}}]})
                 .should.eql('select * from `posts` where (`posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) = 1 or count(`posts_tags`.`tag_id`) = 3))');
         });
     });
 
     describe('combining with other filters', function () {
         it('with a plain column in an $or group', function () {
-            runQuery({$or: [{status: 'draft'}, {'tag_count.count': {$gt: 1}}]})
+            runQuery({$or: [{status: 'draft'}, {tag_count: {$gt: 1}}]})
                 .should.eql('select * from `posts` where (`posts`.`status` = \'draft\' or `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 1))');
         });
 
         it('with a many-to-many relation in an $and group', function () {
-            runQuery({$and: [{'tags.slug': 'animal'}, {'tag_count.count': {$gt: 1}}]})
+            runQuery({$and: [{'tags.slug': 'animal'}, {tag_count: {$gt: 1}}]})
                 .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'animal\') and `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 1))');
         });
 
         it('with a one-to-one relation in an $and group', function () {
-            runQuery({$and: [{'posts_meta.like_count': 42}, {'tag_count.count': {$gt: 1}}]})
+            runQuery({$and: [{'posts_meta.like_count': 42}, {tag_count: {$gt: 1}}]})
                 .should.eql('select * from `posts` where (`posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`like_count` = 42) and `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 1))');
         });
 
         it('with a join table filter in an $and group, restricting the aggregated rows', function () {
-            runQuery({$and: [{'posts_tags.sort_order': 0}, {'tag_count.count': {$gt: 1}}]})
+            runQuery({$and: [{'posts_tags.sort_order': 0}, {tag_count: {$gt: 1}}]})
                 .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`sort_order` = 0 group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 1))');
         });
 
         it('with a join table filter in an inverted $and group', function () {
-            runQuery({$and: [{'posts_tags.sort_order': 0}, {'tag_count.count': 0}]})
+            runQuery({$and: [{'posts_tags.sort_order': 0}, {tag_count: 0}]})
                 .should.eql('select * from `posts` where (`posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null and `posts_tags`.`sort_order` = 0 group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) != 0))');
         });
     });
 
     describe('config-driven joins and wheres', function () {
         it('applies the configured join chain and fixed wheres inside the subquery', function () {
-            runQuery({'public_tag_count.count': {$gt: 1}})
+            runQuery({public_tag_count: {$gt: 1}})
                 .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`visibility` = \'public\' group by `posts_tags`.`post_id` having count(distinct `posts_tags`.`tag_id`) > 1)');
         });
 
         it('keeps the configured join chain and fixed wheres when inverted', function () {
-            runQuery({'public_tag_count.count': 0})
+            runQuery({public_tag_count: 0})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `posts_tags`.`post_id` is not null and `tags`.`visibility` = \'public\' group by `posts_tags`.`post_id` having count(distinct `posts_tags`.`tag_id`) != 0)');
         });
 
         it('aliases the aggregated table and joined tables via tableNameAs', function () {
-            runQuery({'aliased_public_tag_count.count': {$gt: 1}})
+            runQuery({aliased_public_tag_count: {$gt: 1}})
                 .should.eql('select * from `posts` where `posts`.`id` in (select `pt`.`post_id` from `posts_tags` as `pt` inner join `tags` as `t` on `t`.`id` = `pt`.`tag_id` where `t`.`visibility` = \'public\' group by `pt`.`post_id` having count(distinct `pt`.`tag_id`) > 1)');
         });
 
         it('keeps aliases when inverted', function () {
-            runQuery({'aliased_public_tag_count.count': 0})
+            runQuery({aliased_public_tag_count: 0})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `pt`.`post_id` from `posts_tags` as `pt` inner join `tags` as `t` on `t`.`id` = `pt`.`tag_id` where `pt`.`post_id` is not null and `t`.`visibility` = \'public\' group by `pt`.`post_id` having count(distinct `pt`.`tag_id`) != 0)');
         });
     });
@@ -611,52 +611,58 @@ describe('Aggregate Relations', function () {
 
         it('throws on operators that make no sense for aggregates', function () {
             (function () {
-                runQuery({'tag_count.count': {$regex: /x/}});
+                runQuery({tag_count: {$regex: /x/}});
             }).should.throw(expectedError);
         });
 
         it('throws on null values', function () {
             (function () {
-                runQuery({'tag_count.count': null});
+                runQuery({tag_count: null});
             }).should.throw(expectedError);
         });
 
         it('throws on non-numeric values whose database coercion would disagree with the inversion decision', function () {
             (function () {
-                runQuery({'tag_count.count': {$lt: '2abc'}});
+                runQuery({tag_count: {$lt: '2abc'}});
             }).should.throw(expectedError);
         });
 
         it('throws on arrays containing non-numeric values', function () {
             (function () {
-                runQuery({'tag_count.count': {$in: [null, 2]}});
+                runQuery({tag_count: {$in: [null, 2]}});
             }).should.throw(expectedError);
         });
 
         it('throws when a valid statement shares a group with an invalid one, instead of dropping both', function () {
             (function () {
-                runQuery({$or: [{'tag_count.count': {$gt: 1}}, {'tag_count.count': {$regex: /x/}}]});
+                runQuery({$or: [{tag_count: {$gt: 1}}, {tag_count: {$regex: /x/}}]});
             }).should.throw(expectedError);
         });
 
         it('accepts numeric strings', function () {
-            runQuery({'tag_count.count': {$gt: '1'}})
+            runQuery({tag_count: {$gt: '1'}})
                 .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > \'1\')');
         });
 
         it('empty $in matches nothing instead of generating invalid SQL', function () {
-            runQuery({'tag_count.count': {$in: []}})
+            runQuery({tag_count: {$in: []}})
                 .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having 1 = 0)');
         });
 
         it('empty $nin matches everything instead of generating invalid SQL', function () {
-            runQuery({'tag_count.count': {$nin: []}})
+            runQuery({tag_count: {$nin: []}})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having 1 = 0)');
+        });
+
+        it('throws on a dotted column suffix, every suffix would alias the same query', function () {
+            (function () {
+                runQuery({'tag_count.count': {$gt: 1}});
+            }).should.throw('Aggregate relation "tag_count" is queried by name only, without a column (e.g. "tag_count:0")');
         });
 
         it('throws on a missing aggregate config', function () {
             (function () {
-                convertor(knex('posts'), {'bad_count.count': 1}, {
+                convertor(knex('posts'), {bad_count: 1}, {
                     relations: {
                         bad_count: {
                             type: 'aggregate',
@@ -670,7 +676,7 @@ describe('Aggregate Relations', function () {
 
         it('throws when aggregate.fn is missing', function () {
             (function () {
-                convertor(knex('posts'), {'bad_count.count': 1}, {
+                convertor(knex('posts'), {bad_count: 1}, {
                     relations: {
                         bad_count: {
                             type: 'aggregate',
@@ -685,7 +691,7 @@ describe('Aggregate Relations', function () {
 
         it('throws when aggregate.column is missing', function () {
             (function () {
-                convertor(knex('posts'), {'bad_count.count': 1}, {
+                convertor(knex('posts'), {bad_count: 1}, {
                     relations: {
                         bad_count: {
                             type: 'aggregate',
@@ -700,7 +706,7 @@ describe('Aggregate Relations', function () {
 
         it('throws on an unknown aggregate function', function () {
             (function () {
-                convertor(knex('posts'), {'bad_count.count': 1}, {
+                convertor(knex('posts'), {bad_count: 1}, {
                     relations: {
                         bad_count: {
                             type: 'aggregate',
