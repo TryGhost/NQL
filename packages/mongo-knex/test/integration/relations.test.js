@@ -1954,6 +1954,33 @@ describe('Relations', function () {
                     });
             });
 
+            it('negated and range conditions on the same aggregate combine in one subquery', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tag_count.count': {
+                                $ne: 1
+                            }
+                        },
+                        {
+                            'tag_count.count': {
+                                $lt: 5
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        // posts with 0 or 2 tags
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([4, 6, 7]);
+                    });
+            });
+
             it('combined with a many-to-many relation', function () {
                 const mongoJSON = {
                     $and: [

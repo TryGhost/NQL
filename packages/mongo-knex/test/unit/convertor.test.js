@@ -532,9 +532,19 @@ describe('Aggregate Relations', function () {
                 .should.eql('select * from `posts` where (`posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) >= 1 and count(`posts_tags`.`tag_id`) <= 1))');
         });
 
-        it('keeps mixed-direction statements in separate subqueries, each independently inverted', function () {
+        it('combines mixed-direction $or statements into a single inverted subquery', function () {
             runQuery({$or: [{'tag_count.count': 0}, {'tag_count.count': {$gt: 5}}]})
-                .should.eql('select * from `posts` where (`posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) != 0) or `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 5))');
+                .should.eql('select * from `posts` where (`posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) != 0 and count(`posts_tags`.`tag_id`) <= 5))');
+        });
+
+        it('combines negated and regular conditions on the same aggregate into a single subquery', function () {
+            runQuery({$and: [{'tag_count.count': {$ne: 1}}, {'tag_count.count': {$gt: 0}}]})
+                .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) != 1 and count(`posts_tags`.`tag_id`) > 0))');
+        });
+
+        it('combines multiple negated conditions into a single inverted subquery', function () {
+            runQuery({$and: [{'tag_count.count': {$ne: 1}}, {'tag_count.count': {$ne: 3}}]})
+                .should.eql('select * from `posts` where (`posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) = 1 or count(`posts_tags`.`tag_id`) = 3))');
         });
     });
 

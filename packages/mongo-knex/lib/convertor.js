@@ -261,9 +261,15 @@ class MongoToKnex {
              * - e.g. $and conjunction requires us to use 2 sub queries, because we have to look at each individual tag
              *
              * - we should also not use grouping of negated values for the same reasons as above
+             *
+             * - aggregate relations are the exception: every condition compares the same single
+             *   computed value per parent row, so all conditions belong in one subquery with a
+             *   combined HAVING - the "must match a different row" reasoning doesn't apply
              */
-            let shouldCreateSubGroup = isNegationOp(statement.operator);
-            if (!shouldCreateSubGroup && group[statement.table]) {
+            const isAggregate = statement.config && statement.config.type === 'aggregate';
+
+            let shouldCreateSubGroup = !isAggregate && isNegationOp(statement.operator);
+            if (!shouldCreateSubGroup && !isAggregate && group[statement.table]) {
                 shouldCreateSubGroup = _.some(group[statement.table].innerWhereStatements, (innerStatement) => {
                     if (innerStatement.column !== statement.column) {
                         return false;
