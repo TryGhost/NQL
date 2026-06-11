@@ -20,11 +20,9 @@ const compOps = {
     $not: 'not like'
 };
 
-// Aggregate relations compare a computed numeric value (e.g. a related-row count)
-// rather than a column, so only the comparison operators below make sense
-const aggregateCompOps = ['$eq', '$ne', '$gt', '$gte', '$lt', '$lte', '$in', '$nin'];
-
-// Operator complements, used to invert an aggregate predicate: NOT (x $op y) === x $complement y
+// Operator complements, used to invert an aggregate predicate: NOT (x $op y) === x $complement y.
+// The key set doubles as the list of operators supported for aggregate relations - they compare
+// a computed numeric value (e.g. a related-row count) rather than a column, so only these make sense
 const complementOps = {
     $eq: '$ne',
     $ne: '$eq',
@@ -54,7 +52,14 @@ const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
 const isNegationOp = key => isOp(key) && _.includes(['$ne', '$nin'], key);
 const isRangeOp = key => isOp(key) && _.includes(['$gt', '$gte', '$lt', '$lte'], key);
 const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
-const isAggregateCompOp = key => _.includes(aggregateCompOps, key);
+const isAggregateCompOp = key => Boolean(complementOps[key]);
+
+// Aggregate values must be numeric: the inversion decision below evaluates the predicate
+// at 0 in JS, so a value the database would coerce differently (null, '', '2abc') must be
+// rejected up front or the two evaluations can disagree
+const isNumericScalar = value => (_.isNumber(value) && Number.isFinite(value))
+    || (_.isString(value) && value.trim() !== '' && Number.isFinite(Number(value)));
+const isAggregateValue = value => (_.isArray(value) ? _.every(value, isNumericScalar) : isNumericScalar(value));
 
 /**
  * Whether an aggregate comparison would match a parent row with no related rows
@@ -494,10 +499,10 @@ class MongoToKnex {
                     debug(`one of ${key} group statements contains unknown operator`);
                 }
             } else if (reference.config.type === 'aggregate') {
-                if (_.every(statements, s => isAggregateCompOp(s.operator) && s.value !== null)) {
-                    this.buildAggregateRelationQuery(qb, statements, reference, mode);
+                if (_.every(statements, s => isAggregateCompOp(s.operator) && isAggregateValue(s.value))) {
+                    this.buildAggregateRelationQuery(qb, statements, reference, mode, groupedRelations[key].joinFilterStatements);
                 } else {
-                    debug(`one of ${key} group statements contains an operator not supported for aggregate relations`);
+                    debug(`one of ${key} group statements contains an operator or value not supported for aggregate relations`);
                 }
             }
         });
@@ -517,8 +522,14 @@ class MongoToKnex {
      * the query is inverted: NOT IN with the complement predicate (`count >= 2`). Inverting
      * the predicate also flips the conjunction between statements (De Morgan).
      */
-    buildAggregateRelationQuery(qb, statements, reference, mode) {
+    buildAggregateRelationQuery(qb, statements, reference, mode, joinFilterStatements) {
         const config = reference.config;
+
+        if (!config.aggregate || !config.aggregate.fn || !config.aggregate.column) {
+            //eslint-disable-next-line ghost/ghost-custom/no-native-error
+            throw new Error('Aggregate relations require an aggregate config with fn and column');
+        }
+
         const aggregateFunction = aggregateFunctions[config.aggregate.fn];
 
         if (!aggregateFunction) {
@@ -528,11 +539,11 @@ class MongoToKnex {
 
         // CASE: statements within a group are combined with AND ($and) or OR ($or),
         //       so the group matches a zero aggregate when every/some statement does
-        const negateGroup = (mode === '$or')
+        const invertSubquery = (mode === '$or')
             ? _.some(statements, s => aggregateMatchesZero(s.operator, s.value))
             : _.every(statements, s => aggregateMatchesZero(s.operator, s.value));
 
-        const comp = negateGroup ? compOps.$nin : compOps.$in;
+        const comp = invertSubquery ? compOps.$nin : compOps.$in;
         const whereType = reference.whereType === 'orWhere' ? 'orWhere' : 'where';
 
         // CASE: WHERE resource.id (IN | NOT IN) (SELECT ... GROUP BY ... HAVING ...)
@@ -540,6 +551,13 @@ class MongoToKnex {
             const innerQB = this
                 .select(`${config.tableName}.${config.joinFrom}`)
                 .from(config.tableName);
+
+            // CASE: a single NULL in a NOT IN list makes the comparison UNKNOWN for every
+            //       parent row, so an orphaned related row (NULL joinFrom) would silently
+            //       empty the whole result set
+            if (invertSubquery) {
+                innerQB.whereNotNull(`${config.tableName}.${config.joinFrom}`);
+            }
 
             // CASE: qualifying related rows can live across a chain of joined tables,
             //       each join's `from` column references the `to` column of the previous table
@@ -555,17 +573,32 @@ class MongoToKnex {
                 innerQB.where(column, value);
             });
 
+            // CASE: when applying AND conjunction, filters on a join table restrict
+            //       which related rows are aggregated (same as the other relation types)
+            _.each(joinFilterStatements, (joinFilter) => {
+                innerQB.where(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
+            });
+
             innerQB.groupBy(`${config.tableName}.${config.joinFrom}`);
 
             _.each(statements, (statement, idx) => {
                 debug(`(buildAggregateRelationQuery) build aggregate having statement for ${idx}`);
 
-                const operator = negateGroup ? complementOps[statement.operator] : statement.operator;
-                const useOr = idx !== 0 && ((mode === '$or') !== negateGroup);
+                const operator = invertSubquery ? complementOps[statement.operator] : statement.operator;
+                // CASE: inverting the predicate also flips the conjunction between
+                //       statements (De Morgan), hence the XOR with the mode
+                const useOr = idx !== 0 && ((mode === '$or') !== invertSubquery);
                 const havingType = useOr ? 'orHavingRaw' : 'havingRaw';
 
                 if (isStatementGroupOp(compOps[operator])) {
                     const statementValue = _.castArray(statement.value);
+
+                    // CASE: IN () is invalid SQL and an empty set can never match
+                    if (statementValue.length === 0) {
+                        innerQB[havingType]('1 = 0');
+                        return;
+                    }
+
                     const placeholders = statementValue.map(() => '?').join(', ');
                     innerQB[havingType](`${aggregateFunction} ${compOps[operator]} (${placeholders})`, [config.aggregate.column, ...statementValue]);
                 } else {

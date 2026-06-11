@@ -1661,6 +1661,13 @@ describe('Relations', function () {
         //       Public tag counts per post (post 8's only tag is internal): 1:1, 2:1, 3:1, 4:2, 5:1, 6:2, 7:0, 8:0
         //       Author counts per post: 1:1, 2:1, 3:1, 4:2, 5:1, 6:1, 7:1, 8:2
 
+        // CASE: an orphaned join table row (NULL post_id) must not poison the inverted
+        //       NOT IN subqueries - without a NOT NULL guard a single NULL in the
+        //       subquery result makes every zero-matching query return no rows
+        before(function () {
+            return knex('posts_tags').insert({post_id: null, tag_id: 3});
+        });
+
         describe('EQUALS $eq', function () {
             it('tag_count.count equals 2', function () {
                 const mongoJSON = {
@@ -2064,6 +2071,31 @@ describe('Relations', function () {
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(1);
                         result.should.matchIds([4]);
+                    });
+            });
+
+            it('combined with a join table filter, restricting the aggregated rows', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'posts_tags.sort_order': 1
+                        },
+                        {
+                            'tag_count.count': {
+                                $gt: 0
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        // only posts 4, 6 and 8 have a tag attached with sort_order 1
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([4, 6, 8]);
                     });
             });
         });
