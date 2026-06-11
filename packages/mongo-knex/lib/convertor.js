@@ -36,14 +36,13 @@ const complementOps = {
     $nin: '$in'
 };
 
-// SQL templates for the supported aggregate functions, ?? is bound to the configured column
+// SQL templates for the supported aggregate functions, ?? is bound to the configured column.
+// Only functions where "no related rows" is equivalent to an aggregate value of 0 are
+// supported - min/max/avg are NULL over no rows, which would break the zero-count inversion
 const aggregateFunctions = {
     count: 'count(??)',
     countDistinct: 'count(distinct ??)',
-    sum: 'sum(??)',
-    avg: 'avg(??)',
-    min: 'min(??)',
-    max: 'max(??)'
+    sum: 'sum(??)'
 };
 
 // We don't use a backslash as escpae character, because knex reescapes backslashes in binded parameters
