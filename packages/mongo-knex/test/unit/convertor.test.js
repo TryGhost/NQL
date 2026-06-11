@@ -573,24 +573,36 @@ describe('Aggregate Relations', function () {
     });
 
     describe('guards', function () {
-        it('ignores operators that make no sense for aggregates', function () {
-            runQuery({'tag_count.count': {$regex: /x/}})
-                .should.eql('select * from `posts`');
+        const expectedError = 'Aggregate relation "tag_count" only supports $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin comparisons with numeric values';
+
+        it('throws on operators that make no sense for aggregates', function () {
+            (function () {
+                runQuery({'tag_count.count': {$regex: /x/}});
+            }).should.throw(expectedError);
         });
 
-        it('ignores null values', function () {
-            runQuery({'tag_count.count': null})
-                .should.eql('select * from `posts`');
+        it('throws on null values', function () {
+            (function () {
+                runQuery({'tag_count.count': null});
+            }).should.throw(expectedError);
         });
 
-        it('ignores non-numeric values whose database coercion would disagree with the inversion decision', function () {
-            runQuery({'tag_count.count': {$lt: '2abc'}})
-                .should.eql('select * from `posts`');
+        it('throws on non-numeric values whose database coercion would disagree with the inversion decision', function () {
+            (function () {
+                runQuery({'tag_count.count': {$lt: '2abc'}});
+            }).should.throw(expectedError);
         });
 
-        it('ignores arrays containing non-numeric values', function () {
-            runQuery({'tag_count.count': {$in: [null, 2]}})
-                .should.eql('select * from `posts`');
+        it('throws on arrays containing non-numeric values', function () {
+            (function () {
+                runQuery({'tag_count.count': {$in: [null, 2]}});
+            }).should.throw(expectedError);
+        });
+
+        it('throws when a valid statement shares a group with an invalid one, instead of dropping both', function () {
+            (function () {
+                runQuery({$or: [{'tag_count.count': {$gt: 1}}, {'tag_count.count': {$regex: /x/}}]});
+            }).should.throw(expectedError);
         });
 
         it('accepts numeric strings', function () {

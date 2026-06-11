@@ -499,11 +499,17 @@ class MongoToKnex {
                     debug(`one of ${key} group statements contains unknown operator`);
                 }
             } else if (reference.config.type === 'aggregate') {
-                if (_.every(statements, s => isAggregateCompOp(s.operator) && isAggregateValue(s.value))) {
-                    this.buildAggregateRelationQuery(qb, statements, reference, mode, groupedRelations[key].joinFilterStatements);
-                } else {
-                    debug(`one of ${key} group statements contains an operator or value not supported for aggregate relations`);
+                // CASE: unlike the other relation types we throw instead of silently dropping
+                //       the group - a dropped statement widens the result set, returning rows
+                //       the filter was meant to exclude
+                const invalidStatement = statements.find(s => !isAggregateCompOp(s.operator) || !isAggregateValue(s.value));
+
+                if (invalidStatement) {
+                    //eslint-disable-next-line ghost/ghost-custom/no-native-error
+                    throw new Error(`Aggregate relation "${invalidStatement.table}" only supports ${Object.keys(complementOps).join(', ')} comparisons with numeric values`);
                 }
+
+                this.buildAggregateRelationQuery(qb, statements, reference, mode, groupedRelations[key].joinFilterStatements);
             }
         });
     }
