@@ -37,6 +37,32 @@ const makeQuery = (mongoJSON) => {
                 joinFrom: 'post_id',
                 joinTo: 'comment_id',
                 joinToForeign: 'comment_provider_id'
+            },
+            tag_count: {
+                type: 'aggregate',
+                aggregate: {fn: 'count', column: 'posts_tags.tag_id'},
+                tableName: 'posts_tags',
+                joinFrom: 'post_id'
+            },
+            public_tag_count: {
+                type: 'aggregate',
+                aggregate: {fn: 'countDistinct', column: 'posts_tags.tag_id'},
+                tableName: 'posts_tags',
+                joinFrom: 'post_id',
+                joins: [{tableName: 'tags', from: 'id', to: 'tag_id'}],
+                wheres: {'tags.visibility': 'public'}
+            },
+            author_count: {
+                type: 'aggregate',
+                aggregate: {fn: 'countDistinct', column: 'posts_authors.author_id'},
+                tableName: 'posts_authors',
+                joinFrom: 'post_id'
+            },
+            tag_sort_order_total: {
+                type: 'aggregate',
+                aggregate: {fn: 'sum', column: 'posts_tags.sort_order'},
+                tableName: 'posts_tags',
+                joinFrom: 'post_id'
             }
         }
     });
@@ -1058,36 +1084,6 @@ describe('Relations', function () {
                     });
             });
         });
-
-        describe('COUNT', function () {
-            it.skip('can compare by count $gt', function () {
-                const mongoJSON = {
-                    'authors.count': {$gt: 0}
-                };
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(3);
-                    });
-            });
-
-            it.skip('can compare by count $lt', function () {
-                const mongoJSON = {
-                    'authors.count': {$lt: 2}
-                };
-
-                const query = makeQuery(mongoJSON);
-
-                return query
-                    .select()
-                    .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(3);
-                    });
-            });
-        });
     });
 
     describe('One-to-One', function () {
@@ -1654,6 +1650,603 @@ describe('Relations', function () {
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(2);
                         result.should.matchIds([1, 2]);
+                    });
+            });
+        });
+    });
+
+    describe('Aggregate', function () {
+        // NOTE: these tests rely on the fixtures loaded by the Many-to-Many suite above.
+        //       Tag counts per post: 1:1, 2:1, 3:1, 4:2, 5:1, 6:2, 7:0, 8:1
+        //       Public tag counts per post (post 8's only tag is internal): 1:1, 2:1, 3:1, 4:2, 5:1, 6:2, 7:0, 8:0
+        //       Author counts per post: 1:1, 2:1, 3:1, 4:2, 5:1, 6:1, 7:1, 8:2
+
+        describe('EQUALS $eq', function () {
+            it('tag_count.count equals 2', function () {
+                const mongoJSON = {
+                    'tag_count.count': 2
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([4, 6]);
+                    });
+            });
+
+            it('tag_count.count equals 1', function () {
+                const mongoJSON = {
+                    'tag_count.count': 1
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(5);
+                        result.should.matchIds([1, 2, 3, 5, 8]);
+                    });
+            });
+
+            it('tag_count.count equals 0 includes posts with no tags', function () {
+                const mongoJSON = {
+                    'tag_count.count': 0
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                        result.should.matchIds([7]);
+                    });
+            });
+        });
+
+        describe('NEGATION $ne', function () {
+            it('tag_count.count is NOT 1 includes posts with no tags', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $ne: 1
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([4, 6, 7]);
+                    });
+            });
+
+            it('tag_count.count is NOT 0 excludes posts with no tags', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $ne: 0
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(7);
+                        result.should.matchIds([1, 2, 3, 4, 5, 6, 8]);
+                    });
+            });
+        });
+
+        describe('COMPARISONS $gt / $gte / $lt / $lte', function () {
+            it('tag_count.count is > 1', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $gt: 1
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([4, 6]);
+                    });
+            });
+
+            it('tag_count.count is >= 1', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $gte: 1
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(7);
+                        result.should.matchIds([1, 2, 3, 4, 5, 6, 8]);
+                    });
+            });
+
+            it('tag_count.count is >= 0 matches all posts', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $gte: 0
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(8);
+                        result.should.matchIds([1, 2, 3, 4, 5, 6, 7, 8]);
+                    });
+            });
+
+            it('tag_count.count is < 2 includes posts with no tags', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $lt: 2
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(6);
+                        result.should.matchIds([1, 2, 3, 5, 7, 8]);
+                    });
+            });
+
+            it('tag_count.count is < 1 only matches posts with no tags', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $lt: 1
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                        result.should.matchIds([7]);
+                    });
+            });
+
+            it('tag_count.count is <= 1 includes posts with no tags', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $lte: 1
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(6);
+                        result.should.matchIds([1, 2, 3, 5, 7, 8]);
+                    });
+            });
+        });
+
+        describe('IN $in', function () {
+            it('tag_count.count is in [1, 2]', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $in: [1, 2]
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(7);
+                        result.should.matchIds([1, 2, 3, 4, 5, 6, 8]);
+                    });
+            });
+
+            it('tag_count.count is in [0, 2] includes posts with no tags', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $in: [0, 2]
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([4, 6, 7]);
+                    });
+            });
+        });
+
+        describe('NOT IN $nin', function () {
+            it('tag_count.count is NOT in [1] includes posts with no tags', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $nin: [1]
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([4, 6, 7]);
+                    });
+            });
+
+            it('tag_count.count is NOT in [0, 1] excludes posts with no tags', function () {
+                const mongoJSON = {
+                    'tag_count.count': {
+                        $nin: [0, 1]
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([4, 6]);
+                    });
+            });
+        });
+
+        describe('AND $and', function () {
+            it('range conditions on the same aggregate combine in one subquery', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tag_count.count': {
+                                $gt: 0
+                            }
+                        },
+                        {
+                            'tag_count.count': {
+                                $lt: 2
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(5);
+                        result.should.matchIds([1, 2, 3, 5, 8]);
+                    });
+            });
+
+            it('combined with a many-to-many relation', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tags.slug': 'animal'
+                        },
+                        {
+                            'tag_count.count': {
+                                $gt: 1
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([4, 6]);
+                    });
+            });
+
+            it('negated aggregate combined with a many-to-many relation', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tag_count.count': {
+                                $ne: 1
+                            }
+                        },
+                        {
+                            'tags.slug': 'animal'
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([4, 6]);
+                    });
+            });
+
+            it('combined with a one-to-one relation', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'posts_meta.like_count': 42
+                        },
+                        {
+                            'tag_count.count': {
+                                $gt: 1
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                        result.should.matchIds([4]);
+                    });
+            });
+
+            it('combined with a column on the parent table', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            featured: true
+                        },
+                        {
+                            'tag_count.count': 0
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                        result.should.matchIds([7]);
+                    });
+            });
+
+            it('combined with another aggregate relation', function () {
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'tag_count.count': {
+                                $gt: 1
+                            }
+                        },
+                        {
+                            'author_count.count': {
+                                $gt: 1
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(1);
+                        result.should.matchIds([4]);
+                    });
+            });
+        });
+
+        describe('OR $or', function () {
+            it('zero count or high count', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            'tag_count.count': 0
+                        },
+                        {
+                            'tag_count.count': {
+                                $gt: 1
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([4, 6, 7]);
+                    });
+            });
+
+            it('range conditions on the same aggregate (inverted group)', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            'tag_count.count': {
+                                $lt: 1
+                            }
+                        },
+                        {
+                            'tag_count.count': {
+                                $gt: 1
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([4, 6, 7]);
+                    });
+            });
+
+            it('combined with a column on the parent table', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            status: 'draft'
+                        },
+                        {
+                            'tag_count.count': {
+                                $gt: 1
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([2, 4, 6]);
+                    });
+            });
+
+            it('combined with a many-to-many relation', function () {
+                const mongoJSON = {
+                    $or: [
+                        {
+                            'tags.slug': 'cgi'
+                        },
+                        {
+                            'tag_count.count': {
+                                $gt: 1
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([3, 4, 6]);
+                    });
+            });
+        });
+
+        describe('config-driven joins and wheres', function () {
+            it('public_tag_count.count is > 1 only counts qualifying rows', function () {
+                const mongoJSON = {
+                    'public_tag_count.count': {
+                        $gt: 1
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([4, 6]);
+                    });
+            });
+
+            it('public_tag_count.count equals 1', function () {
+                const mongoJSON = {
+                    'public_tag_count.count': 1
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([1, 2, 3, 5]);
+                    });
+            });
+
+            it('public_tag_count.count equals 0 includes posts with only non-qualifying rows', function () {
+                const mongoJSON = {
+                    'public_tag_count.count': 0
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([7, 8]);
+                    });
+            });
+        });
+
+        describe('SUM', function () {
+            it('tag_sort_order_total.sum is > 0', function () {
+                const mongoJSON = {
+                    'tag_sort_order_total.sum': {
+                        $gt: 0
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(3);
+                        result.should.matchIds([4, 6, 8]);
+                    });
+            });
+
+            it('tag_sort_order_total.sum equals 0 includes posts with no related rows and rows summing to zero', function () {
+                const mongoJSON = {
+                    'tag_sort_order_total.sum': 0
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(5);
+                        result.should.matchIds([1, 2, 3, 5, 7]);
                     });
             });
         });
