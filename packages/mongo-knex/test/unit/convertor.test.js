@@ -37,6 +37,15 @@ const runQuery = query => convertor(knex('posts'), query, {
             joinFrom: 'post_id',
             joins: [{tableName: 'tags', from: 'id', to: 'tag_id'}],
             wheres: {'tags.visibility': 'public'}
+        },
+        aliased_public_tag_count: {
+            type: 'aggregate',
+            aggregate: {fn: 'countDistinct', column: 'pt.tag_id'},
+            tableName: 'posts_tags',
+            tableNameAs: 'pt',
+            joinFrom: 'post_id',
+            joins: [{tableName: 'tags', tableNameAs: 't', from: 'id', to: 'tag_id'}],
+            wheres: {'t.visibility': 'public'}
         }
     }
 }).toQuery();
@@ -584,6 +593,16 @@ describe('Aggregate Relations', function () {
         it('keeps the configured join chain and fixed wheres when inverted', function () {
             runQuery({'public_tag_count.count': 0})
                 .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `posts_tags`.`post_id` is not null and `tags`.`visibility` = \'public\' group by `posts_tags`.`post_id` having count(distinct `posts_tags`.`tag_id`) != 0)');
+        });
+
+        it('aliases the aggregated table and joined tables via tableNameAs', function () {
+            runQuery({'aliased_public_tag_count.count': {$gt: 1}})
+                .should.eql('select * from `posts` where `posts`.`id` in (select `pt`.`post_id` from `posts_tags` as `pt` inner join `tags` as `t` on `t`.`id` = `pt`.`tag_id` where `t`.`visibility` = \'public\' group by `pt`.`post_id` having count(distinct `pt`.`tag_id`) > 1)');
+        });
+
+        it('keeps aliases when inverted', function () {
+            runQuery({'aliased_public_tag_count.count': 0})
+                .should.eql('select * from `posts` where `posts`.`id` not in (select `pt`.`post_id` from `posts_tags` as `pt` inner join `tags` as `t` on `t`.`id` = `pt`.`tag_id` where `pt`.`post_id` is not null and `t`.`visibility` = \'public\' group by `pt`.`post_id` having count(distinct `pt`.`tag_id`) != 0)');
         });
     });
 

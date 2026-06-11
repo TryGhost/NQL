@@ -147,10 +147,13 @@ class MongoToKnex {
      *      type: 'aggregate'
      *      aggregate: {fn: String (e.g. countDistinct), column: String (e.g. posts_tags.tag_id)}
      *      tableName: String (e.g. posts_tags) - table holding the related rows
+     *      tableNameAs: String (optional) - alias for tableName, e.g. for self-joins
      *      joinFrom: String (e.g. post_id) - column on tableName referencing the parent table's id
-     *      joins: [{tableName, from, to}] (optional) - chain of joins needed to qualify rows
+     *      joins: [{tableName, tableNameAs (optional), from, to}] (optional) - chain of joins needed to qualify rows
      *      wheres: {[column]: value} (optional) - fixed conditions a related row must meet to be counted
      *  }
+     *
+     * When tableNameAs is used, aggregate.column and wheres must reference the alias.
      */
     constructor(options = {}, config = {}) {
         this.tableName = options.tableName;
@@ -558,25 +561,34 @@ class MongoToKnex {
         const comp = invertSubquery ? compOps.$nin : compOps.$in;
         const whereType = reference.whereType === 'orWhere' ? 'orWhere' : 'where';
 
+        // CASE: you can define a name for the aggregated table and any joined table,
+        //       e.g. for self-joins or when a table appears elsewhere in the query -
+        //       aggregate.column and wheres must then reference the aliases
+        const baseTable = config.tableNameAs || config.tableName;
+        const baseTableValue = config.tableNameAs ? `${config.tableName} as ${config.tableNameAs}` : config.tableName;
+
         // CASE: WHERE resource.id (IN | NOT IN) (SELECT ... GROUP BY ... HAVING ...)
         qb[whereType](`${this.tableName}.id`, comp, function () {
             const innerQB = this
-                .select(`${config.tableName}.${config.joinFrom}`)
-                .from(config.tableName);
+                .select(`${baseTable}.${config.joinFrom}`)
+                .from(baseTableValue);
 
             // CASE: a single NULL in a NOT IN list makes the comparison UNKNOWN for every
             //       parent row, so an orphaned related row (NULL joinFrom) would silently
             //       empty the whole result set
             if (invertSubquery) {
-                innerQB.whereNotNull(`${config.tableName}.${config.joinFrom}`);
+                innerQB.whereNotNull(`${baseTable}.${config.joinFrom}`);
             }
 
             // CASE: qualifying related rows can live across a chain of joined tables,
             //       each join's `from` column references the `to` column of the previous table
-            let previousTable = config.tableName;
+            let previousTable = baseTable;
             _.each(config.joins, (join) => {
-                innerQB.innerJoin(join.tableName, `${join.tableName}.${join.from}`, `${previousTable}.${join.to}`);
-                previousTable = join.tableName;
+                const joinTable = join.tableNameAs || join.tableName;
+                const joinTableValue = join.tableNameAs ? `${join.tableName} as ${join.tableNameAs}` : join.tableName;
+
+                innerQB.innerJoin(joinTableValue, `${joinTable}.${join.from}`, `${previousTable}.${join.to}`);
+                previousTable = joinTable;
             });
 
             // CASE: fixed conditions a related row must meet to be counted live in
@@ -591,7 +603,7 @@ class MongoToKnex {
                 innerQB.where(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
             });
 
-            innerQB.groupBy(`${config.tableName}.${config.joinFrom}`);
+            innerQB.groupBy(`${baseTable}.${config.joinFrom}`);
 
             _.each(statements, (statement, idx) => {
                 debug(`(buildAggregateRelationQuery) build aggregate having statement for ${idx}`);

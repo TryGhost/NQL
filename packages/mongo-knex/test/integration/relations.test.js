@@ -52,6 +52,15 @@ const makeQuery = (mongoJSON) => {
                 joins: [{tableName: 'tags', from: 'id', to: 'tag_id'}],
                 wheres: {'tags.visibility': 'public'}
             },
+            aliased_public_tag_count: {
+                type: 'aggregate',
+                aggregate: {fn: 'countDistinct', column: 'pt.tag_id'},
+                tableName: 'posts_tags',
+                tableNameAs: 'pt',
+                joinFrom: 'post_id',
+                joins: [{tableName: 'tags', tableNameAs: 't', from: 'id', to: 'tag_id'}],
+                wheres: {'t.visibility': 'public'}
+            },
             author_count: {
                 type: 'aggregate',
                 aggregate: {fn: 'countDistinct', column: 'posts_authors.author_id'},
@@ -2263,6 +2272,38 @@ describe('Relations', function () {
             it('public_tag_count.count equals 0 includes posts with only non-qualifying rows', function () {
                 const mongoJSON = {
                     'public_tag_count.count': 0
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([7, 8]);
+                    });
+            });
+
+            it('aliased tables return the same results as unaliased', function () {
+                const mongoJSON = {
+                    'aliased_public_tag_count.count': {
+                        $gt: 1
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([4, 6]);
+                    });
+            });
+
+            it('aliased tables return the same results as unaliased when inverted', function () {
+                const mongoJSON = {
+                    'aliased_public_tag_count.count': 0
                 };
 
                 const query = makeQuery(mongoJSON);
