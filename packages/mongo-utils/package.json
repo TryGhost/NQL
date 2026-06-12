@@ -1,7 +1,11 @@
 {
   "name": "@tryghost/mongo-utils",
   "version": "0.6.4",
-  "repository": "https://github.com/TryGhost/NQL/tree/main/packages/mongo-utils",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TryGhost/NQL.git",
+    "directory": "packages/mongo-utils"
+  },
   "author": "Ghost Foundation",
   "license": "MIT",
   "main": "index.js",

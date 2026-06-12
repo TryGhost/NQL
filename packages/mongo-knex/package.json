@@ -2,7 +2,11 @@
   "name": "@tryghost/mongo-knex",
   "version": "0.10.0",
   "description": "tbc",
-  "repository": "https://github.com/TryGhost/NQL/tree/main/packages/mongo-knex",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TryGhost/NQL.git",
+    "directory": "packages/mongo-knex"
+  },
   "author": "Ghost Foundation",
   "license": "MIT",
   "main": "index.js",

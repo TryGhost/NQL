@@ -2,7 +2,11 @@
   "name": "@tryghost/nql",
   "version": "0.13.0",
   "description": "tbc",
-  "repository": "https://github.com/TryGhost/NQL/tree/main/packages/nql",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TryGhost/NQL.git",
+    "directory": "packages/nql"
+  },
   "author": "Ghost Foundation",
   "license": "MIT",
   "main": "index.js",
