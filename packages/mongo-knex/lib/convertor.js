@@ -20,6 +20,29 @@ const compOps = {
     $not: 'not like'
 };
 
+// Operator complements, used to invert an aggregate predicate: NOT (x $op y) === x $complement y.
+// The key set doubles as the list of operators supported for aggregate relations - they compare
+// a computed numeric value (e.g. a related-row count) rather than a column, so only these make sense
+const complementOps = {
+    $eq: '$ne',
+    $ne: '$eq',
+    $gt: '$lte',
+    $gte: '$lt',
+    $lt: '$gte',
+    $lte: '$gt',
+    $in: '$nin',
+    $nin: '$in'
+};
+
+// SQL templates for the supported aggregate functions, ?? is bound to the configured column.
+// Only functions where "no related rows" is equivalent to an aggregate value of 0 are
+// supported - min/max/avg are NULL over no rows, which would break the zero-count inversion
+const aggregateFunctions = {
+    count: 'count(??)',
+    countDistinct: 'count(distinct ??)',
+    sum: 'sum(??)'
+};
+
 // We don't use a backslash as escpae character, because knex reescapes backslashes in binded parameters
 const likeEscapeCharacter = '*';
 
@@ -29,6 +52,46 @@ const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
 const isNegationOp = key => isOp(key) && _.includes(['$ne', '$nin'], key);
 const isRangeOp = key => isOp(key) && _.includes(['$gt', '$gte', '$lt', '$lte'], key);
 const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
+const isAggregateCompOp = key => Boolean(complementOps[key]);
+
+// Aggregate values must be numeric: the inversion decision below evaluates the predicate
+// at 0 in JS, so a value the database would coerce differently (null, '', '2abc') must be
+// rejected up front or the two evaluations can disagree. Arrays are only meaningful for
+// the set operators - bound to a scalar comparison they render invalid SQL (e.g. `> 1, 2`)
+const isNumericScalar = value => (_.isNumber(value) && Number.isFinite(value))
+    || (_.isString(value) && value.trim() !== '' && Number.isFinite(Number(value)));
+const isAggregateValue = (op, value) => {
+    if (op === '$in' || op === '$nin') {
+        return _.isArray(value) ? _.every(value, isNumericScalar) : isNumericScalar(value);
+    }
+
+    return isNumericScalar(value);
+};
+
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const aggregateOperatorError = relationName => new Error(`Aggregate relation "${relationName}" only supports ${Object.keys(complementOps).join(', ')} comparisons with numeric values`);
+
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const aggregateColumnError = relationName => new Error(`Aggregate relation "${relationName}" is queried by name only, without a column (e.g. "${relationName}:0")`);
+
+/**
+ * Whether an aggregate comparison would match a parent row with no related rows
+ * (aggregate value 0). Such rows don't appear in the grouped subquery at all, so
+ * the subquery has to be inverted (NOT IN + complement operator) to include them.
+ */
+const aggregateMatchesZero = (op, value) => {
+    switch (op) {
+    case '$eq': return Number(value) === 0;
+    case '$ne': return Number(value) !== 0;
+    case '$gt': return Number(value) < 0;
+    case '$gte': return Number(value) <= 0;
+    case '$lt': return Number(value) > 0;
+    case '$lte': return Number(value) >= 0;
+    case '$in': return _.castArray(value).some(v => Number(v) === 0);
+    case '$nin': return !_.castArray(value).some(v => Number(v) === 0);
+    default: return false;
+    }
+};
 
 /**
  * JSON Stringify with RegExp support
@@ -89,6 +152,21 @@ class MongoToKnex {
      *      joinFrom: String (e.g. post_id)
      *      joinTo: String (e.g. tag_id)
      *  }
+     *
+     * `aggregate` relations compare a computed value over related rows instead of
+     * a column, so they are queried by bare relation name, e.g. `tag_count:>1` -
+     * what is computed is defined by the relation config:
+     *  {[relation-name]}: {
+     *      type: 'aggregate'
+     *      aggregate: {fn: String (e.g. countDistinct), column: String (e.g. posts_tags.tag_id)}
+     *      tableName: String (e.g. posts_tags) - table holding the related rows
+     *      tableNameAs: String (optional) - alias for tableName, e.g. for self-joins
+     *      joinFrom: String (e.g. post_id) - column on tableName referencing the parent table's id
+     *      joins: [{tableName, tableNameAs (optional), from, to}] (optional) - chain of joins needed to qualify rows
+     *      wheres: {[column]: value} (optional) - fixed conditions a related row must meet to be counted
+     *  }
+     *
+     * When tableNameAs is used, aggregate.column and wheres must reference the alias.
      */
     constructor(options = {}, config = {}) {
         this.tableName = options.tableName;
@@ -123,6 +201,13 @@ class MongoToKnex {
             const table = tableName;
             let relation = this.config.relations[table];
 
+            // CASE: aggregate relations compare a single computed value, there is no
+            //       column to select - a dotted suffix is meaningless and only invites
+            //       aliased spellings of the same query, so it's rejected outright
+            if (relation && relation.type === 'aggregate') {
+                throw aggregateColumnError(table);
+            }
+
             if (!relation) {
                 // CASE: you want to filter by a column on the join table
                 relation = _.find(this.config.relations, (_relation) => {
@@ -156,6 +241,21 @@ class MongoToKnex {
                 operator: op,
                 value: value,
                 config: relation,
+                isRelation: true
+            };
+        }
+
+        // CASE: aggregate relations are queried by bare name (e.g. `tag_count:>1`),
+        //       the relation config takes precedence over a parent table column of
+        //       the same name
+        const aggregateRelation = this.config.relations[column];
+        if (aggregateRelation && aggregateRelation.type === 'aggregate') {
+            return {
+                table: column,
+                column: null,
+                operator: op,
+                value: value,
+                config: aggregateRelation,
                 isRelation: true
             };
         }
@@ -199,9 +299,15 @@ class MongoToKnex {
              * - e.g. $and conjunction requires us to use 2 sub queries, because we have to look at each individual tag
              *
              * - we should also not use grouping of negated values for the same reasons as above
+             *
+             * - aggregate relations are the exception: every condition compares the same single
+             *   computed value per parent row, so all conditions belong in one subquery with a
+             *   combined HAVING - the "must match a different row" reasoning doesn't apply
              */
-            let shouldCreateSubGroup = isNegationOp(statement.operator);
-            if (!shouldCreateSubGroup && group[statement.table]) {
+            const isAggregate = statement.config && statement.config.type === 'aggregate';
+
+            let shouldCreateSubGroup = !isAggregate && isNegationOp(statement.operator);
+            if (!shouldCreateSubGroup && !isAggregate && group[statement.table]) {
                 shouldCreateSubGroup = _.some(group[statement.table].innerWhereStatements, (innerStatement) => {
                     if (innerStatement.column !== statement.column) {
                         return false;
@@ -436,7 +542,139 @@ class MongoToKnex {
                 } else {
                     debug(`one of ${key} group statements contains unknown operator`);
                 }
+            } else if (reference.config.type === 'aggregate') {
+                // NOTE: operators and values were already validated by the
+                //       validateAggregateStatements pre-pass in processJSON
+                this.buildAggregateRelationQuery(qb, statements, reference, mode, groupedRelations[key].joinFilterStatements);
             }
+        });
+    }
+
+    /**
+     * Build a grouped subquery for an `aggregate` relation, e.g. for `tag_count > 1`:
+     *
+     *      WHERE posts.id IN (
+     *          SELECT posts_tags.post_id FROM posts_tags
+     *          GROUP BY posts_tags.post_id
+     *          HAVING COUNT(posts_tags.tag_id) > 1
+     *      )
+     *
+     * A parent row with no related rows does not appear in the grouped subquery at all,
+     * so when the group's predicate matches an aggregate value of 0 (e.g. `count < 2`)
+     * the query is inverted: NOT IN with the complement predicate (`count >= 2`). Inverting
+     * the predicate also flips the conjunction between statements (De Morgan).
+     */
+    buildAggregateRelationQuery(qb, statements, reference, mode, joinFilterStatements) {
+        const config = reference.config;
+
+        if (!config.aggregate || !config.aggregate.fn || !config.aggregate.column) {
+            //eslint-disable-next-line ghost/ghost-custom/no-native-error
+            throw new Error('Aggregate relations require an aggregate config with fn and column');
+        }
+
+        const aggregateFunction = aggregateFunctions[config.aggregate.fn];
+
+        if (!aggregateFunction) {
+            //eslint-disable-next-line ghost/ghost-custom/no-native-error
+            throw new Error(`Unknown aggregate function: ${config.aggregate.fn}`);
+        }
+
+        // CASE: statements within a group are combined with AND ($and) or OR ($or),
+        //       so the group matches a zero aggregate when every/some statement does
+        const invertSubquery = (mode === '$or')
+            ? _.some(statements, s => aggregateMatchesZero(s.operator, s.value))
+            : _.every(statements, s => aggregateMatchesZero(s.operator, s.value));
+
+        const comp = invertSubquery ? compOps.$nin : compOps.$in;
+        const whereType = reference.whereType === 'orWhere' ? 'orWhere' : 'where';
+
+        // CASE: you can define a name for the aggregated table and any joined table,
+        //       e.g. for self-joins or when a table appears elsewhere in the query -
+        //       aggregate.column and wheres must then reference the aliases
+        const baseTable = config.tableNameAs || config.tableName;
+        const baseTableValue = config.tableNameAs ? `${config.tableName} as ${config.tableNameAs}` : config.tableName;
+
+        // CASE: $and groups attach every join table filter of the group to every
+        //       relation subquery - only filters on tables that are part of this
+        //       subquery's join chain can restrict the aggregated rows, the others
+        //       reference tables that are never joined here and are handled by their
+        //       own relation's subquery
+        const subqueryTables = [baseTable, ..._.map(config.joins, join => join.tableNameAs || join.tableName)];
+        const applicableJoinFilters = _.filter(joinFilterStatements, joinFilter => subqueryTables.includes(joinFilter.joinTable));
+
+        // CASE: WHERE resource.id (IN | NOT IN) (SELECT ... GROUP BY ... HAVING ...)
+        qb[whereType](`${this.tableName}.id`, comp, function () {
+            const innerQB = this
+                .select(`${baseTable}.${config.joinFrom}`)
+                .from(baseTableValue);
+
+            // CASE: a single NULL in a NOT IN list makes the comparison UNKNOWN for every
+            //       parent row, so an orphaned related row (NULL joinFrom) would silently
+            //       empty the whole result set
+            if (invertSubquery) {
+                innerQB.whereNotNull(`${baseTable}.${config.joinFrom}`);
+            }
+
+            // CASE: qualifying related rows can live across a chain of joined tables,
+            //       each join's `from` column references the `to` column of the previous table
+            let previousTable = baseTable;
+            _.each(config.joins, (join) => {
+                const joinTable = join.tableNameAs || join.tableName;
+                const joinTableValue = join.tableNameAs ? `${join.tableName} as ${join.tableNameAs}` : join.tableName;
+
+                innerQB.innerJoin(joinTableValue, `${joinTable}.${join.from}`, `${previousTable}.${join.to}`);
+                previousTable = joinTable;
+            });
+
+            // CASE: fixed conditions a related row must meet to be counted live in
+            //       the relation config, they are not part of the filter input
+            _.each(config.wheres, (value, column) => {
+                innerQB.where(column, value);
+            });
+
+            // CASE: when applying AND conjunction, filters on a join table restrict
+            //       which related rows are aggregated (same as the other relation types)
+            _.each(applicableJoinFilters, (joinFilter) => {
+                innerQB.where(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
+            });
+
+            innerQB.groupBy(`${baseTable}.${config.joinFrom}`);
+
+            _.each(statements, (statement, idx) => {
+                debug(`(buildAggregateRelationQuery) build aggregate having statement for ${idx}`);
+
+                const operator = invertSubquery ? complementOps[statement.operator] : statement.operator;
+                // CASE: inverting the predicate also flips the conjunction between
+                //       statements (De Morgan), hence the XOR with the mode
+                const useOr = idx !== 0 && ((mode === '$or') !== invertSubquery);
+                const havingType = useOr ? 'orHavingRaw' : 'havingRaw';
+
+                // CASE: values are validated numeric but can arrive as numeric strings
+                //       (e.g. quoted filter values) - they are bound as numbers so the
+                //       database comparison matches the inversion decision above, which
+                //       evaluates the predicate via Number() (e.g. SQLite would never
+                //       coerce, an integer aggregate always sorts below any string)
+                if (isStatementGroupOp(compOps[operator])) {
+                    const statementValue = _.castArray(statement.value).map(Number);
+
+                    // CASE: IN () is invalid SQL and an empty set can never match
+                    if (statementValue.length === 0) {
+                        innerQB[havingType]('1 = 0');
+                        return;
+                    }
+
+                    const placeholders = statementValue.map(() => '?').join(', ');
+                    innerQB[havingType](`${aggregateFunction} ${compOps[operator]} (${placeholders})`, [config.aggregate.column, ...statementValue]);
+                } else {
+                    innerQB[havingType](`${aggregateFunction} ${compOps[operator]} ?`, [config.aggregate.column, Number(statement.value)]);
+                }
+            });
+
+            if (debugExtended.enabled) {
+                debug(`(buildAggregateRelationQuery) innerQB sql: ${innerQB.toSQL().sql}`);
+            }
+
+            return innerQB;
         });
     }
 
@@ -517,6 +755,8 @@ class MongoToKnex {
         }
 
         // CASE: sub is an object, contains statements and operators
+        //       (unknown operators on aggregate relations were already rejected by
+        //       the validateAggregateStatements pre-pass in processJSON)
         _.forIn(sub, (value, op) => {
             if (isCompOp(op)) {
                 this.buildComparison(qb, mode, statement, op, value, group);
@@ -575,6 +815,57 @@ class MongoToKnex {
     }
 
     /**
+     * Validate every aggregate statement before any query is built. Unlike the other
+     * relation types invalid aggregate statements throw instead of being silently
+     * dropped - a dropped statement widens the result set, returning rows the filter
+     * was meant to exclude.
+     *
+     * Validation is a separate pre-pass because grouped statements ($and/$or) are
+     * built inside knex where-callbacks, which only run once the query is rendered -
+     * a throw from there surfaces after query building has finished, escaping any
+     * error handling wrapped around it (e.g. the layer turning invalid filters into
+     * 4xx responses).
+     */
+    validateAggregateStatements(sub) {
+        if (!_.isPlainObject(sub)) {
+            return;
+        }
+
+        _.forIn(sub, (value, key) => {
+            if (isLogicOp(key)) {
+                _.castArray(value).forEach(group => this.validateAggregateStatements(group));
+                return;
+            }
+
+            if (isOp(key)) {
+                return;
+            }
+
+            const [relationName, columnName] = key.split('.');
+            const relation = this.config.relations[relationName];
+
+            if (!relation || relation.type !== 'aggregate') {
+                return;
+            }
+
+            // CASE: same rejection as processStatement, raised here so it fires
+            //       before query building for grouped statements too
+            if (columnName) {
+                throw aggregateColumnError(relationName);
+            }
+
+            // CASE: an atomic value (incl. arrays and regexes) is shorthand for $eq
+            const statements = _.isPlainObject(value) ? value : {$eq: value};
+
+            _.forIn(statements, (statementValue, op) => {
+                if (!isAggregateCompOp(op) || !isAggregateValue(op, statementValue)) {
+                    throw aggregateOperatorError(relationName);
+                }
+            });
+        });
+    }
+
+    /**
      * The converter receives sub query objects e.g. `qb.where('..', (qb) => {})`, which
      * we then pass around to our class methods. That's why we pass the parent `qb` object
      * around instead of remembering it as `this.qb`. There are multiple `qb` objects.
@@ -586,6 +877,8 @@ class MongoToKnex {
         if (debugExtended.enabled) {
             debugExtended(`(processJSON) ${stringify(mongoJSON)}`);
         }
+
+        this.validateAggregateStatements(mongoJSON);
 
         // 'and' is the default behaviour
         this.buildQuery(qb, '$and', mongoJSON);
