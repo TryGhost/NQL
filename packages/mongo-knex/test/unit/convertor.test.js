@@ -2,7 +2,7 @@ require('../utils');
 const knex = require('knex')({client: 'mysql2'});
 const convertor = require('../../lib/convertor');
 
-const runQuery = query => convertor(knex('posts'), query, {
+const config = {
     relations: {
         tags: {
             tableName: 'tags',
@@ -48,7 +48,13 @@ const runQuery = query => convertor(knex('posts'), query, {
             wheres: {'t.visibility': 'public'}
         }
     }
-}).toQuery();
+};
+
+// Builds the full SQL string - rendering also runs the deferred knex where-callbacks
+const runQuery = query => convertor(knex('posts'), query, config).toQuery();
+
+// Builds the query object without rendering it, like consumers do before executing
+const buildQuery = query => convertor(knex('posts'), query, config);
 
 describe('Simple Expressions', function () {
     it('should match based on simple id', function () {
@@ -688,6 +694,36 @@ describe('Aggregate Relations', function () {
             (function () {
                 runQuery({'tag_count.count': {$gt: 1}});
             }).should.throw('Aggregate relation "tag_count" is queried by name only, without a column (e.g. "tag_count:0")');
+        });
+
+        describe('throws while building the query, not while rendering it', function () {
+            // Grouped statements are compiled inside knex where-callbacks, which only
+            // run once the query is rendered - validation must not wait for that, or
+            // the error escapes the error handling wrapped around the query build
+            // (e.g. the layer turning invalid filters into 4xx responses)
+            it('for an invalid value inside an $and group', function () {
+                (function () {
+                    buildQuery({$and: [{status: 'draft'}, {tag_count: null}]});
+                }).should.throw(expectedError);
+            });
+
+            it('for an unknown operator inside an $or group', function () {
+                (function () {
+                    buildQuery({$or: [{status: 'draft'}, {tag_count: {$foo: 1}}]});
+                }).should.throw(expectedError);
+            });
+
+            it('for an invalid value inside a nested group', function () {
+                (function () {
+                    buildQuery({$and: [{status: 'draft'}, {$or: [{featured: true}, {tag_count: 'abc'}]}]});
+                }).should.throw(expectedError);
+            });
+
+            it('for a dotted column suffix inside an $and group', function () {
+                (function () {
+                    buildQuery({$and: [{status: 'draft'}, {'tag_count.count': {$gt: 1}}]});
+                }).should.throw('Aggregate relation "tag_count" is queried by name only, without a column (e.g. "tag_count:0")');
+            });
         });
 
         it('throws on a missing aggregate config', function () {

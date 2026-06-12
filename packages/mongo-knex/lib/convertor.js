@@ -71,6 +71,9 @@ const isAggregateValue = (op, value) => {
 //eslint-disable-next-line ghost/ghost-custom/no-native-error
 const aggregateOperatorError = relationName => new Error(`Aggregate relation "${relationName}" only supports ${Object.keys(complementOps).join(', ')} comparisons with numeric values`);
 
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const aggregateColumnError = relationName => new Error(`Aggregate relation "${relationName}" is queried by name only, without a column (e.g. "${relationName}:0")`);
+
 /**
  * Whether an aggregate comparison would match a parent row with no related rows
  * (aggregate value 0). Such rows don't appear in the grouped subquery at all, so
@@ -202,8 +205,7 @@ class MongoToKnex {
             //       column to select - a dotted suffix is meaningless and only invites
             //       aliased spellings of the same query, so it's rejected outright
             if (relation && relation.type === 'aggregate') {
-                //eslint-disable-next-line ghost/ghost-custom/no-native-error
-                throw new Error(`Aggregate relation "${table}" is queried by name only, without a column (e.g. "${table}:0")`);
+                throw aggregateColumnError(table);
             }
 
             if (!relation) {
@@ -541,15 +543,8 @@ class MongoToKnex {
                     debug(`one of ${key} group statements contains unknown operator`);
                 }
             } else if (reference.config.type === 'aggregate') {
-                // CASE: unlike the other relation types we throw instead of silently dropping
-                //       the group - a dropped statement widens the result set, returning rows
-                //       the filter was meant to exclude
-                const invalidStatement = statements.find(s => !isAggregateCompOp(s.operator) || !isAggregateValue(s.operator, s.value));
-
-                if (invalidStatement) {
-                    throw aggregateOperatorError(invalidStatement.table);
-                }
-
+                // NOTE: operators and values were already validated by the
+                //       validateAggregateStatements pre-pass in processJSON
                 this.buildAggregateRelationQuery(qb, statements, reference, mode, groupedRelations[key].joinFilterStatements);
             }
         });
@@ -747,21 +742,12 @@ class MongoToKnex {
         }
 
         // CASE: sub is an object, contains statements and operators
+        //       (unknown operators on aggregate relations were already rejected by
+        //       the validateAggregateStatements pre-pass in processJSON)
         _.forIn(sub, (value, op) => {
             if (isCompOp(op)) {
                 this.buildComparison(qb, mode, statement, op, value, group);
             } else {
-                // CASE: unknown operators are dropped, but for aggregate relations a
-                //       dropped statement widens the result set, so they fail closed -
-                //       this has to happen here because dropped statements never reach
-                //       the aggregate validation in buildRelationQuery
-                const [relationName] = statement.split('.');
-                const relation = this.config.relations[relationName];
-
-                if (relation && relation.type === 'aggregate') {
-                    throw aggregateOperatorError(relationName);
-                }
-
                 debug('unknown operator');
             }
         });
@@ -816,6 +802,57 @@ class MongoToKnex {
     }
 
     /**
+     * Validate every aggregate statement before any query is built. Unlike the other
+     * relation types invalid aggregate statements throw instead of being silently
+     * dropped - a dropped statement widens the result set, returning rows the filter
+     * was meant to exclude.
+     *
+     * Validation is a separate pre-pass because grouped statements ($and/$or) are
+     * built inside knex where-callbacks, which only run once the query is rendered -
+     * a throw from there surfaces after query building has finished, escaping any
+     * error handling wrapped around it (e.g. the layer turning invalid filters into
+     * 4xx responses).
+     */
+    validateAggregateStatements(sub) {
+        if (!_.isPlainObject(sub)) {
+            return;
+        }
+
+        _.forIn(sub, (value, key) => {
+            if (isLogicOp(key)) {
+                _.castArray(value).forEach(group => this.validateAggregateStatements(group));
+                return;
+            }
+
+            if (isOp(key)) {
+                return;
+            }
+
+            const [relationName, columnName] = key.split('.');
+            const relation = this.config.relations[relationName];
+
+            if (!relation || relation.type !== 'aggregate') {
+                return;
+            }
+
+            // CASE: same rejection as processStatement, raised here so it fires
+            //       before query building for grouped statements too
+            if (columnName) {
+                throw aggregateColumnError(relationName);
+            }
+
+            // CASE: an atomic value (incl. arrays and regexes) is shorthand for $eq
+            const statements = _.isPlainObject(value) ? value : {$eq: value};
+
+            _.forIn(statements, (statementValue, op) => {
+                if (!isAggregateCompOp(op) || !isAggregateValue(op, statementValue)) {
+                    throw aggregateOperatorError(relationName);
+                }
+            });
+        });
+    }
+
+    /**
      * The converter receives sub query objects e.g. `qb.where('..', (qb) => {})`, which
      * we then pass around to our class methods. That's why we pass the parent `qb` object
      * around instead of remembering it as `this.qb`. There are multiple `qb` objects.
@@ -827,6 +864,8 @@ class MongoToKnex {
         if (debugExtended.enabled) {
             debugExtended(`(processJSON) ${stringify(mongoJSON)}`);
         }
+
+        this.validateAggregateStatements(mongoJSON);
 
         // 'and' is the default behaviour
         this.buildQuery(qb, '$and', mongoJSON);
