@@ -641,8 +641,13 @@ class MongoToKnex {
                 const useOr = idx !== 0 && ((mode === '$or') !== invertSubquery);
                 const havingType = useOr ? 'orHavingRaw' : 'havingRaw';
 
+                // CASE: values are validated numeric but can arrive as numeric strings
+                //       (e.g. quoted filter values) - they are bound as numbers so the
+                //       database comparison matches the inversion decision above, which
+                //       evaluates the predicate via Number() (e.g. SQLite would never
+                //       coerce, an integer aggregate always sorts below any string)
                 if (isStatementGroupOp(compOps[operator])) {
-                    const statementValue = _.castArray(statement.value);
+                    const statementValue = _.castArray(statement.value).map(Number);
 
                     // CASE: IN () is invalid SQL and an empty set can never match
                     if (statementValue.length === 0) {
@@ -653,7 +658,7 @@ class MongoToKnex {
                     const placeholders = statementValue.map(() => '?').join(', ');
                     innerQB[havingType](`${aggregateFunction} ${compOps[operator]} (${placeholders})`, [config.aggregate.column, ...statementValue]);
                 } else {
-                    innerQB[havingType](`${aggregateFunction} ${compOps[operator]} ?`, [config.aggregate.column, statement.value]);
+                    innerQB[havingType](`${aggregateFunction} ${compOps[operator]} ?`, [config.aggregate.column, Number(statement.value)]);
                 }
             });
 

@@ -675,9 +675,19 @@ describe('Aggregate Relations', function () {
             }).should.throw(expectedError);
         });
 
-        it('accepts numeric strings', function () {
+        it('binds numeric strings as numbers, the database must compare what the inversion decision compared', function () {
             runQuery({tag_count: {$gt: '1'}})
-                .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > \'1\')');
+                .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 1)');
+        });
+
+        it('binds numeric strings as numbers when inverted', function () {
+            runQuery({tag_count: {$lt: '2'}})
+                .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) >= 2)');
+        });
+
+        it('binds numeric strings in set operators as numbers', function () {
+            runQuery({tag_count: {$in: ['1', 2]}})
+                .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) in (1, 2))');
         });
 
         it('empty $in matches nothing instead of generating invalid SQL', function () {

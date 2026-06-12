@@ -1936,6 +1936,63 @@ describe('Relations', function () {
             });
         });
 
+        describe('numeric strings', function () {
+            // CASE: numeric strings must match the same rows as their numeric value -
+            //       bound as strings the comparison silently diverges from the JS-side
+            //       inversion decision (SQLite never coerces: an integer aggregate
+            //       always sorts below any string, so e.g. < '2' matched every post)
+            it('tag_count is < "2" matches the same rows as the numeric value (inverted)', function () {
+                const mongoJSON = {
+                    tag_count: {
+                        $lt: '2'
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(6);
+                        result.should.matchIds([1, 2, 3, 5, 7, 8]);
+                    });
+            });
+
+            it('tag_count is > "1" matches the same rows as the numeric value', function () {
+                const mongoJSON = {
+                    tag_count: {
+                        $gt: '1'
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([4, 6]);
+                    });
+            });
+
+            it('tag_count is in ["1", "2"] matches the same rows as the numeric values', function () {
+                const mongoJSON = {
+                    tag_count: {
+                        $in: ['1', '2']
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(7);
+                        result.should.matchIds([1, 2, 3, 4, 5, 6, 8]);
+                    });
+            });
+        });
+
         describe('AND $and', function () {
             it('range conditions on the same aggregate combine in one subquery', function () {
                 const mongoJSON = {
