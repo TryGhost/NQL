@@ -615,6 +615,36 @@ describe('Aggregate Relations', function () {
             }).should.throw(expectedError);
         });
 
+        it('throws on unknown operators instead of silently dropping the filter', function () {
+            (function () {
+                runQuery({tag_count: {$foo: 1}});
+            }).should.throw(expectedError);
+        });
+
+        it('throws on unknown operators inside an $and group', function () {
+            (function () {
+                runQuery({$and: [{status: 'draft'}, {tag_count: {$foo: 1}}]});
+            }).should.throw(expectedError);
+        });
+
+        it('throws on unknown operators inside an $or group', function () {
+            (function () {
+                runQuery({$or: [{status: 'draft'}, {tag_count: {$foo: 1}}]});
+            }).should.throw(expectedError);
+        });
+
+        it('throws on array values for scalar operators instead of generating invalid SQL', function () {
+            (function () {
+                runQuery({tag_count: {$gt: [1, 2]}});
+            }).should.throw(expectedError);
+        });
+
+        it('throws on an empty array value for scalar operators instead of generating invalid SQL', function () {
+            (function () {
+                runQuery({tag_count: {$eq: []}});
+            }).should.throw(expectedError);
+        });
+
         it('throws on null values', function () {
             (function () {
                 runQuery({tag_count: null});

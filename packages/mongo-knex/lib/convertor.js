@@ -56,10 +56,20 @@ const isAggregateCompOp = key => Boolean(complementOps[key]);
 
 // Aggregate values must be numeric: the inversion decision below evaluates the predicate
 // at 0 in JS, so a value the database would coerce differently (null, '', '2abc') must be
-// rejected up front or the two evaluations can disagree
+// rejected up front or the two evaluations can disagree. Arrays are only meaningful for
+// the set operators - bound to a scalar comparison they render invalid SQL (e.g. `> 1, 2`)
 const isNumericScalar = value => (_.isNumber(value) && Number.isFinite(value))
     || (_.isString(value) && value.trim() !== '' && Number.isFinite(Number(value)));
-const isAggregateValue = value => (_.isArray(value) ? _.every(value, isNumericScalar) : isNumericScalar(value));
+const isAggregateValue = (op, value) => {
+    if (op === '$in' || op === '$nin') {
+        return _.isArray(value) ? _.every(value, isNumericScalar) : isNumericScalar(value);
+    }
+
+    return isNumericScalar(value);
+};
+
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const aggregateOperatorError = relationName => new Error(`Aggregate relation "${relationName}" only supports ${Object.keys(complementOps).join(', ')} comparisons with numeric values`);
 
 /**
  * Whether an aggregate comparison would match a parent row with no related rows
@@ -534,11 +544,10 @@ class MongoToKnex {
                 // CASE: unlike the other relation types we throw instead of silently dropping
                 //       the group - a dropped statement widens the result set, returning rows
                 //       the filter was meant to exclude
-                const invalidStatement = statements.find(s => !isAggregateCompOp(s.operator) || !isAggregateValue(s.value));
+                const invalidStatement = statements.find(s => !isAggregateCompOp(s.operator) || !isAggregateValue(s.operator, s.value));
 
                 if (invalidStatement) {
-                    //eslint-disable-next-line ghost/ghost-custom/no-native-error
-                    throw new Error(`Aggregate relation "${invalidStatement.table}" only supports ${Object.keys(complementOps).join(', ')} comparisons with numeric values`);
+                    throw aggregateOperatorError(invalidStatement.table);
                 }
 
                 this.buildAggregateRelationQuery(qb, statements, reference, mode, groupedRelations[key].joinFilterStatements);
@@ -742,6 +751,17 @@ class MongoToKnex {
             if (isCompOp(op)) {
                 this.buildComparison(qb, mode, statement, op, value, group);
             } else {
+                // CASE: unknown operators are dropped, but for aggregate relations a
+                //       dropped statement widens the result set, so they fail closed -
+                //       this has to happen here because dropped statements never reach
+                //       the aggregate validation in buildRelationQuery
+                const [relationName] = statement.split('.');
+                const relation = this.config.relations[relationName];
+
+                if (relation && relation.type === 'aggregate') {
+                    throw aggregateOperatorError(relationName);
+                }
+
                 debug('unknown operator');
             }
         });
