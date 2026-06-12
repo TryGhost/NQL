@@ -594,6 +594,14 @@ class MongoToKnex {
         const baseTable = config.tableNameAs || config.tableName;
         const baseTableValue = config.tableNameAs ? `${config.tableName} as ${config.tableNameAs}` : config.tableName;
 
+        // CASE: $and groups attach every join table filter of the group to every
+        //       relation subquery - only filters on tables that are part of this
+        //       subquery's join chain can restrict the aggregated rows, the others
+        //       reference tables that are never joined here and are handled by their
+        //       own relation's subquery
+        const subqueryTables = [baseTable, ..._.map(config.joins, join => join.tableNameAs || join.tableName)];
+        const applicableJoinFilters = _.filter(joinFilterStatements, joinFilter => subqueryTables.includes(joinFilter.joinTable));
+
         // CASE: WHERE resource.id (IN | NOT IN) (SELECT ... GROUP BY ... HAVING ...)
         qb[whereType](`${this.tableName}.id`, comp, function () {
             const innerQB = this
@@ -626,7 +634,7 @@ class MongoToKnex {
 
             // CASE: when applying AND conjunction, filters on a join table restrict
             //       which related rows are aggregated (same as the other relation types)
-            _.each(joinFilterStatements, (joinFilter) => {
+            _.each(applicableJoinFilters, (joinFilter) => {
                 innerQB.where(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
             });
 

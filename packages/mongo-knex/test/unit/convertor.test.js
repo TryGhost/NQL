@@ -24,6 +24,13 @@ const config = {
             type: 'oneToOne',
             joinFrom: 'post_id'
         },
+        authors: {
+            tableName: 'authors',
+            type: 'manyToMany',
+            joinTable: 'posts_authors',
+            joinFrom: 'post_id',
+            joinTo: 'author_id'
+        },
         tag_count: {
             type: 'aggregate',
             aggregate: {fn: 'count', column: 'posts_tags.tag_id'},
@@ -587,6 +594,14 @@ describe('Aggregate Relations', function () {
         it('with a join table filter in an inverted $and group', function () {
             runQuery({$and: [{'posts_tags.sort_order': 0}, {tag_count: 0}]})
                 .should.eql('select * from `posts` where (`posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null and `posts_tags`.`sort_order` = 0 group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) != 0))');
+        });
+
+        it('ignores join table filters belonging to another relation in the $and group', function () {
+            // posts_authors is the authors relation's join table - it is never joined
+            // inside the tag_count subquery, so absorbing the filter there would
+            // reference an unknown table; it only restricts the authors subquery
+            runQuery({$and: [{'authors.slug': 'joe'}, {'posts_authors.sort_order': 0}, {tag_count: {$gt: 1}}]})
+                .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_authors`.`post_id` from `posts_authors` inner join `authors` on `authors`.`id` = `posts_authors`.`author_id` and `posts_authors`.`sort_order` = 0 where `authors`.`slug` = \'joe\') and `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 1))');
         });
     });
 

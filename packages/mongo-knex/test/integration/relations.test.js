@@ -2191,6 +2191,37 @@ describe('Relations', function () {
                         result.should.matchIds([4, 6, 8]);
                     });
             });
+
+            it('combined with a join table filter belonging to another relation', function () {
+                // posts_authors is the authors relation's join table - it must restrict
+                // the authors subquery only, the tag_count subquery never joins it
+                const mongoJSON = {
+                    $and: [
+                        {
+                            'authors.slug': 'pat'
+                        },
+                        {
+                            'posts_authors.sort_order': 1
+                        },
+                        {
+                            tag_count: {
+                                $gt: 1
+                            }
+                        }
+                    ]
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        // pat is attached with sort_order 1 to post 4 only,
+                        // posts 4 and 6 have more than one tag
+                        result.should.be.an.Array().with.lengthOf(1);
+                        result.should.matchIds([4]);
+                    });
+            });
         });
 
         describe('OR $or', function () {
