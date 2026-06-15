@@ -61,6 +61,7 @@ valueExpr
     | REGEXPOP { $$ = {$regex: $1}; }
     | NOT LBRACKET inExpr RBRACKET { $$ = {$nin: $3}; }
     | LBRACKET inExpr RBRACKET { $$ = {$in: $2}; }
+    | LBRACKET allExpr RBRACKET { $$ = {$all: $2}; }
     | OP VALUE { $$ = {}; $$[$1] = $2; }
     | VALUE { $$ = $1; }
     ;
@@ -68,6 +69,11 @@ valueExpr
 inExpr
     : inExpr OR VALUE { $$.push($3); }
     | VALUE { $$ = [$1]; }
+    ;
+
+allExpr
+    : allExpr AND VALUE { $$.push($3); }
+    | VALUE AND VALUE { $$ = [$1, $3]; }
     ;
 
 VALUE

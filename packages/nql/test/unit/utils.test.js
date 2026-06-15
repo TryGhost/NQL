@@ -179,4 +179,54 @@ describe('Utils', function () {
             utils.combineNeFilters(input).should.eql(output);
         });
     });
+
+    describe('Expand all filters', function () {
+        it('expands a lone $all into an $and of equality clauses', function () {
+            utils.expandAllFilters({label: {$all: ['vip', 'alpha']}}).should.eql({
+                $and: [
+                    {label: 'vip'},
+                    {label: 'alpha'}
+                ]
+            });
+        });
+
+        it('leaves $in and scalar filters untouched', function () {
+            utils.expandAllFilters({label: {$in: ['vip', 'alpha']}}).should.eql({label: {$in: ['vip', 'alpha']}});
+            utils.expandAllFilters({status: 'paid'}).should.eql({status: 'paid'});
+        });
+
+        it('expands $all nested inside $and alongside other conditions', function () {
+            const input = {
+                $and: [
+                    {label: {$all: ['vip', 'alpha']}},
+                    {status: 'paid'}
+                ]
+            };
+            const output = {
+                $and: [
+                    {$and: [{label: 'vip'}, {label: 'alpha'}]},
+                    {status: 'paid'}
+                ]
+            };
+
+            utils.expandAllFilters(input).should.eql(output);
+        });
+
+        it('expands $all nested inside $or', function () {
+            const input = {
+                $or: [
+                    {label: {$all: ['vip', 'alpha']}},
+                    {status: 'free'}
+                ]
+            };
+            const output = {
+                $or: [
+                    {$and: [{label: 'vip'}, {label: 'alpha'}]},
+                    {status: 'free'}
+                ]
+            };
+
+            utils.expandAllFilters(input).should.eql(output);
+        });
+    });
 });
