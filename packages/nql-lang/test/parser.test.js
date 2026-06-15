@@ -133,6 +133,25 @@ describe('Parser', function () {
             }).should.throw(/unexpected character/);
         });
 
+        it('rejects negating an ALL OF group', function () {
+            // Negated all-of is intentionally unsupported: `-[a+b]` would mean
+            // "missing at least one" (¬a OR ¬b), but a leading `-` reads as
+            // "exclude these tags" — that intent is the NOT IN form `-[a,b]`.
+            // Both spellings must fail rather than silently pick a meaning.
+            (function () {
+                parse('tag:-[ghost+getting-started]');
+            }).should.throw(/unexpected character/);
+
+            (function () {
+                parse('-tag:[ghost+getting-started]');
+            }).should.throw(/unexpected character/);
+        });
+
+        it('still parses a negated comma list as NOT IN (the "is none of" case)', function () {
+            parse('tag:-[ghost, getting-started]')
+                .should.eql({tag: {$nin: ['ghost', 'getting-started']}});
+        });
+
         it('can parse CONTAINS, STARTSWITH and ENDSWITH with and without NOT', function () {
             parse(`email:~'gmail.com'`).should.eql({email: {$regex: /gmail\.com/i}});
 
