@@ -96,9 +96,54 @@ const combineNeFilters = (mongoJSON) => {
     return mongoJSON;
 };
 
+const isOp = key => key.charAt(0) === '$';
+
+/**
+ * Expands the `$all` operator into an `$and` of equality clauses.
+ *
+ * `field:[a+b]` parses to `{field: {$all: [a, b]}}`. There is no native `$all`
+ * in the SQL/mingo layers, but "match every value" is exactly an `$and` of
+ * single-value equality clauses on the same field — which mongo-knex already
+ * turns into a separate subquery per value for many-to-many relations (has ALL),
+ * and which mingo matches against array fields the same way. Rewriting here lets
+ * both query paths reuse that proven behaviour without special-casing `$all`.
+ *
+ * @param {*} node - A MongoDB query node (object, array or primitive).
+ * @returns {*} - The node with any `$all` operators expanded.
+ */
+const expandAllFilters = (node) => {
+    if (_.isArray(node)) {
+        return node.map(expandAllFilters);
+    }
+
+    if (!_.isPlainObject(node)) {
+        return node;
+    }
+
+    const keys = Object.keys(node);
+
+    // CASE: a lone `{field: {$all: [...]}}` becomes `{$and: [{field: a}, ...]}`
+    if (keys.length === 1) {
+        const key = keys[0];
+        const value = node[key];
+
+        if (!isOp(key)
+            && _.isPlainObject(value)
+            && Object.keys(value).length === 1
+            && _.isArray(value.$all)
+        ) {
+            return {$and: value.$all.map(item => ({[key]: item}))};
+        }
+    }
+
+    // Otherwise recurse so nested `$all` (e.g. inside `$and`/`$or`) is expanded too
+    return _.mapValues(node, expandAllFilters);
+};
+
 module.exports = {
     mergeFilters: mongoUtils.mergeFilters,
     parseExpansions: parseExpansions,
     expandFilters: expandFilters,
-    combineNeFilters: combineNeFilters
+    combineNeFilters: combineNeFilters,
+    expandAllFilters: expandAllFilters
 };

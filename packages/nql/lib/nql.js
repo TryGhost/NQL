@@ -52,6 +52,10 @@ module.exports = (queryString, options = {}) => {
         // this is a performance modification to combine multiple $ne filters into a single $nin filter (see de Morgan's laws)
         mongoJSON = utils.combineNeFilters(mongoJSON);
 
+        // rewrite the `$all` operator (`field:[a+b]`) into an `$and` of equality
+        // clauses so both the SQL and mingo paths handle it without special-casing
+        mongoJSON = utils.expandAllFilters(mongoJSON);
+
         if (options.expansions) {
             mongoJSON = utils.expandFilters(mongoJSON, options.expansions);
         }

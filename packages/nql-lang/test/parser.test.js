@@ -103,6 +103,55 @@ describe('Parser', function () {
                 .should.eql({author: {$nin: ['Joe Bloggs', 'John O\'Nolan', 'Hello World']}});
         });
 
+        it('can parse ALL OF with multiple values', function () {
+            parse('count:[5+8+12]').should.eql({count: {$all: [5, 8, 12]}});
+
+            parse('tag:[getting-started+ghost+really-long-1]')
+                .should.eql({tag: {$all: ['getting-started', 'ghost', 'really-long-1']}});
+
+            parse('author:[\'Joe Bloggs\'+\'John O\\\'Nolan\']')
+                .should.eql({author: {$all: ['Joe Bloggs', 'John O\'Nolan']}});
+        });
+
+        it('keeps single-value and comma lists as IN, not ALL', function () {
+            parse('tag:[ghost]').should.eql({tag: {$in: ['ghost']}});
+            parse('tag:[ghost, getting-started]').should.eql({tag: {$in: ['ghost', 'getting-started']}});
+        });
+
+        it('parses ALL OF alongside other conditions', function () {
+            parse('tag:[ghost+getting-started]+featured:true')
+                .should.eql({$and: [{tag: {$all: ['ghost', 'getting-started']}}, {featured: true}]});
+        });
+
+        it('rejects mixing AND and OR separators in a value list', function () {
+            (function () {
+                parse('tag:[ghost+getting-started, photo]');
+            }).should.throw(/unexpected character/);
+
+            (function () {
+                parse('tag:[ghost, getting-started+photo]');
+            }).should.throw(/unexpected character/);
+        });
+
+        it('rejects negating an ALL OF group', function () {
+            // Negated all-of is intentionally unsupported: `-[a+b]` would mean
+            // "missing at least one" (¬a OR ¬b), but a leading `-` reads as
+            // "exclude these tags" — that intent is the NOT IN form `-[a,b]`.
+            // Both spellings must fail rather than silently pick a meaning.
+            (function () {
+                parse('tag:-[ghost+getting-started]');
+            }).should.throw(/unexpected character/);
+
+            (function () {
+                parse('-tag:[ghost+getting-started]');
+            }).should.throw(/unexpected character/);
+        });
+
+        it('still parses a negated comma list as NOT IN (the "is none of" case)', function () {
+            parse('tag:-[ghost, getting-started]')
+                .should.eql({tag: {$nin: ['ghost', 'getting-started']}});
+        });
+
         it('can parse CONTAINS, STARTSWITH and ENDSWITH with and without NOT', function () {
             parse(`email:~'gmail.com'`).should.eql({email: {$regex: /gmail\.com/i}});
 
@@ -513,9 +562,8 @@ describe('Parser', function () {
         });
 
         it('CANNOT parse invalid IN expression', function () {
-            (function () {
-                parse('id:[test+ing]');
-            }).should.throw(parserError);
+            // NOTE: `id:[test+ing]` is no longer invalid — `+` inside a value list
+            // is now the ALL OF operator ({$all: [...]}), covered above.
             (function () {
                 parse('id:[test');
             }).should.throw(parserError);
