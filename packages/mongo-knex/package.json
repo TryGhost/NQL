@@ -30,7 +30,7 @@
     "mysql2": "3.22.5",
     "nconf": "0.13.0",
     "should": "13.2.3",
-    "sinon": "21.0.1",
+    "sinon": "21.1.2",
     "sqlite3": "5.1.7"
   },
   "dependencies": {
