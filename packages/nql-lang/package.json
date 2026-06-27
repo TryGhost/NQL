@@ -32,6 +32,6 @@
     "sinon": "21.1.2"
   },
   "dependencies": {
-    "date-fns": "2.30.0"
+    "date-fns": "4.4.0"
   }
 }
