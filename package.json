@@ -23,6 +23,6 @@
   "devDependencies": {
     "eslint": "8.57.1",
     "eslint-plugin-ghost": "3.5.0",
-    "lerna": "7.4.2"
+    "lerna": "9.0.7"
   }
 }
