@@ -34,6 +34,15 @@ const formatDateForSQL = (date) => {
     return isoDate.replace('T', ' ').replace(/\.[0-9]{3}Z/, '');
 };
 
+// A full ISO-8601 date-time: a date WITH a time component, optionally with
+// fractional seconds and a timezone (Z or ±HH:MM). We deliberately require a
+// time component so bare dates ("2025-02-27") and any other plain string are
+// never rewritten — nql-lang has no column-type information, so this is the
+// only shape we can safely normalize without risking a legitimate non-date
+// value (e.g. a date-like slug).
+// Groups: 1=date, 2=time (HH:mm[:ss]), 3=fraction, 4=zone.
+const ISO_DATE_TIME = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2})?)(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
+
 module.exports = {
     ungroup(value) {
         return value.yg ? value.yg : value;
@@ -69,6 +78,33 @@ module.exports = {
         const relDate = ops[op](now, {[intervals[duration]]: amount});
 
         return formatDateForSQL(relDate);
+    },
+
+    // Normalizes an absolute date-time value to the format dates are stored in
+    // ("YYYY-MM-DD HH:mm:ss", UTC) — the same format `relDateToAbsolute`
+    // produces for relative dates. This makes date comparisons behave
+    // identically on SQLite (where datetimes are text compared lexically, so a
+    // raw ISO "T" sorts after the stored space separator) and MySQL (which
+    // otherwise drops the timezone offset instead of applying it). A value that
+    // isn't a full ISO-8601 date-time, or that fails to parse, is returned
+    // untouched.
+    normalizeAbsoluteDate(value) {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        const match = ISO_DATE_TIME.exec(value);
+        if (!match) {
+            return value;
+        }
+
+        const [, date, time, fraction = '', zone] = match;
+        // A zone-less value is interpreted as UTC (dates are stored in UTC), so
+        // we append "Z" rather than letting `new Date` treat it as local time.
+        const isoString = `${date}T${time}${fraction}${zone || 'Z'}`;
+        const parsed = new Date(isoString);
+
+        return Number.isNaN(parsed.getTime()) ? value : formatDateForSQL(parsed);
     },
 
     debug() {

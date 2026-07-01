@@ -745,4 +745,40 @@ describe('Parser', function () {
             });
         });
     });
+
+    describe('Absolute dates', function () {
+        it('normalizes an ISO date-time with an offset to UTC db format', function () {
+            parse('published_at:>\'2025-02-27T19:03:00.000-05:00\'')
+                .should.eql({published_at: {$gt: '2025-02-28 00:03:00'}});
+        });
+
+        it('normalizes a Zulu ISO date-time', function () {
+            parse('published_at:<\'2025-02-27T19:03:00Z\'')
+                .should.eql({published_at: {$lt: '2025-02-27 19:03:00'}});
+        });
+
+        it('normalizes an equality date-time value', function () {
+            parse('created_at:\'2025-02-27T19:03:00.000Z\'')
+                .should.eql({created_at: '2025-02-27 19:03:00'});
+        });
+
+        it('normalizes date-times inside an $in list', function () {
+            parse('published_at:[\'2025-02-27T19:03:00Z\',\'2025-03-01T00:00:00Z\']')
+                .should.eql({published_at: {$in: ['2025-02-27 19:03:00', '2025-03-01 00:00:00']}});
+        });
+
+        it('normalizes date-times within a logical group', function () {
+            parse('featured:true+published_at:>\'2025-02-27T19:03:00-05:00\'')
+                .should.eql({$and: [{featured: true}, {published_at: {$gt: '2025-02-28 00:03:00'}}]});
+        });
+
+        it('leaves a bare date untouched', function () {
+            parse('published_at:>\'2025-02-27\'')
+                .should.eql({published_at: {$gt: '2025-02-27'}});
+        });
+
+        it('does not rewrite a non-date string value', function () {
+            parse('slug:\'2025-02-27\'').should.eql({slug: '2025-02-27'});
+        });
+    });
 });
