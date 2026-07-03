@@ -34,14 +34,19 @@ const formatDateForSQL = (date) => {
     return isoDate.replace('T', ' ').replace(/\.[0-9]{3}Z/, '');
 };
 
-// A full ISO-8601 date-time: a date WITH a time component, optionally with
-// fractional seconds and a timezone (Z or ±HH:MM). We deliberately require a
-// time component so bare dates ("2025-02-27") and any other plain string are
-// never rewritten — nql-lang has no column-type information, so this is the
-// only shape we can safely normalize without risking a legitimate non-date
-// value (e.g. a date-like slug).
+// A full ISO-8601 date-time: a date WITH a "T"-separated time component,
+// optionally with fractional seconds and a timezone (Z or ±HH:MM). We
+// deliberately require a time component so bare dates ("2025-02-27") and any
+// other plain string are never rewritten — nql-lang has no column-type
+// information, so this is the only shape we can safely normalize without
+// risking a legitimate non-date value (e.g. a date-like slug). The "T"
+// separator is required for the same reason: space-separated values are
+// already in the stored format (or arbitrary text), and only the ISO "T" form
+// exhibits the comparison bug being fixed. Hour/minute/second ranges are
+// enforced so out-of-range times ("T24:00") can't slip through to `new Date`,
+// which would roll them over to a different day instead of rejecting them.
 // Groups: 1=date, 2=time (HH:mm[:ss]), 3=fraction, 4=zone.
-const ISO_DATE_TIME = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2})?)(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
+const ISO_DATE_TIME = /^(\d{4}-\d{2}-\d{2})T((?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
 
 module.exports = {
     ungroup(value) {
@@ -89,7 +94,10 @@ module.exports = {
     // isn't a full ISO-8601 date-time, or that fails to parse, is returned
     // untouched.
     normalizeAbsoluteDate(value) {
-        if (typeof value !== 'string') {
+        // `preserveRelativeDates` opts in to a lossless parse (values survive
+        // for rendering/round-tripping), so absolute dates must survive
+        // untouched there too.
+        if (this.preserveRelativeDates || typeof value !== 'string') {
             return value;
         }
 
@@ -99,6 +107,15 @@ module.exports = {
         }
 
         const [, date, time, fraction = '', zone] = match;
+
+        // `new Date` rejects most out-of-range fields but silently rolls over
+        // days that are ≤31 yet invalid for their month (Feb 30 → Mar 1), which
+        // would make the filter query a different day than the user wrote.
+        const dayCheck = new Date(`${date}T00:00:00Z`);
+        if (Number.isNaN(dayCheck.getTime()) || dayCheck.toISOString().slice(0, 10) !== date) {
+            return value;
+        }
+
         // A zone-less value is interpreted as UTC (dates are stored in UTC), so
         // we append "Z" rather than letting `new Date` treat it as local time.
         const isoString = `${date}T${time}${fraction}${zone || 'Z'}`;
