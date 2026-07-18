@@ -3825,10 +3825,10 @@ mute-stream@^2.0.0:
   resolved "https://registry.yarnpkg.com/mute-stream/-/mute-stream-2.0.0.tgz#a5446fc0c512b71c83c44d908d5c7b7b4c493b2b"
   integrity sha512-WWdIxpyjEn+FhQJQQv9aQAYlHoNVdzIzUySNV1gHUPDSdZJ3yZn7pAAbQcV7B56Mvu881q9FZV+0Vx2xC44VWA==
 
-mysql2@3.22.6:
-  version "3.22.6"
-  resolved "https://registry.yarnpkg.com/mysql2/-/mysql2-3.22.6.tgz#9c9bfd1903d1c63dff888afcb6848ed945e13bf3"
-  integrity sha512-fPKmeDGUzvFP7bMD5SASlJ5zIgvCC4hbanTmhbUlEmhyrY1hR4Hi3xLOWgTd3luYjLVifx6uGvMNJ2m/LlqEpg==
+mysql2@3.23.0:
+  version "3.23.0"
+  resolved "https://registry.yarnpkg.com/mysql2/-/mysql2-3.23.0.tgz#cf606d217ebd2771a29e1e8677e3f0b5ad5afe6d"
+  integrity sha512-ZwyGLoG9BRlL7hKNDcIy7q18hA6WTWGEpLAerGHXj5Xahemia4msZdwjIOUIzesjK3B5z5gWLktf+2tYSLAyTA==
   dependencies:
     aws-ssl-profiles "^1.1.2"
     denque "^2.1.0"
@@ -3837,7 +3837,7 @@ mysql2@3.22.6:
     long "^5.3.2"
     lru.min "^1.1.4"
     named-placeholders "^1.1.6"
-    sql-escaper "^1.4.0"
+    sql-escaper "^1.5.1"
 
 named-placeholders@^1.1.6:
   version "1.1.6"
@@ -5180,10 +5180,10 @@ split@^1.0.1:
   dependencies:
     through "2"
 
-sql-escaper@^1.4.0:
-  version "1.4.0"
-  resolved "https://registry.yarnpkg.com/sql-escaper/-/sql-escaper-1.4.0.tgz#976a3f751fd979e577a29b8bf00fc517989ee857"
-  integrity sha512-Ti/Zx9J3aITMYUMFhCKbkplQjyi7Kk2SyYXp+rzrkyKZetIy19XbQtVZ+0ZR5aVm/178tIJ6+aVvBqXkH+Xs7w==
+sql-escaper@^1.5.1:
+  version "1.5.1"
+  resolved "https://registry.yarnpkg.com/sql-escaper/-/sql-escaper-1.5.1.tgz#fbaee511294d1f7da92fb68ca1faee2255839c7b"
+  integrity sha512-4toX5E1fQbBrpfXidaHnF0669nkAdETeIPTs2SUjxxD7RRIs9ICG4gtpmfc68JCEKehsdwLFqBu9VlQqZ1P1gg==
 
 sqlite3@6.0.1:
   version "6.0.1"
