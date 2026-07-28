@@ -52,4 +52,91 @@ describe('Scope date helpers', function () {
             });
         });
     });
+
+    describe('normalizeAbsoluteDate', function () {
+        it('converts an ISO date-time with a timezone offset to UTC db format', function () {
+            scope.normalizeAbsoluteDate('2025-02-27T19:03:00.000-05:00')
+                .should.equal('2025-02-28 00:03:00');
+        });
+
+        it('converts a Zulu ISO date-time to db format', function () {
+            scope.normalizeAbsoluteDate('2025-02-27T19:03:00Z')
+                .should.equal('2025-02-27 19:03:00');
+        });
+
+        it('supports a "T" date-time without seconds', function () {
+            scope.normalizeAbsoluteDate('2025-02-27T19:03Z')
+                .should.equal('2025-02-27 19:03:00');
+        });
+
+        it('truncates fractional seconds', function () {
+            scope.normalizeAbsoluteDate('2025-02-27T19:03:00.567Z')
+                .should.equal('2025-02-27 19:03:00');
+        });
+
+        it('interprets a zone-less date-time as UTC', function () {
+            scope.normalizeAbsoluteDate('2025-02-27T19:03:00')
+                .should.equal('2025-02-27 19:03:00');
+        });
+
+        it('is idempotent for a value already in db format', function () {
+            scope.normalizeAbsoluteDate('2025-02-27 19:03:00')
+                .should.equal('2025-02-27 19:03:00');
+        });
+
+        it('leaves space-separated date-times untouched (only the ISO "T" form is rewritten)', function () {
+            scope.normalizeAbsoluteDate('2025-02-27 19:03')
+                .should.equal('2025-02-27 19:03');
+            scope.normalizeAbsoluteDate('2025-02-27 19:03:00Z')
+                .should.equal('2025-02-27 19:03:00Z');
+        });
+
+        it('leaves calendar-invalid dates untouched instead of rolling them over', function () {
+            // `new Date` would roll these to Mar 1 / May 1 rather than rejecting them
+            scope.normalizeAbsoluteDate('2025-02-30T00:00:00Z')
+                .should.equal('2025-02-30T00:00:00Z');
+            scope.normalizeAbsoluteDate('2025-04-31T10:00:00Z')
+                .should.equal('2025-04-31T10:00:00Z');
+        });
+
+        it('leaves out-of-range times untouched instead of rolling them over', function () {
+            // 24:00 is spec-legal for `new Date` and rolls to next-day midnight
+            scope.normalizeAbsoluteDate('2025-01-01T24:00:00Z')
+                .should.equal('2025-01-01T24:00:00Z');
+            scope.normalizeAbsoluteDate('2025-01-01T19:60:00Z')
+                .should.equal('2025-01-01T19:60:00Z');
+        });
+
+        it('leaves a bare date untouched (no time component)', function () {
+            scope.normalizeAbsoluteDate('2025-02-27').should.equal('2025-02-27');
+        });
+
+        it('leaves a non-date string untouched', function () {
+            scope.normalizeAbsoluteDate('not-a-date').should.equal('not-a-date');
+        });
+
+        it('leaves an unparseable date-time shaped string untouched', function () {
+            scope.normalizeAbsoluteDate('2025-13-45T99:99:99Z')
+                .should.equal('2025-13-45T99:99:99Z');
+        });
+
+        it('returns non-string values unchanged', function () {
+            (scope.normalizeAbsoluteDate(null) === null).should.be.true();
+            scope.normalizeAbsoluteDate(5).should.equal(5);
+            scope.normalizeAbsoluteDate(true).should.equal(true);
+        });
+
+        describe('with preserveRelativeDates flag set', function () {
+            afterEach(function () {
+                scope.preserveRelativeDates = false;
+            });
+
+            it('leaves absolute date-times untouched (lossless parse)', function () {
+                scope.preserveRelativeDates = true;
+
+                scope.normalizeAbsoluteDate('2025-02-27T19:03:00.000-05:00')
+                    .should.equal('2025-02-27T19:03:00.000-05:00');
+            });
+        });
+    });
 });
