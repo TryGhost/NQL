@@ -1095,6 +1095,37 @@ describe('Relations', function () {
         });
     });
 
+    // These execute against the real database (sqlite3 AND mysql8 in CI), which is
+    // the point: MySQL's `json_extract` returns a scalar string *with* its quotes
+    // (`"London"`), so an anchored LIKE would match the quote, not the value. The
+    // converter uses `->>` to unquote, and only running the query on MySQL proves it.
+    // A .toQuery() string assertion can't - the SQL is identical on both dialects.
+    describe('JSON path extraction', function () {
+        it('matches an equal JSON subfield value', function () {
+            return makeQuery({'posts_meta.meta_json.city': 'London'})
+                .select()
+                .then(result => result.should.matchIds([1]));
+        });
+
+        it('matches a startsWith on a JSON subfield', function () {
+            return makeQuery({'posts_meta.meta_json.city': {$regex: /^Lon/}})
+                .select()
+                .then(result => result.should.matchIds([1]));
+        });
+
+        it('matches an endsWith on a JSON subfield', function () {
+            return makeQuery({'posts_meta.meta_json.city': {$regex: /ton$/}})
+                .select()
+                .then(result => result.should.matchIds([4]));
+        });
+
+        it('matches a case-insensitive contains on a JSON subfield', function () {
+            return makeQuery({'posts_meta.meta_json.city': {$regex: /berlin/i}})
+                .select()
+                .then(result => result.should.matchIds([5]));
+        });
+    });
+
     describe('One-to-One', function () {
         describe('EQUALS $eq', function () {
             it('posts_meta.meta_title equals "Meta of A Whole New World"', function () {

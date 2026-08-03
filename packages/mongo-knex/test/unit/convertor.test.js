@@ -824,3 +824,40 @@ describe('RegExp/Like queries', function () {
             .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%\\\';select ** from `settings` where `value` like \\\'%\' ESCAPE \'*\'');
     });
 });
+
+describe('JSON path in relations', function () {
+    // Dot segments beyond `relation.column` are a JSON path into that column, so a
+    // consumer can filter a value nested inside a JSON column of a related row.
+    // Extraction uses `->>`, which unquotes the scalar on both MySQL 8+ and
+    // SQLite 3.38+ so string comparisons match the value, not MySQL's quoted form.
+    it('extracts a JSON path on a one-to-one relation column', function () {
+        runQuery({'posts_meta.meta_json.country': 'GB'})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_json` ->> \'$.country\' = \'GB\')');
+    });
+
+    it('extracts a JSON path on a many-to-many relation column', function () {
+        runQuery({'tags.meta.color': 'red'})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`meta` ->> \'$.color\' = \'red\')');
+    });
+
+    it('applies a comparison operator to an extracted JSON path', function () {
+        runQuery({'posts_meta.meta_json.age': {$gt: 21}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_json` ->> \'$.age\' > 21)');
+    });
+
+    it('applies a regex (LIKE) to an extracted JSON path', function () {
+        runQuery({'posts_meta.meta_json.name': {$regex: /^Gh/}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_json` ->> \'$.name\' like \'Gh%\' ESCAPE \'*\')');
+    });
+
+    // A case-insensitive match lowers the extracted value too, not just the pattern.
+    it('lowers the extracted value for a case-insensitive regex', function () {
+        runQuery({'posts_meta.meta_json.name': {$regex: /Gh/i}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where lower(`posts_meta`.`meta_json` ->> \'$.name\') like \'%gh%\' ESCAPE \'*\')');
+    });
+
+    it('leaves a plain relation column (no JSON path) unchanged', function () {
+        runQuery({'posts_meta.meta_title': 'Meta of A Whole New World'})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'Meta of A Whole New World\')');
+    });
+});

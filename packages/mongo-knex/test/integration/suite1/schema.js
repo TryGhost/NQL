@@ -34,6 +34,7 @@ module.exports.up = function (knex) {
             table.string('meta_description', 2000).nullable();
             table.string('email_subject', 300).nullable();
             table.integer('like_count').unsigned();
+            table.json('meta_json').nullable();
         }))
         .then(() => knex.schema.createTable('tags', (table) => {
             table.increments('id').primary();

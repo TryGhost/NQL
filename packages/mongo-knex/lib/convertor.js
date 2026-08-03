@@ -176,6 +176,66 @@ class MongoToKnex {
         Object.assign(this.config, {relations: {}}, config);
     }
 
+    /**
+     * The LHS expression that extracts a JSON scalar for comparison, as a raw
+     * fragment plus its bindings. `->>` unquotes the value on both databases Ghost
+     * runs on (MySQL 8+, SQLite 3.38+): `json_extract` alone returns a MySQL string
+     * scalar *with* its surrounding quotes (`"GB"`), so `LIKE 'G%'` and other string
+     * comparisons would match the quote, not the value — `->>` returns the bare `GB`.
+     */
+    extractJsonColumn(column, path) {
+        return {expr: '?? ->> ?', bindings: [column, path]};
+    }
+
+    /**
+     * Apply one comparison to a query builder, transparently routing a statement
+     * that carries a `jsonPath` through JSON extraction. Without a path it's the
+     * plain `qb[whereType](column, op, value)` call every caller used before.
+     */
+    applyComparison(builder, whereType, column, jsonPath, op, value) {
+        if (jsonPath && jsonPath.length > 0) {
+            const path = `$.${jsonPath.join('.')}`;
+            const {expr, bindings} = this.extractJsonColumn(column, path);
+
+            // A null comparison is IS [NOT] NULL. Handled first so the branches below
+            // only ever see a non-null value, keeping their `${whereType}Raw` method
+            // valid (whereType is a `…Null`/`…NotNull` variant only when value is null,
+            // and there is no `whereNullRaw`).
+            if (value === null) {
+                const rawWhere = whereType.startsWith('or') ? 'orWhereRaw' : 'whereRaw';
+                return builder[rawWhere](`${expr} ${op === '!=' ? 'is not null' : 'is null'}`, bindings);
+            }
+
+            // A regex (contains/startsWith/endsWith) compiles to a LIKE pattern; an
+            // ignore-case match lowers both sides — the extracted value here, the
+            // pattern in processRegExp.
+            if (value instanceof RegExp) {
+                const {source, ignoreCase} = processRegExp(value);
+                const lhs = ignoreCase ? `lower(${expr})` : expr;
+                return builder[`${whereType}Raw`](`${lhs} ${op} ? ESCAPE ?`, [...bindings, source, likeEscapeCharacter]);
+            }
+            // `in`/`not in` (a set, or a negated equality rewritten to `$nin`) isn't
+            // covered by knex's whereJsonPath, so it's spelled out here too.
+            if (op === 'in' || op === 'not in') {
+                const values = _.isArray(value) ? value : [value];
+                const placeholders = values.map(() => '?').join(', ');
+                return builder[`${whereType}Raw`](`${expr} ${op} (${placeholders})`, [...bindings, ...values]);
+            }
+            return builder[`${whereType}Raw`](`${expr} ${op} ?`, [...bindings, value]);
+        }
+
+        // A regex reaches here only via a relation subquery — the top-level path
+        // handles it in buildComparison. Convert it to the same LIKE-with-ESCAPE form
+        // so contains/startsWith/endsWith work on a related column too.
+        if (value instanceof RegExp) {
+            const {source, ignoreCase} = processRegExp(value);
+            const lhs = ignoreCase ? 'lower(??)' : '??';
+            return builder[`${whereType}Raw`](`${lhs} ${op} ? ESCAPE ?`, [column, source, likeEscapeCharacter]);
+        }
+
+        return builder[whereType](column, op, value);
+    }
+
     processWhereType(mode, op, value) {
         if (value === null) {
             return (mode === '$or' ? 'orWhere' : 'where') + (op === '$ne' ? 'NotNull' : 'Null');
@@ -192,7 +252,10 @@ class MongoToKnex {
      * Determine if statement lives on parent table or if statement refers to a relation.
      */
     processStatement(column, op, value) {
-        const [tableName, columnName] = column.split('.');
+        // Segments past `relation.column` (or `column` on a relation's join/target
+        // table) are a JSON path into that column, e.g.
+        // `custom_fields.value_json.country` → column `value_json`, path `['country']`.
+        const [tableName, columnName, ...jsonPath] = column.split('.');
 
         // CASE: relation?
         if (columnName) {
@@ -228,6 +291,7 @@ class MongoToKnex {
                     joinTable: relation.joinTable,
                     table: relation.tableName,
                     column: columnName,
+                    jsonPath: jsonPath,
                     operator: op,
                     value: value,
                     config: relation,
@@ -238,6 +302,7 @@ class MongoToKnex {
             return {
                 table: tableName,
                 column: columnName,
+                jsonPath: jsonPath,
                 operator: op,
                 value: value,
                 config: relation,
@@ -362,6 +427,9 @@ class MongoToKnex {
      */
     buildRelationQuery(qb, relations, mode) {
         debug(`(buildRelationQuery)`);
+        // The subquery bodies below are knex callbacks where `this` is the query
+        // builder, so hold onto the converter to reach its helpers from inside them.
+        const self = this;
 
         if (debugExtended.enabled) {
             debugExtended(`(buildRelationQuery) ${stringify(relations)}`);
@@ -450,7 +518,7 @@ class MongoToKnex {
                                 statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
                             }
 
-                            innerQB[statement.whereType](statementColumn, statementOp, statementValue);
+                            self.applyComparison(innerQB, statement.whereType, statementColumn, statement.jsonPath, statementOp, statementValue);
                         });
 
                         if (debugExtended.enabled) {
@@ -530,7 +598,7 @@ class MongoToKnex {
                                 statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
                             }
 
-                            innerQB[statement.whereType](statementColumn, statementOp, statementValue);
+                            self.applyComparison(innerQB, statement.whereType, statementColumn, statement.jsonPath, statementOp, statementValue);
                         });
 
                         if (debugExtended.enabled) {
@@ -736,7 +804,7 @@ class MongoToKnex {
         }
 
         debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value}`);
-        qb[whereType](column, comp, value);
+        this.applyComparison(qb, whereType, column, processedStatement.jsonPath, comp, value);
     }
 
     /**
