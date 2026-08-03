@@ -139,7 +139,7 @@
             "meta_title": "Meta of A Whole New World",
             "meta_description": "A whole new world with new horizons to pursue I'll chase them anywhere",
             "like_count": 10,
-            "meta_json": "{\"city\":\"London\"}"
+            "meta_json": "{\"city\":\"London\",\"score\":5}"
         },
         {
             "id": 2,
@@ -147,7 +147,7 @@
             "meta_title": "Meta of Circle of Life",
             "meta_description": "Till we find our place nn the path unwinding in the circle the circle of life.",
             "like_count": 42,
-            "meta_json": "{\"city\":\"Boston\"}"
+            "meta_json": "{\"city\":\"Boston\",\"score\":25}"
         },
         {
             "id": 3,
@@ -155,7 +155,7 @@
             "meta_title": "Meta of Be Our Guest",
             "meta_description": null,
             "like_count": 42,
-            "meta_json": "{\"city\":\"Berlin\"}"
+            "meta_json": "{\"city\":\"Berlin\",\"score\":50}"
         }
     ]
 }

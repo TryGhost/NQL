@@ -126,6 +126,16 @@ describe('Relations', function () {
                     });
             });
 
+            // A regex (contains/startsWith/endsWith) on a related column compiles to
+            // LIKE. Executed here because the base converter emitted invalid SQL for
+            // this shape (a stringified RegExp) and matched nothing - a real, shipped
+            // NQL filter shape (e.g. `tags.slug:~'ani'`), so the fix is pinned end to end.
+            it('matches a related column by a startsWith regex', function () {
+                return makeQuery({'tags.slug': {$regex: /^ani/}})
+                    .select()
+                    .then(result => result.should.matchIds([2, 4, 6]));
+            });
+
             it('tags.visibility equals "internal"', function () {
                 const mongoJSON = {
                     'tags.visibility': 'internal'
@@ -1123,6 +1133,15 @@ describe('Relations', function () {
             return makeQuery({'posts_meta.meta_json.city': {$regex: /berlin/i}})
                 .select()
                 .then(result => result.should.matchIds([5]));
+        });
+
+        // `->>` returns a native numeric on SQLite but a text scalar on MySQL, so a
+        // numeric comparison exercises each engine's coercion — only real execution
+        // proves both behave.
+        it('matches a numeric comparison on a JSON subfield', function () {
+            return makeQuery({'posts_meta.meta_json.score': {$gt: 20}})
+                .select()
+                .then(result => result.should.matchIds([4, 5]));
         });
     });
 

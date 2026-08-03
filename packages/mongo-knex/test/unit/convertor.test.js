@@ -860,6 +860,19 @@ describe('JSON path in relations', function () {
         runQuery({'posts_meta.meta_title': 'Meta of A Whole New World'})
             .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'Meta of A Whole New World\')');
     });
+
+    // A null comparison on an extracted path is IS [NOT] NULL. The relation path
+    // array-ifies a scalar null to `[null]`, so this must be keyed off the null-aware
+    // whereType, not the value - otherwise it would emit an unmatchable `not in (NULL)`.
+    it('emits IS NOT NULL for a negated null on a JSON path', function () {
+        runQuery({'posts_meta.meta_json.country': {$ne: null}})
+            .should.eql('select * from `posts` where `posts`.`id` not in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_json` ->> \'$.country\' is null)');
+    });
+
+    it('emits IS NULL for an equality null on a JSON path', function () {
+        runQuery({'posts_meta.meta_json.country': null})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_json` ->> \'$.country\' is null)');
+    });
 });
 
 describe('$elemMatch (single related row)', function () {
@@ -896,5 +909,21 @@ describe('$elemMatch (single related row)', function () {
     it('composes multiple matches under $or', function () {
         runQuery({$or: [{posts_meta: {$elemMatch: {meta_title: 'A', meta_description: 'B'}}}, {posts_meta: {$elemMatch: {meta_title: 'C', meta_description: 'D'}}}]})
             .should.eql('select * from `posts` where (`posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'A\' and `posts_meta`.`meta_description` = \'B\') or `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'C\' and `posts_meta`.`meta_description` = \'D\'))');
+    });
+
+    // An all-negation match stays positive: "has a tag that is neither a nor b" —
+    // one row where both conditions hold. It must NOT invert to a NOT IN subquery
+    // ("has no tag that is both a and b"), which is a different set.
+    it('keeps an all-negation match positive rather than inverting to NOT IN', function () {
+        runQuery({tags: {$elemMatch: {slug: {$ne: 'a'}, visibility: {$ne: 'b'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` not in (\'a\') and `tags`.`visibility` not in (\'b\'))');
+    });
+
+    it('throws on an empty match rather than dropping the constraint', function () {
+        (() => runQuery({tags: {$elemMatch: {}}})).should.throw(/needs at least one condition/);
+    });
+
+    it('throws when used on a non-relation key', function () {
+        (() => runQuery({title: {$elemMatch: {foo: 'x'}}})).should.throw(/can only be used on a relation/);
     });
 });

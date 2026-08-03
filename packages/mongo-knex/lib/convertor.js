@@ -74,6 +74,12 @@ const aggregateOperatorError = relationName => new Error(`Aggregate relation "${
 //eslint-disable-next-line ghost/ghost-custom/no-native-error
 const aggregateColumnError = relationName => new Error(`Aggregate relation "${relationName}" is queried by name only, without a column (e.g. "${relationName}:0")`);
 
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const elemMatchRelationError = key => new Error(`$elemMatch can only be used on a relation, not "${key}"`);
+
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const elemMatchEmptyError = relationName => new Error(`$elemMatch on "${relationName}" needs at least one condition`);
+
 /**
  * Whether an aggregate comparison would match a parent row with no related rows
  * (aggregate value 0). Such rows don't appear in the grouped subquery at all, so
@@ -197,13 +203,15 @@ class MongoToKnex {
             const path = `$.${jsonPath.join('.')}`;
             const {expr, bindings} = this.extractJsonColumn(column, path);
 
-            // A null comparison is IS [NOT] NULL. Handled first so the branches below
-            // only ever see a non-null value, keeping their `${whereType}Raw` method
-            // valid (whereType is a `…Null`/`…NotNull` variant only when value is null,
-            // and there is no `whereNullRaw`).
-            if (value === null) {
+            // A null comparison is IS [NOT] NULL. Detected via the null-aware whereType
+            // rather than the value, because the relation path array-ifies a scalar
+            // null to `[null]` before this point — so `value` isn't a reliable signal.
+            // Handled first so the branches below only ever see a real value and their
+            // `${whereType}Raw` stays valid (there is no `whereNullRaw`).
+            if (whereType.endsWith('Null')) {
                 const rawWhere = whereType.startsWith('or') ? 'orWhereRaw' : 'whereRaw';
-                return builder[rawWhere](`${expr} ${op === '!=' ? 'is not null' : 'is null'}`, bindings);
+                const nullOp = whereType.endsWith('NotNull') ? 'is not null' : 'is null';
+                return builder[rawWhere](`${expr} ${nullOp}`, bindings);
             }
 
             // A regex (contains/startsWith/endsWith) compiles to a LIKE pattern; an
@@ -469,8 +477,11 @@ class MongoToKnex {
             if (reference.config.type === 'manyToMany') {
                 if (_.every(statements.map(s => s.operator), isCompOp)) {
                     // CASE: only negate whole group when all the operators in the group are negative,
-                    // otherwise we cannot combine groups with negated and regular equation operators
-                    const negateGroup = _.every(statements.map(s => s.operator), (operator) => {
+                    // otherwise we cannot combine groups with negated and regular equation operators.
+                    // An $elemMatch group is exempt: it describes a single related row, so it must
+                    // never negate the whole subquery even when all its conditions are negations —
+                    // each negation applies within that one row (as $nin).
+                    const negateGroup = reference.elemMatchGroup === undefined && _.every(statements.map(s => s.operator), (operator) => {
                         return isNegationOp(operator);
                     });
 
@@ -549,8 +560,11 @@ class MongoToKnex {
             } else if (reference.config.type === 'oneToOne') {
                 if (_.every(statements.map(s => s.operator), isCompOp)) {
                     // CASE: only negate whole group when all the operators in the group are negative,
-                    // otherwise we cannot combine groups with negated and regular equation operators
-                    const negateGroup = _.every(statements.map(s => s.operator), (operator) => {
+                    // otherwise we cannot combine groups with negated and regular equation operators.
+                    // An $elemMatch group is exempt: it describes a single related row, so it must
+                    // never negate the whole subquery even when all its conditions are negations —
+                    // each negation applies within that one row (as $nin).
+                    const negateGroup = reference.elemMatchGroup === undefined && _.every(statements.map(s => s.operator), (operator) => {
                         return isNegationOp(operator);
                     });
 
@@ -789,11 +803,7 @@ class MongoToKnex {
             }
 
             // CASE: if the statement is part of a group, collect the relation statements to be able to group them later
-            if (!Object.prototype.hasOwnProperty.call(qb, 'relations')) {
-                qb.relations = [];
-            }
-
-            qb.relations.push(processedStatement);
+            this.collectRelationStatements(qb, [processedStatement]);
             return;
         }
 
@@ -865,19 +875,31 @@ class MongoToKnex {
      * grouping untouched.
      */
     buildElemMatch(qb, mode, relationName, conditions, group) {
+        // $elemMatch groups its conditions onto one related row, so it only makes
+        // sense on a relation and needs at least one condition. Guard both misuses -
+        // otherwise a non-relation fails obscurely deep in knex, and an empty match
+        // silently drops the whole constraint (matching every row).
+        if (!this.config.relations[relationName]) {
+            throw elemMatchRelationError(relationName);
+        }
+        if (_.isEmpty(conditions)) {
+            throw elemMatchEmptyError(relationName);
+        }
+
         const collector = {};
         const elemMatchGroup = (this.elemMatchSeq = (this.elemMatchSeq || 0) + 1);
 
-        // Inner conditions are always ANDed - a single row satisfies all of them -
-        // so process them as an $and regardless of the mode the match itself sits in.
+        // Inner conditions are always ANDed - a single row satisfies all of them - so
+        // process them as an $and regardless of the mode the match itself sits in. Each
+        // inner key is a column on the related row; a dotted key is a JSON path into
+        // that column (e.g. `address.country`), following the relation grammar used
+        // elsewhere. This shares the `column.jsonPath` shape, so a join-table-qualified
+        // column can't be expressed inside $elemMatch - fine for its single-row-value use.
         _.forIn(conditions, (conditionValue, conditionColumn) => {
             this.buildWhereClause(collector, '$and', `${relationName}.${conditionColumn}`, conditionValue, true);
         });
 
-        const statements = collector.relations;
-        if (!statements || !statements.length) {
-            return;
-        }
+        const statements = collector.relations || [];
 
         statements.forEach((statement) => {
             statement.elemMatchGroup = elemMatchGroup;
@@ -885,7 +907,7 @@ class MongoToKnex {
 
         // The subquery itself attaches to the outer query with the outer mode's
         // conjunction; grouping reads that from the group's first statement.
-        if (mode === '$or') {
+        if (mode === '$or' && statements.length) {
             statements[0].whereType = 'orWhere';
         }
 
@@ -897,6 +919,12 @@ class MongoToKnex {
 
         // CASE: part of a group - hand the statements to the group's relation flush
         //       so the subquery composes with sibling relation filters.
+        this.collectRelationStatements(qb, statements);
+    }
+
+    // Stash relation statements on the builder for the group's deferred relation
+    // flush (see buildWhereGroup), lazily creating the list on first use.
+    collectRelationStatements(qb, statements) {
         if (!Object.prototype.hasOwnProperty.call(qb, 'relations')) {
             qb.relations = [];
         }
