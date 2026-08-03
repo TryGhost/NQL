@@ -371,6 +371,22 @@ class MongoToKnex {
              */
             const isAggregate = statement.config && statement.config.type === 'aggregate';
 
+            // CASE: all conditions of one `$elemMatch` must match a single related
+            //       row, so they share a subquery keyed by the match's id regardless
+            //       of operator - the "a negation matches a different row" reasoning
+            //       below never applies to them. This is the explicit same-row escape
+            //       hatch: everything outside an $elemMatch keeps the default grouping.
+            if (statement.elemMatchGroup !== undefined) {
+                const elemKey = `${statement.table}_elem_${statement.elemMatchGroup}`;
+
+                if (!group[elemKey]) {
+                    group[elemKey] = {innerWhereStatements: []};
+                }
+
+                group[elemKey].innerWhereStatements.push(statement);
+                return;
+            }
+
             let shouldCreateSubGroup = !isAggregate && isNegationOp(statement.operator);
             if (!shouldCreateSubGroup && !isAggregate && group[statement.table]) {
                 shouldCreateSubGroup = _.some(group[statement.table].innerWhereStatements, (innerStatement) => {
@@ -826,12 +842,65 @@ class MongoToKnex {
         //       (unknown operators on aggregate relations were already rejected by
         //       the validateAggregateStatements pre-pass in processJSON)
         _.forIn(sub, (value, op) => {
-            if (isCompOp(op)) {
+            if (op === '$elemMatch') {
+                this.buildElemMatch(qb, mode, statement, value, group);
+            } else if (isCompOp(op)) {
                 this.buildComparison(qb, mode, statement, op, value, group);
             } else {
                 debug('unknown operator');
             }
         });
+    }
+
+    /**
+     * `{relation: {$elemMatch: {col: value, otherCol: {$ne: x}}}}`
+     *
+     * Match a single related row against all of the given conditions at once,
+     * emitted as one correlated subquery (`parent.id IN (SELECT … WHERE cond AND
+     * cond …)`). Without it, each condition on a multi-row relation is an
+     * independent existence check - a negation in particular becomes its own
+     * `NOT IN`, so a discriminator+value pair like `key = 'company' AND value != 'x'`
+     * would match different rows. `$elemMatch` is the explicit way to say the whole
+     * group describes one row; everything outside it keeps the default per-condition
+     * grouping untouched.
+     */
+    buildElemMatch(qb, mode, relationName, conditions, group) {
+        const collector = {};
+        const elemMatchGroup = (this.elemMatchSeq = (this.elemMatchSeq || 0) + 1);
+
+        // Inner conditions are always ANDed - a single row satisfies all of them -
+        // so process them as an $and regardless of the mode the match itself sits in.
+        _.forIn(conditions, (conditionValue, conditionColumn) => {
+            this.buildWhereClause(collector, '$and', `${relationName}.${conditionColumn}`, conditionValue, true);
+        });
+
+        const statements = collector.relations;
+        if (!statements || !statements.length) {
+            return;
+        }
+
+        statements.forEach((statement) => {
+            statement.elemMatchGroup = elemMatchGroup;
+        });
+
+        // The subquery itself attaches to the outer query with the outer mode's
+        // conjunction; grouping reads that from the group's first statement.
+        if (mode === '$or') {
+            statements[0].whereType = 'orWhere';
+        }
+
+        // CASE: not part of an outer group - attach the subquery immediately.
+        if (!group) {
+            this.buildRelationQuery(qb, statements, mode);
+            return;
+        }
+
+        // CASE: part of a group - hand the statements to the group's relation flush
+        //       so the subquery composes with sibling relation filters.
+        if (!Object.prototype.hasOwnProperty.call(qb, 'relations')) {
+            qb.relations = [];
+        }
+        qb.relations.push(...statements);
     }
 
     /**

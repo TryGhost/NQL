@@ -861,3 +861,40 @@ describe('JSON path in relations', function () {
             .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'Meta of A Whole New World\')');
     });
 });
+
+describe('$elemMatch (single related row)', function () {
+    // $elemMatch collapses all its conditions into ONE subquery, so a
+    // discriminator+value pair like `meta_title = 'A' AND meta_description != 'B'`
+    // matches a single related row rather than splitting the negation into an
+    // independent NOT IN. This is the explicit same-row escape hatch.
+    it('matches a discriminator and a negated value on the same one-to-one row', function () {
+        runQuery({posts_meta: {$elemMatch: {meta_title: 'A', meta_description: {$ne: 'B'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'A\' and `posts_meta`.`meta_description` not in (\'B\'))');
+    });
+
+    // The same holds for a negated equality on a JSON subfield (`country is-not GB`).
+    it('matches a negated JSON-path value on the same row', function () {
+        runQuery({posts_meta: {$elemMatch: {meta_title: 'A', 'meta_json.country': {$ne: 'GB'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'A\' and `posts_meta`.`meta_json` ->> \'$.country\' not in (\'GB\'))');
+    });
+
+    // $elemMatch is relation-agnostic: it forces same-row matching on a many-to-many
+    // relation too (one tag that is both slug 'a' and not internal).
+    it('matches a single row of a many-to-many relation', function () {
+        runQuery({tags: {$elemMatch: {slug: 'a', visibility: {$ne: 'internal'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'a\' and `tags`.`visibility` not in (\'internal\'))');
+    });
+
+    // Without $elemMatch the default grouping is unchanged: a negation on a plain
+    // $and is still an independent "no row matches" subquery (has tag a AND not tag b).
+    it('leaves the default per-condition grouping untouched outside $elemMatch', function () {
+        runQuery({$and: [{'tags.slug': 'a'}, {'tags.slug': {$ne: 'b'}}]})
+            .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'a\') and `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` in (\'b\')))');
+    });
+
+    // Two independent $elemMatch groups compose under OR.
+    it('composes multiple matches under $or', function () {
+        runQuery({$or: [{posts_meta: {$elemMatch: {meta_title: 'A', meta_description: 'B'}}}, {posts_meta: {$elemMatch: {meta_title: 'C', meta_description: 'D'}}}]})
+            .should.eql('select * from `posts` where (`posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'A\' and `posts_meta`.`meta_description` = \'B\') or `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'C\' and `posts_meta`.`meta_description` = \'D\'))');
+    });
+});
