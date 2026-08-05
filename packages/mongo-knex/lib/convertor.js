@@ -478,12 +478,15 @@ class MongoToKnex {
                 if (_.every(statements.map(s => s.operator), isCompOp)) {
                     // CASE: only negate whole group when all the operators in the group are negative,
                     // otherwise we cannot combine groups with negated and regular equation operators.
-                    // An $elemMatch group is exempt: it describes a single related row, so it must
-                    // never negate the whole subquery even when all its conditions are negations —
-                    // each negation applies within that one row (as $nin).
-                    const negateGroup = reference.elemMatchGroup === undefined && _.every(statements.map(s => s.operator), (operator) => {
-                        return isNegationOp(operator);
-                    });
+                    // A positive $elemMatch group is exempt: it describes a single related row, so it
+                    // must never negate even when all its conditions are negations — each applies within
+                    // that one row (as $nin). A $not-wrapped $elemMatch is the opposite: the whole
+                    // single-row match is negated (parent.id NOT IN that subquery), so it forces the
+                    // negation regardless of the conditions inside.
+                    const negateGroup = reference.elemMatchNegate === true
+                        || (reference.elemMatchGroup === undefined && _.every(statements.map(s => s.operator), (operator) => {
+                            return isNegationOp(operator);
+                        }));
 
                     const comp = negateGroup
                         ? compOps.$nin
@@ -561,12 +564,15 @@ class MongoToKnex {
                 if (_.every(statements.map(s => s.operator), isCompOp)) {
                     // CASE: only negate whole group when all the operators in the group are negative,
                     // otherwise we cannot combine groups with negated and regular equation operators.
-                    // An $elemMatch group is exempt: it describes a single related row, so it must
-                    // never negate the whole subquery even when all its conditions are negations —
-                    // each negation applies within that one row (as $nin).
-                    const negateGroup = reference.elemMatchGroup === undefined && _.every(statements.map(s => s.operator), (operator) => {
-                        return isNegationOp(operator);
-                    });
+                    // A positive $elemMatch group is exempt: it describes a single related row, so it
+                    // must never negate even when all its conditions are negations — each applies within
+                    // that one row (as $nin). A $not-wrapped $elemMatch is the opposite: the whole
+                    // single-row match is negated (parent.id NOT IN that subquery), so it forces the
+                    // negation regardless of the conditions inside.
+                    const negateGroup = reference.elemMatchNegate === true
+                        || (reference.elemMatchGroup === undefined && _.every(statements.map(s => s.operator), (operator) => {
+                            return isNegationOp(operator);
+                        }));
 
                     const comp = negateGroup
                         ? compOps.$nin
@@ -853,7 +859,11 @@ class MongoToKnex {
         //       the validateAggregateStatements pre-pass in processJSON)
         _.forIn(sub, (value, op) => {
             if (op === '$elemMatch') {
-                this.buildElemMatch(qb, mode, statement, value, group);
+                this.buildElemMatch(qb, mode, statement, value, group, false);
+            } else if (op === '$not' && _.isObject(value) && value.$elemMatch) {
+                // `{relation: {$not: {$elemMatch: {…}}}}` negates the single-row match:
+                // no related row satisfies all the conditions (parent.id NOT IN …).
+                this.buildElemMatch(qb, mode, statement, value.$elemMatch, group, true);
             } else if (isCompOp(op)) {
                 this.buildComparison(qb, mode, statement, op, value, group);
             } else {
@@ -874,7 +884,7 @@ class MongoToKnex {
      * group describes one row; everything outside it keeps the default per-condition
      * grouping untouched.
      */
-    buildElemMatch(qb, mode, relationName, conditions, group) {
+    buildElemMatch(qb, mode, relationName, conditions, group, negate = false) {
         // $elemMatch groups its conditions onto one related row, so it only makes
         // sense on a relation and needs at least one condition. Guard both misuses -
         // otherwise a non-relation fails obscurely deep in knex, and an empty match
@@ -903,6 +913,7 @@ class MongoToKnex {
 
         statements.forEach((statement) => {
             statement.elemMatchGroup = elemMatchGroup;
+            statement.elemMatchNegate = negate;
         });
 
         // The subquery itself attaches to the outer query with the outer mode's

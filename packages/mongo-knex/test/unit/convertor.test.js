@@ -926,4 +926,16 @@ describe('$elemMatch (single related row)', function () {
     it('throws when used on a non-relation key', function () {
         (() => runQuery({title: {$elemMatch: {foo: 'x'}}})).should.throw(/can only be used on a relation/);
     });
+
+    // A $not-wrapped $elemMatch negates the whole single-row match: no related row
+    // satisfies all the conditions, emitted as parent.id NOT IN that same subquery.
+    it('negates the single-row match with $not (NOT IN) on a one-to-one relation', function () {
+        runQuery({posts_meta: {$not: {$elemMatch: {meta_title: 'A', meta_description: 'B'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` not in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` in (\'A\') and `posts_meta`.`meta_description` in (\'B\'))');
+    });
+
+    it('negates a single-condition match with $not on a many-to-many relation', function () {
+        runQuery({tags: {$not: {$elemMatch: {slug: 'a'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` in (\'a\'))');
+    });
 });

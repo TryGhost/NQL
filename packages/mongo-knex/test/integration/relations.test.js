@@ -1146,6 +1146,17 @@ describe('Relations', function () {
     });
 
     describe('One-to-One', function () {
+        // A $not-wrapped $elemMatch excludes rows that HAVE a matching related row, so
+        // it also matches parents with no related row at all — proven here by execution
+        // (the NOT IN semantics differ from a positive match, and only real rows show it).
+        describe('$not $elemMatch (no matching related row)', function () {
+            it('excludes posts whose meta_title matches, keeping the rest', function () {
+                return makeQuery({posts_meta: {$not: {$elemMatch: {meta_title: 'Meta of Circle of Life'}}}})
+                    .select()
+                    .then(result => result.should.matchIds([1, 2, 3, 5, 6, 7, 8]));
+            });
+        });
+
         describe('EQUALS $eq', function () {
             it('posts_meta.meta_title equals "Meta of A Whole New World"', function () {
                 const mongoJSON = {
