@@ -12,8 +12,8 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint . --ext .js --cache",
-    "posttest": "yarn lint",
-    "test": "yarn test-unit && yarn test-integration --timeout 10000",
+    "posttest": "pnpm lint",
+    "test": "pnpm test-unit && pnpm test-integration --timeout 10000",
     "test-unit": "c8 --all --reporter text --reporter html --reporter cobertura mocha ./test/unit/*.test.js --exit",
     "test-integration": "mocha ./test/integration/*.test.js --exit"
   },

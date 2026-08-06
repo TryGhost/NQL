@@ -3,16 +3,16 @@
 ## Installation
 1. Make sure that `gstenv` is green. See [Dev Environment](https://github.com/TryGhost/Team/blob/master/Engineering/Dev%20Environment.md) for docs.
 2. `git clone` this repo & `cd` into it as usual
-3. Run `yarn` to install top-level dependencies.
+3. Run `pnpm install` to install top-level dependencies.
 
 ## Run
-- Use: `yarn dev`
+- Use: `pnpm dev`
 - View: [http://localhost:9999](http://localhost:9999)
 
 ## Test
-- `yarn lint` run just eslint
-- `yarn test` run lint && tests
-- `NODE_ENV=testing-mysql yarn test`
+- `pnpm lint` run just ESLint
+- `pnpm test` run lint && tests
+- `NODE_ENV=testing-mysql pnpm test`
   - Manual database creation is currently required.
 
 ## Debug

@@ -13,8 +13,8 @@
   "scripts": {
     "build": "jison src/nql.y src/nql.l -o dist/parser.js",
     "lint": "eslint . --ext .js --cache",
-    "pretest": "yarn build",
-    "posttest": "yarn lint",
+    "pretest": "pnpm build",
+    "posttest": "pnpm lint",
     "test": "NODE_ENV=testing c8 --all --reporter text --reporter html --reporter cobertura mocha ./test/**/*.test.js",
     "test:lex": "NODE_ENV=testing mocha ./test/**/lex*.test.js",
     "test:parse": "NODE_ENV=testing mocha ./test/**/pars*.test.js"
