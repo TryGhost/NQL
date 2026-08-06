@@ -1,0 +1,16 @@
+packages:
+  - 'packages/*'
+
+# Match Yarn Classic's workspace-linking behavior for matching local ranges.
+linkWorkspacePackages: true
+
+minimumReleaseAge: 4320
+strictDepBuilds: true
+blockExoticSubdeps: true
+
+allowBuilds:
+  # Lerna uses Nx's task runner without needing Nx's install-time setup.
+  'nx@23.1.1': false
+  # Required by the SQLite test matrix; the privileged publish job still uses
+  # --ignore-scripts and never executes this lifecycle script.
+  'sqlite3@6.0.1': true

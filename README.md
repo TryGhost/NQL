@@ -10,10 +10,11 @@ Utilities for using NQL
 
 ## Develop
 
-This is a mono repository, managed with [lerna](https://lernajs.io/).
+This is a monorepo managed with [Lerna](https://lerna.js.org/) and pnpm workspaces.
 
 1. `git clone` this repo & `cd` into it as usual
-2. `yarn setup` is mapped to `lerna bootstrap`
+2. Enable Corepack with `corepack enable`
+3. Run `pnpm setup`
    - installs all external dependencies
    - links all internal dependencies
 
@@ -24,18 +25,18 @@ To add a new package to the repo:
 
 ## Run
 
-- `yarn dev`
+- `pnpm dev`
 
 
 ## Test
 
-- `yarn lint` run just eslint
-- `yarn test` run lint and tests
+- `pnpm lint` runs just ESLint
+- `pnpm test` runs lint and tests
 
 
 ## Publish
 
-- `yarn ship` is an alias for `lerna version`
+- `pnpm ship` is an alias for `lerna version`
     - Bumps the version of all packages which have changed, also updating any packages which depend on them
     - Commits the new versions ("Published new versions"), tags the releases, and pushes to the remote (set `GHOST_UPSTREAM` to push to a remote other than `origin`)
     - Publishing to npm happens in CI: the [Publish workflow](.github/workflows/publish.yml) picks up the version commit on `main` and publishes any package versions missing from the registry via [OIDC trusted publishing](https://docs.npmjs.com/trusted-publishers)
