@@ -49,7 +49,7 @@ jobs:
           cache: yarn
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile --prefer-offline
+        run: yarn install --frozen-lockfile --prefer-offline --ignore-scripts
 
       - name: Build releasable packages
         run: yarn build
