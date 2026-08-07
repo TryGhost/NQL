@@ -3412,10 +3412,10 @@ min-indent@^1.0.0:
   resolved "https://registry.yarnpkg.com/min-indent/-/min-indent-1.0.1.tgz#a63f681673b30571fbe8bc25686ae746eefa9869"
   integrity sha512-I9jwMn07Sy/IwOj3zVkVik2JTvgpaykDZEigL6Rx6N9LbMywwUSMtxET+7lVoDLLd3O3IXwJwvuuns8UB/HeAg==
 
-mingo@2.5.3:
-  version "2.5.3"
-  resolved "https://registry.yarnpkg.com/mingo/-/mingo-2.5.3.tgz#bed3db76ca9b2cc29ae1f1ff83e3a8797dc47758"
-  integrity sha512-Wb98QEQ/DaT+xPQFAX08mzM/Zz2eW1UIpKH132gXglakl2SKYBCQFzeiFygS/Hgzc9j9MDDjgouB9W7BMaLyaQ==
+mingo@7.2.3:
+  version "7.2.3"
+  resolved "https://registry.yarnpkg.com/mingo/-/mingo-7.2.3.tgz#cc3010321e664842bb6a2ef9ce83c8ba493cfd8d"
+  integrity sha512-G83Ig4MLFlqGSLzopA4+/4p0WQpnOAwqZUSKiKUHjeH/mdDv1dGC83wkfr3VM0dp4yZtApjw+F0WM33GliN+8w==
 
 minimatch@10.2.5:
   version "10.2.5"
