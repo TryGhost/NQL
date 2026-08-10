@@ -74,6 +74,18 @@ const aggregateOperatorError = relationName => new Error(`Aggregate relation "${
 //eslint-disable-next-line ghost/ghost-custom/no-native-error
 const aggregateColumnError = relationName => new Error(`Aggregate relation "${relationName}" is queried by name only, without a column (e.g. "${relationName}:0")`);
 
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const elemMatchRelationError = key => new Error(`$elemMatch can only be used on a relation, not "${key}"`);
+
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const elemMatchEmptyError = relationName => new Error(`$elemMatch on "${relationName}" needs at least one condition`);
+
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const elemMatchOperatorError = (relationName, op) => new Error(`$elemMatch on "${relationName}" does not support the operator "${op}"`);
+
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const elemMatchColumnError = (relationName, column) => new Error(`$elemMatch on "${relationName}" cannot use a dotted column ("${column}")`);
+
 /**
  * Whether an aggregate comparison would match a parent row with no related rows
  * (aggregate value 0). Such rows don't appear in the grouped subquery at all, so
@@ -174,6 +186,23 @@ class MongoToKnex {
         this.config = {};
 
         Object.assign(this.config, {relations: {}}, config);
+    }
+
+    /**
+     * Apply one comparison to a query builder. A regex reaches here only via a relation
+     * subquery — the top-level path handles it in buildComparison — so it is converted
+     * to the same LIKE-with-ESCAPE form that contains/startsWith/endsWith use, so they
+     * work on a related column too. Everything else is the plain
+     * `qb[whereType](column, op, value)` call.
+     */
+    applyComparison(builder, whereType, column, op, value) {
+        if (value instanceof RegExp) {
+            const {source, ignoreCase} = processRegExp(value);
+            const lhs = ignoreCase ? 'lower(??)' : '??';
+            return builder[`${whereType}Raw`](`${lhs} ${op} ? ESCAPE ?`, [column, source, likeEscapeCharacter]);
+        }
+
+        return builder[whereType](column, op, value);
     }
 
     processWhereType(mode, op, value) {
@@ -306,6 +335,22 @@ class MongoToKnex {
              */
             const isAggregate = statement.config && statement.config.type === 'aggregate';
 
+            // CASE: all conditions of one `$elemMatch` must match a single related
+            //       row, so they share a subquery keyed by the match's id regardless
+            //       of operator - the "a negation matches a different row" reasoning
+            //       below never applies to them. This is the explicit same-row escape
+            //       hatch: everything outside an $elemMatch keeps the default grouping.
+            if (statement.elemMatchGroup !== undefined) {
+                const elemKey = `${statement.table}_elem_${statement.elemMatchGroup}`;
+
+                if (!group[elemKey]) {
+                    group[elemKey] = {innerWhereStatements: []};
+                }
+
+                group[elemKey].innerWhereStatements.push(statement);
+                return;
+            }
+
             let shouldCreateSubGroup = !isAggregate && isNegationOp(statement.operator);
             if (!shouldCreateSubGroup && !isAggregate && group[statement.table]) {
                 shouldCreateSubGroup = _.some(group[statement.table].innerWhereStatements, (innerStatement) => {
@@ -362,6 +407,9 @@ class MongoToKnex {
      */
     buildRelationQuery(qb, relations, mode) {
         debug(`(buildRelationQuery)`);
+        // The subquery bodies below are knex callbacks where `this` is the query
+        // builder, so hold onto the converter to reach its helpers from inside them.
+        const self = this;
 
         if (debugExtended.enabled) {
             debugExtended(`(buildRelationQuery) ${stringify(relations)}`);
@@ -385,16 +433,26 @@ class MongoToKnex {
             if (reference.config.type === 'manyToMany') {
                 if (_.every(statements.map(s => s.operator), isCompOp)) {
                     // CASE: only negate whole group when all the operators in the group are negative,
-                    // otherwise we cannot combine groups with negated and regular equation operators
-                    const negateGroup = _.every(statements.map(s => s.operator), (operator) => {
-                        return isNegationOp(operator);
-                    });
+                    // otherwise we cannot combine groups with negated and regular equation operators.
+                    // Two distinct negations converge on a NOT IN outer membership:
+                    //   - legacyNegate: a group whose conditions are all negations (e.g. {$ne, $ne})
+                    //     and no $elemMatch. By De Morgan the whole group negates, and each inner
+                    //     condition flips to its positive form ($in) inside the subquery.
+                    //   - elemMatchNegate: a $not-wrapped $elemMatch. The whole single-row match is
+                    //     negated (parent.id NOT IN that subquery), but the conditions inside keep
+                    //     their literal operators — only the outer membership flips.
+                    // A positive $elemMatch negates neither: each condition applies within the one row.
+                    const legacyNegate = reference.elemMatchGroup === undefined
+                        && _.every(statements.map(s => s.operator), (operator) => {
+                            return isNegationOp(operator);
+                        });
+                    const negateGroup = reference.elemMatchNegate === true || legacyNegate;
 
                     const comp = negateGroup
                         ? compOps.$nin
                         : compOps.$in;
 
-                    const whereType = ['whereNull', 'whereNotNull'].includes(reference.whereType) ? 'andWhere' : (['orWhereNull', 'orWhereNotNull'].includes(reference.whereType) ? 'orWhere' : reference.whereType);
+                    const whereType = reference.outerWhereType || (['whereNull', 'whereNotNull'].includes(reference.whereType) ? 'andWhere' : (['orWhereNull', 'orWhereNotNull'].includes(reference.whereType) ? 'orWhere' : reference.whereType));
 
                     // CASE: WHERE resource.id (IN | NOT IN) (SELECT ...)
                     qb[whereType](`${this.tableName}.id`, comp, function () {
@@ -433,7 +491,7 @@ class MongoToKnex {
                             const statementColumn = `${statement.joinTable || statement.table}.${statement.column}`;
                             let statementOp;
 
-                            if (negateGroup) {
+                            if (legacyNegate) {
                                 statementOp = compOps.$in;
                             } else {
                                 if (isNegationOp(statement.operator)) {
@@ -450,7 +508,7 @@ class MongoToKnex {
                                 statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
                             }
 
-                            innerQB[statement.whereType](statementColumn, statementOp, statementValue);
+                            self.applyComparison(innerQB, statement.whereType, statementColumn, statementOp, statementValue);
                         });
 
                         if (debugExtended.enabled) {
@@ -465,17 +523,27 @@ class MongoToKnex {
             } else if (reference.config.type === 'oneToOne') {
                 if (_.every(statements.map(s => s.operator), isCompOp)) {
                     // CASE: only negate whole group when all the operators in the group are negative,
-                    // otherwise we cannot combine groups with negated and regular equation operators
-                    const negateGroup = _.every(statements.map(s => s.operator), (operator) => {
-                        return isNegationOp(operator);
-                    });
+                    // otherwise we cannot combine groups with negated and regular equation operators.
+                    // Two distinct negations converge on a NOT IN outer membership:
+                    //   - legacyNegate: a group whose conditions are all negations (e.g. {$ne, $ne})
+                    //     and no $elemMatch. By De Morgan the whole group negates, and each inner
+                    //     condition flips to its positive form ($in) inside the subquery.
+                    //   - elemMatchNegate: a $not-wrapped $elemMatch. The whole single-row match is
+                    //     negated (parent.id NOT IN that subquery), but the conditions inside keep
+                    //     their literal operators — only the outer membership flips.
+                    // A positive $elemMatch negates neither: each condition applies within the one row.
+                    const legacyNegate = reference.elemMatchGroup === undefined
+                        && _.every(statements.map(s => s.operator), (operator) => {
+                            return isNegationOp(operator);
+                        });
+                    const negateGroup = reference.elemMatchNegate === true || legacyNegate;
 
                     const comp = negateGroup
                         ? compOps.$nin
                         : compOps.$in;
                     const tableName = this.tableName;
 
-                    const where = reference.whereType === 'orWhere' ? 'orWhere' : 'where';
+                    const where = (reference.outerWhereType || reference.whereType) === 'orWhere' ? 'orWhere' : 'where';
                     qb[where](`${this.tableName}.id`, comp, function () {
                         const joinFilterStatements = groupedRelations[key].joinFilterStatements;
 
@@ -507,9 +575,10 @@ class MongoToKnex {
                             const statementColumn = `${statement.table}.${statement.column}`;
                             let statementOp;
 
-                            // NOTE: this negation is here to ensure records with no relation are
-                            //       include in negation (e.g. `relation.columnName: {$ne: null})
-                            if (negateGroup) {
+                            // NOTE: this null flip ensures records with no relation are included in a
+                            //       De Morgan negation (e.g. `relation.columnName: {$ne: null}`). A
+                            //       $not $elemMatch keeps its conditions literal, so it does not flip.
+                            if (legacyNegate) {
                                 statementOp = compOps.$in;
 
                                 if (statement.value === null) {
@@ -530,7 +599,7 @@ class MongoToKnex {
                                 statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
                             }
 
-                            innerQB[statement.whereType](statementColumn, statementOp, statementValue);
+                            self.applyComparison(innerQB, statement.whereType, statementColumn, statementOp, statementValue);
                         });
 
                         if (debugExtended.enabled) {
@@ -705,11 +774,7 @@ class MongoToKnex {
             }
 
             // CASE: if the statement is part of a group, collect the relation statements to be able to group them later
-            if (!Object.prototype.hasOwnProperty.call(qb, 'relations')) {
-                qb.relations = [];
-            }
-
-            qb.relations.push(processedStatement);
+            this.collectRelationStatements(qb, [processedStatement]);
             return;
         }
 
@@ -736,7 +801,7 @@ class MongoToKnex {
         }
 
         debug(`(buildComparison) whereType: ${whereType}, statement: ${statement}, op: ${op}, comp: ${comp}, value: ${value}`);
-        qb[whereType](column, comp, value);
+        this.applyComparison(qb, whereType, column, comp, value);
     }
 
     /**
@@ -758,12 +823,79 @@ class MongoToKnex {
         //       (unknown operators on aggregate relations were already rejected by
         //       the validateAggregateStatements pre-pass in processJSON)
         _.forIn(sub, (value, op) => {
-            if (isCompOp(op)) {
+            if (op === '$elemMatch') {
+                this.buildElemMatch(qb, mode, statement, value, group, false);
+            } else if (op === '$not' && _.isObject(value) && value.$elemMatch) {
+                // `{relation: {$not: {$elemMatch: {…}}}}` negates the single-row match:
+                // no related row satisfies all the conditions (parent.id NOT IN …).
+                this.buildElemMatch(qb, mode, statement, value.$elemMatch, group, true);
+            } else if (isCompOp(op)) {
                 this.buildComparison(qb, mode, statement, op, value, group);
             } else {
                 debug('unknown operator');
             }
         });
+    }
+
+    /**
+     * `{relation: {$elemMatch: {col: value, otherCol: {$ne: x}}}}`
+     *
+     * Match a single related row against all of the given conditions at once,
+     * emitted as one correlated subquery (`parent.id IN (SELECT … WHERE cond AND
+     * cond …)`). Without it, each condition on a multi-row relation is an
+     * independent existence check - a negation in particular becomes its own
+     * `NOT IN`, so a discriminator+value pair like `key = 'company' AND value != 'x'`
+     * would match different rows. `$elemMatch` is the explicit way to say the whole
+     * group describes one row; everything outside it keeps the default per-condition
+     * grouping untouched.
+     */
+    buildElemMatch(qb, mode, relationName, conditions, group, negate = false) {
+        // The relation, the non-empty-object shape, and the inner operators have already
+        // been validated by validateElemMatchStatements during conversion, so this builds
+        // from conditions it can trust.
+        const collector = {};
+        const elemMatchGroup = (this.elemMatchSeq = (this.elemMatchSeq || 0) + 1);
+
+        // Inner conditions are always ANDed - a single row satisfies all of them - so
+        // process them as an $and regardless of the mode the match itself sits in. Each
+        // inner key names a column on the related row.
+        _.forIn(conditions, (conditionValue, conditionColumn) => {
+            this.buildWhereClause(collector, '$and', `${relationName}.${conditionColumn}`, conditionValue, true);
+        });
+
+        const statements = collector.relations || [];
+
+        statements.forEach((statement) => {
+            statement.elemMatchGroup = elemMatchGroup;
+            statement.elemMatchNegate = negate;
+        });
+
+        // The subquery attaches to the outer query with the outer mode's conjunction.
+        // Carried out-of-band on the first statement rather than overwriting its
+        // whereType, which still drives its own inner comparison — a null condition
+        // needs its whereNull left in place, or it degrades to `= NULL`.
+        if (mode === '$or' && statements.length) {
+            statements[0].outerWhereType = 'orWhere';
+        }
+
+        // CASE: not part of an outer group - attach the subquery immediately.
+        if (!group) {
+            this.buildRelationQuery(qb, statements, mode);
+            return;
+        }
+
+        // CASE: part of a group - hand the statements to the group's relation flush
+        //       so the subquery composes with sibling relation filters.
+        this.collectRelationStatements(qb, statements);
+    }
+
+    // Stash relation statements on the builder for the group's deferred relation
+    // flush (see buildWhereGroup), lazily creating the list on first use.
+    collectRelationStatements(qb, statements) {
+        if (!Object.prototype.hasOwnProperty.call(qb, 'relations')) {
+            qb.relations = [];
+        }
+        qb.relations.push(...statements);
     }
 
     /**
@@ -865,6 +997,72 @@ class MongoToKnex {
         });
     }
 
+    // Walks the filter for $elemMatch clauses (bare or wrapped in $not) and validates
+    // each one. Raised here, before query building, so a match nested in an $and/$or
+    // group fails at conversion rather than deep inside a knex where-callback at render
+    // time — the same reason validateAggregateStatements exists.
+    validateElemMatchStatements(sub) {
+        if (!_.isPlainObject(sub)) {
+            return;
+        }
+
+        _.forIn(sub, (value, key) => {
+            if (isLogicOp(key)) {
+                _.castArray(value).forEach(group => this.validateElemMatchStatements(group));
+                return;
+            }
+
+            if (isOp(key) || !_.isPlainObject(value)) {
+                return;
+            }
+
+            const conditions = value.$elemMatch !== undefined
+                ? value.$elemMatch
+                : (_.isPlainObject(value.$not) ? value.$not.$elemMatch : undefined);
+
+            if (conditions !== undefined) {
+                this.validateElemMatch(key, conditions);
+            }
+        });
+    }
+
+    validateElemMatch(relationName, conditions) {
+        if (!this.config.relations[relationName]) {
+            throw elemMatchRelationError(relationName);
+        }
+
+        // A non-object (string, number, array) would iterate as bogus columns; an empty
+        // one places no constraint and silently widens the result to every parent.
+        if (!_.isPlainObject(conditions) || _.isEmpty(conditions)) {
+            throw elemMatchEmptyError(relationName);
+        }
+
+        _.forIn(conditions, (conditionValue, conditionColumn) => {
+            // A condition names a column, not an operator: a logical or nested operator in
+            // the match body (e.g. $or, a nested $elemMatch) is a non-goal, not a column.
+            if (isOp(conditionColumn)) {
+                throw elemMatchOperatorError(relationName, conditionColumn);
+            }
+
+            // A dotted key would be split by processStatement into relation.column and lose
+            // every segment after the first, silently comparing a different column.
+            if (conditionColumn.includes('.')) {
+                throw elemMatchColumnError(relationName, conditionColumn);
+            }
+
+            // Each operator applied to that column must be one the subquery can compile,
+            // so a typo'd operator is rejected rather than silently dropped — which would
+            // leave fewer conditions in place and widen the single-row match.
+            if (_.isPlainObject(conditionValue)) {
+                _.forIn(conditionValue, (operatorValue, op) => {
+                    if (!isCompOp(op)) {
+                        throw elemMatchOperatorError(relationName, op);
+                    }
+                });
+            }
+        });
+    }
+
     /**
      * The converter receives sub query objects e.g. `qb.where('..', (qb) => {})`, which
      * we then pass around to our class methods. That's why we pass the parent `qb` object
@@ -879,6 +1077,7 @@ class MongoToKnex {
         }
 
         this.validateAggregateStatements(mongoJSON);
+        this.validateElemMatchStatements(mongoJSON);
 
         // 'and' is the default behaviour
         this.buildQuery(qb, '$and', mongoJSON);
