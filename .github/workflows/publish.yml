@@ -45,7 +45,6 @@ jobs:
           FORCE_COLOR: 0
         with:
           node-version: 24
-          registry-url: 'https://registry.npmjs.org'
           cache: yarn
 
       - name: Install dependencies
