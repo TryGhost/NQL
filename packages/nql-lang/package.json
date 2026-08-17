@@ -32,6 +32,6 @@
     "sinon": "22.1.0"
   },
   "dependencies": {
-    "luxon": "^3.7.2"
+    "luxon": "3.7.2"
   }
 }
