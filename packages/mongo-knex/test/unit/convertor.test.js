@@ -176,6 +176,41 @@ describe('Comparison Query Operators', function () {
             .should.eql('select * from `posts` where lower(`posts`.`email`) like \'%gmail.com\' ESCAPE \'*\'');
     });
 
+    // A value can contain the very characters the anchors are written with. Those arrive escaped
+    // — `5\$`, `\^caret` — so the anchors have to be read before the escaping is removed. Read
+    // afterwards, a literal dollar and an end anchor are the same character, and `contains '5$'`
+    // compiles to the same pattern as `endsWith '5'` while selecting different rows.
+    it('treats an escaped $ as part of the value, not an end anchor', function () {
+        runQuery({title: {$regex: /5\$/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%5$%\' ESCAPE \'*\'');
+    });
+
+    it('can match endswith on a value that itself ends in $', function () {
+        runQuery({title: {$regex: /5\$$/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%5$\' ESCAPE \'*\'');
+    });
+
+    it('treats an escaped ^ as part of the value, not a start anchor', function () {
+        runQuery({title: {$regex: /\^caret/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%^caret%\' ESCAPE \'*\'');
+    });
+
+    it('can match startswith on a value that itself starts with ^', function () {
+        runQuery({title: {$regex: /^\^caret/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'^caret%\' ESCAPE \'*\'');
+    });
+
+    it('can match anchored at both ends, which takes no wildcard at all', function () {
+        runQuery({title: {$regex: /^exact$/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'exact\' ESCAPE \'*\'');
+    });
+
+    // The backslash before the `$` is itself escaped, so the `$` after it is still the anchor.
+    it('reads an end anchor that follows a value ending in a backslash', function () {
+        runQuery({title: {$regex: /a\\$/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%a\\\\\' ESCAPE \'*\'');
+    });
+
     // % and _ don't have a meaning in regexes, but they do in LIKE, so they should be escaped in the resulting query
     it('correctly escapes _ LIKE special character', function () {
         // Get all posts that contain __GHOST_URL__

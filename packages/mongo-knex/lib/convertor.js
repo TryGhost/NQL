@@ -119,10 +119,40 @@ const stringify = (json) => {
     });
 };
 
+/**
+ * Whether a trailing `$` anchors the pattern, rather than being a dollar in the value.
+ *
+ * A value containing a dollar arrives escaped, as `5\$`, which still ends in `$`. An odd run
+ * of backslashes before it means it is escaped and so part of the value.
+ */
+const hasEndAnchor = (source) => {
+    if (!source.endsWith('$')) {
+        return false;
+    }
+
+    let backslashes = 0;
+
+    for (let index = source.length - 2; index >= 0 && source[index] === '\\'; index -= 1) {
+        backslashes += 1;
+    }
+
+    return backslashes % 2 === 0;
+};
+
 const processRegExp = ({source, ignoreCase}) => {
     // A regexp is transformed into a LIKE SQL query.
-    // So we need to remove all the regexp escaped characters
-    // We don't support any special regexp operators apart from startsWith and endsWith (or both) queries
+    // We don't support any special regexp operators apart from startsWith and endsWith (or both).
+    //
+    // The anchors have to be read before the escaped characters are removed, not after. A value
+    // holding a literal `^` or `$` reaches here escaped — `\^abc`, `abc\$` — and unescaping
+    // first makes it indistinguishable from the anchor of the same name, so `contains 'abc$'`
+    // would compile to the same LIKE pattern as `endsWith 'abc'`.
+    const startAnchor = source.startsWith('^');
+    const endAnchor = hasEndAnchor(source);
+
+    source = source.slice(startAnchor ? 1 : 0, endAnchor ? -1 : undefined);
+
+    // Now that the anchors are accounted for, what is left is the value itself.
     source = source.replace(/\\([.*+?^${}()|[\]\\/])/g, '$1');
 
     if (ignoreCase) {
@@ -136,13 +166,15 @@ const processRegExp = ({source, ignoreCase}) => {
     source = source.replace(/%/g, likeEscapeCharacter + '%');
     source = source.replace(/_/g, likeEscapeCharacter + '_');
 
-    // For starts with and ends with in SQL we have to put the wildcard at the opposite end of the string to the regex symbol!
-    if (source.startsWith('^')) {
-        source = source.substring(1) + '%';
-    } else if (source.endsWith('$')) {
-        source = '%' + source.substring(0, source.length - 1);
-    } else {
-        source = '%' + source + '%';
+    // For starts with and ends with in SQL we have to put the wildcard at the opposite end of
+    // the string to the regex symbol!
+    // Anchored at both ends is an exact match, so it takes no wildcard at all.
+    if (!startAnchor) {
+        source = '%' + source;
+    }
+
+    if (!endAnchor) {
+        source = source + '%';
     }
 
     return {source, ignoreCase};
