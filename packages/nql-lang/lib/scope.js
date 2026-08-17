@@ -1,12 +1,6 @@
 const util = require('util');
 
-const add = require('date-fns/add');
-const sub = require('date-fns/sub');
-
-const ops = {
-    add,
-    sub
-};
+const {DateTime} = require('luxon');
 
 const intervals = {
     d: 'days',
@@ -18,21 +12,10 @@ const intervals = {
     s: 'seconds'
 };
 
-/**
- * Return a string "year-month-day hours:minutes:seconds"
- * This format works for both SQLite3 and MySQL when used with >
- * We don't use date-fns format because it always outputs local time and we want UTC
- * This is a bit of a hack, but it's the least amount of code that gives us the right thing
- * @TODO: add proper tests for this
- *
- * @param {Date} date
- * @returns {String} formattedDate in the form "year-month-day hours:minutes:seconds"
- */
-const formatDateForSQL = (date) => {
-    const isoDate = date.toISOString();
-    // Replace the T with a space, and strip the milliseconds and timezone from the end of the string
-    return isoDate.replace('T', ' ').replace(/\.[0-9]{3}Z/, '');
-};
+// "year-month-day hours:minutes:seconds", which works for both SQLite3 and
+// MySQL when used with >. Note that `toSQL()` looks like the obvious call here
+// but appends milliseconds, which we don't want.
+const SQL_FORMAT = 'yyyy-MM-dd HH:mm:ss';
 
 module.exports = {
     ungroup(value) {
@@ -65,10 +48,15 @@ module.exports = {
             return {$relativeDate: {op, amount: Number(amount), unit: intervals[duration]}};
         }
 
-        const now = new Date();
-        const relDate = ops[op](now, {[intervals[duration]]: amount});
+        // Resolve against UTC explicitly. The output is compared against stored
+        // UTC timestamps, so the calendar arithmetic has to happen in UTC too -
+        // doing it in the server's local zone makes "now-1d" 23 or 25 hours
+        // either side of a DST transition.
+        const now = DateTime.utc();
+        const relDuration = {[intervals[duration]]: Number(amount)};
+        const relDate = op === 'add' ? now.plus(relDuration) : now.minus(relDuration);
 
-        return formatDateForSQL(relDate);
+        return relDate.toFormat(SQL_FORMAT);
     },
 
     debug() {
