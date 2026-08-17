@@ -21,6 +21,7 @@
     "access": "public"
   },
   "devDependencies": {
+    "better-sqlite3": "13.0.3",
     "bluebird": "3.7.2",
     "c8": "12.0.0",
     "eslint": "8.57.1",
@@ -30,8 +31,7 @@
     "mysql2": "3.23.3",
     "nconf": "0.13.0",
     "should": "13.2.3",
-    "sinon": "22.1.0",
-    "sqlite3": "6.0.1"
+    "sinon": "22.1.0"
   },
   "dependencies": {
     "debug": "4.4.3",
