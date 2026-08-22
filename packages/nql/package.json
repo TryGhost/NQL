@@ -22,7 +22,7 @@
     "better-sqlite3": "13.0.3",
     "bluebird": "3.7.2",
     "c8": "12.0.0",
-    "eslint": "8.57.1",
+    "eslint": "10.8.1",
     "eslint-plugin-ghost": "3.5.0",
     "knex": "3.3.0",
     "mocha": "11.8.0",
