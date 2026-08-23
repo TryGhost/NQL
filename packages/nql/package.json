@@ -26,7 +26,7 @@
     "eslint-plugin-ghost": "3.5.0",
     "knex": "3.3.0",
     "mocha": "11.8.0",
-    "mysql2": "3.23.3",
+    "mysql2": "3.23.4",
     "nconf": "0.13.0",
     "should": "13.2.3",
     "sinon": "22.1.0"
