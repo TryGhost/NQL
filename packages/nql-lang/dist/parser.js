@@ -169,10 +169,10 @@ case 24:
  this.$ = yy.relDateToAbsolute($$[$0-2], $$[$0-1], $$[$0]) 
 break;
 case 25:
- this.$ = yy.unescape($$[$0]); 
+ this.$ = yy.normalizeAbsoluteDate(yy.unescape($$[$0])); 
 break;
 case 26:
- $$[$0] = $$[$0].replace(/^'|'$/g, ''); this.$ = yy.unescape($$[$0]); 
+ $$[$0] = $$[$0].replace(/^'|'$/g, ''); this.$ = yy.normalizeAbsoluteDate(yy.unescape($$[$0])); 
 break;
 case 27:
  this.$ = "add"; 
