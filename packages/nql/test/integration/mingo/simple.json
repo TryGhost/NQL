@@ -8,7 +8,8 @@
             "featured": false,
             "image": null,
             "status": "published",
-            "tags": ["photo"]
+            "tags": ["photo"],
+            "created_at": "2022-03-02T10:14:23.000Z"
         },
         {
             "id": 2,
@@ -18,7 +19,8 @@
             "featured": false,
             "image": "myimage.jpg",
             "status": "draft",
-            "tags": ["video"]
+            "tags": ["video"],
+            "created_at": "2022-03-02 10:14:23"
         },
         {
             "id": 3,

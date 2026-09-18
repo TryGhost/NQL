@@ -413,4 +413,46 @@ describe('Integration with Mingo', function () {
             query.queryJSON(advancedJSON.posts[4]).should.eql(false);
         });
     });
+
+    describe.only('Dates', function () {
+        // Dates are a nightmare because SQLite3 and MySQL work differently, and knex doesn't help here
+        // The date format that goes into a database has to be YYYY-MM-DD HH:mm:ss, but what comes out is normalised to ISO YYYY-MM-DDTHH:mm:ss.000Z
+
+        it('can query JSON by date', function () {
+            const query = makeQuery('created_at:>=\'2022-03-02 10:14:23\'');
+
+            query.queryJSON({created_at: '2022-03-02T10:14:23.000Z'}).should.eql(true);
+            query.queryJSON({created_at: '2022-03-02 10:14:23'}).should.eql(true);
+            query.queryJSON({created_at: '2022-03-02T10:14:24.000Z'}).should.eql(true);
+            query.queryJSON({created_at: '2022-03-02 10:14:24'}).should.eql(true);
+            // FAIL query.queryJSON({created_at: '2022-03-02T10:14:22.000Z'}).should.eql(false);
+            query.queryJSON({created_at: '2022-03-02 10:14:22'}).should.eql(false);
+
+            query.queryJSON({}).should.eql(false);
+        });
+
+        it('can query JSON by ISO date', function () {
+            const query = makeQuery('created_at:>=\'2022-03-02T10:14:23.000Z\'');
+
+            query.queryJSON({created_at: '2022-03-02T10:14:23.000Z'}).should.eql(true);
+            // FAIL query.queryJSON({created_at: '2022-03-02 10:14:23'}).should.eql(true);
+            query.queryJSON({created_at: '2022-03-02T10:14:24.000Z'}).should.eql(true);
+            // FAIL query.queryJSON({created_at: '2022-03-02 10:14:24'}).should.eql(true);
+            query.queryJSON({created_at: '2022-03-02T10:14:22.000Z'}).should.eql(false);
+            query.queryJSON({created_at: '2022-03-02 10:14:22'}).should.eql(false);
+
+            query.queryJSON({}).should.eql(false);
+        });
+
+        it('can query JSON by rel date', function () {
+            const query = makeQuery('created_at:>=now-1d');
+
+            console.log(new Date().toISOString());
+            console.log(new Date());
+
+            query.queryJSON({created_at: new Date().toISOString()}).should.eql(true);
+            query.queryJSON({created_at: '2022-01-00T00:00:00.000Z'}).should.eql(false);
+            query.queryJSON({created_at: '2022-01-00 00:00:00'}).should.eql(false);
+        });
+    });
 });
