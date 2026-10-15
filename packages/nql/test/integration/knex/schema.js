@@ -10,6 +10,7 @@ module.exports.up = function (knex) {
             table.boolean('featured').defaultsTo(false);
             table.string('image', 191).nullable();
             table.string('status', 191).nullable();
+            table.timestamps(true, true);
         }));
 };
 
