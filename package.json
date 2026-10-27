@@ -20,6 +20,9 @@
     "preship": "yarn test",
     "ship": "lerna version --git-remote ${GHOST_UPSTREAM:-origin}"
   },
+  "resolutions": {
+    "underscore": "1.13.8"
+  },
   "devDependencies": {
     "eslint": "8.57.1",
     "eslint-plugin-ghost": "4.0.1",
