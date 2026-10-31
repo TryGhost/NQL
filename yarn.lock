@@ -2673,10 +2673,10 @@ mimic-fn@2.1.0, mimic-fn@^2.1.0:
   resolved "https://registry.yarnpkg.com/mimic-fn/-/mimic-fn-2.1.0.tgz#7ed2c2ccccaf84d3ffcb7a69b57711fc2083401b"
   integrity sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==
 
-mingo@2.5.3:
-  version "2.5.3"
-  resolved "https://registry.yarnpkg.com/mingo/-/mingo-2.5.3.tgz#bed3db76ca9b2cc29ae1f1ff83e3a8797dc47758"
-  integrity sha512-Wb98QEQ/DaT+xPQFAX08mzM/Zz2eW1UIpKH132gXglakl2SKYBCQFzeiFygS/Hgzc9j9MDDjgouB9W7BMaLyaQ==
+mingo@7.2.6:
+  version "7.2.6"
+  resolved "https://registry.yarnpkg.com/mingo/-/mingo-7.2.6.tgz#3bd50858a7c1f3679cf257d92eb456c63ce0d881"
+  integrity sha512-vh7kGO+qZ4zmTHH5hFlXMgyb1RuInN6/++GA11cdQclZP2NXeOYo0V/kjS43YBgF3FuxuF0tZ9F6fIr0dE/vkA==
 
 minimatch@10.2.5:
   version "10.2.5"
