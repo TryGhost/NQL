@@ -27,9 +27,9 @@
     "underscore": "1.13.8"
   },
   "devDependencies": {
-    "@nx/js": "23.3.1",
+    "@nx/js": "24.0.2",
     "eslint": "8.57.1",
     "eslint-plugin-ghost": "4.0.1",
-    "nx": "23.3.1"
+    "nx": "24.0.2"
   }
 }
