@@ -91,7 +91,7 @@ jobs:
             (cd "$dir" && npm publish ${{ (github.event.inputs['dry-run'] == 'true' && '--dry-run') || '' }})
           done
 
-      - uses: tryghost/actions/actions/slack-build@be321d6e6bd421c2f0815a6909675375cebfc3f1 # main
+      - uses: tryghost/actions/actions/slack-build@840763ec4113f31c6063f3ca9868c30626a876bc # main
         if: failure()
         with:
           status: ${{ job.status }}
