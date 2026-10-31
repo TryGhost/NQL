@@ -12,20 +12,24 @@
   ],
   "scripts": {
     "dev": "echo \"Implement me!\"",
-    "build": "lerna run --scope @tryghost/nql-lang build",
+    "build": "nx run-many -t build",
     "setup": "pnpm install",
-    "test": "lerna run test",
-    "pretest": "pnpm build",
-    "lint": "lerna run lint",
-    "preship": "pnpm test",
-    "ship": "lerna version --git-remote ${GHOST_UPSTREAM:-origin}"
+    "test": "pnpm lint && pnpm nx run-many -t test",
+    "lint": "nx run-many -t lint",
+    "preship": "test \"$(git branch --show-current)\" = main && test -z \"$(git status --porcelain)\" || (echo \"Error: ship from a clean main branch\" && exit 1) && pnpm test",
+    "ship": "nx release version --git-push --git-remote ${GHOST_UPSTREAM:-origin}",
+    "test:ci": "pnpm lint && pnpm nx run-many -t test --outputStyle=static",
+    "ship:patch": "pnpm ship patch",
+    "ship:minor": "pnpm ship minor",
+    "ship:major": "pnpm ship major"
   },
   "resolutions": {
     "underscore": "1.13.8"
   },
   "devDependencies": {
+    "@nx/js": "23.3.1",
     "eslint": "8.57.1",
     "eslint-plugin-ghost": "4.0.1",
-    "lerna": "10.1.1"
+    "nx": "23.3.1"
   }
 }
