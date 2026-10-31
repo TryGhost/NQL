@@ -33,6 +33,7 @@ jobs:
       FORCE_COLOR: 1
       CI: true
       NPM_CONFIG_PROVENANCE: true
+      PNPM_CONFIG_PROVENANCE: true
       NPM_CONFIG_REGISTRY: 'https://registry.npmjs.org'
 
     steps:
@@ -112,43 +113,52 @@ jobs:
       - name: Build releasable packages
         run: pnpm build
 
-      - name: Configure npm registry
-        run: |
-          cat > "$HOME/.npmrc" <<EOF
-          registry=https://registry.npmjs.org/
-          @tryghost:registry=https://registry.npmjs.org/
-          EOF
-          npm config get registry
-          npm config get @tryghost:registry
-
       - name: Determine packages to publish
         id: pubs
+        # Match framework's unpublished-version selection. A registry outage or
+        # authentication failure must fail the job, not queue every package.
         run: |
-          to_publish=()
-          for pkg in packages/*/package.json; do
-            name=$(jq -r .name "$pkg")
-            version=$(jq -r .version "$pkg")
-            if [ -n "$(npm view "$name@$version" version 2>/dev/null)" ]; then
-              echo "skip $name@$version (already published)"
-            else
-              echo "queue $name@$version"
-              to_publish+=("$(dirname "$pkg")")
-            fi
-          done
-          if [ ${#to_publish[@]} -eq 0 ]; then
-            echo "nothing to publish"
-            echo "dirs=" >> "$GITHUB_OUTPUT"
-          else
-            (IFS=,; echo "dirs=${to_publish[*]}") >> "$GITHUB_OUTPUT"
-          fi
+          python3 - <<'PYTHON'
+          import json
+          import os
+          from pathlib import Path
+          from urllib.error import HTTPError
+          from urllib.parse import quote
+          from urllib.request import urlopen
+
+          projects = []
+          for manifest in sorted(Path('packages').glob('*/package.json')):
+              package = json.loads(manifest.read_text())
+              if package.get('private'):
+                  continue
+              name, version = package['name'], package['version']
+              url = f'https://registry.npmjs.org/{quote(name, safe="@/")}/{quote(version, safe="")}'
+              try:
+                  with urlopen(url, timeout=60) as response:
+                      published = json.load(response)
+                  if published.get('name') != name or published.get('version') != version:
+                      raise SystemExit(f'Unexpected registry response for {name}@{version}')
+                  print(f'skip {name}@{version} (already published)')
+              except HTTPError as error:
+                  if error.code != 404:
+                      raise
+                  print(f'queue {name}@{version}')
+                  projects.append(name)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'projects={",".join(projects)}\n')
+          PYTHON
+
+      - name: Publish to npm (dry run)
+        if: steps.pubs.outputs.projects != '' && github.event.inputs['dry-run'] == 'true'
+        run: pnpm exec nx release publish --projects="$PUBLISH_PROJECTS" --dry-run
+        env:
+          PUBLISH_PROJECTS: ${{ steps.pubs.outputs.projects }}
 
       - name: Publish to npm
-        if: steps.pubs.outputs.dirs != ''
-        run: |
-          IFS=',' read -ra dirs <<< "${{ steps.pubs.outputs.dirs }}"
-          for dir in "${dirs[@]}"; do
-            (cd "$dir" && npm publish ${{ (github.event.inputs['dry-run'] == 'true' && '--dry-run') || '' }})
-          done
+        if: steps.pubs.outputs.projects != '' && github.event.inputs['dry-run'] != 'true'
+        run: pnpm exec nx release publish --projects="$PUBLISH_PROJECTS"
+        env:
+          PUBLISH_PROJECTS: ${{ steps.pubs.outputs.projects }}
 
       - uses: tryghost/actions/actions/slack-build@ba80e856a5aaaf689992562dc7c28f7c60efbd21 # main
         if: failure()

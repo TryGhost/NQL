@@ -65,3 +65,6 @@ typings/
 .DS_Store
 
 # NQL Custom
+
+# Nx task cache and workspace data
+.nx/

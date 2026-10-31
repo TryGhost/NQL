@@ -9,5 +9,5 @@ strictDepBuilds: true
 blockExoticSubdeps: true
 
 allowBuilds:
-  # Lerna uses Nx's task runner without its install-time setup.
+  # Nx works without its optional install-time setup.
   'nx@23.3.1': false

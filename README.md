@@ -10,7 +10,7 @@ Utilities for using NQL
 
 ## Develop
 
-This is a monorepo managed with [Lerna](https://lerna.js.org/) and pnpm workspaces.
+This is a monorepo managed with [Nx](https://nx.dev) and pnpm workspaces.
 
 1. `git clone` this repo & `cd` into it as usual
 2. Install the pnpm version declared in `packageManager` using the [pnpm installation guide](https://pnpm.io/installation)
@@ -36,12 +36,32 @@ To add a new package to the repo:
 
 ## Publish
 
-- `pnpm ship` is an alias for `lerna version`
-    - Bumps the version of all packages which have changed, also updating any packages which depend on them
-    - Commits the new versions ("Published new versions"), tags the releases, and pushes to the remote (set `GHOST_UPSTREAM` to push to a remote other than `origin`)
-    - Publishing to npm happens in CI: the [Publish workflow](.github/workflows/publish.yml) picks up the version commit on `main` and publishes any package versions missing from the registry via [OIDC trusted publishing](https://docs.npmjs.com/trusted-publishers)
-    - If a publish fails, re-run the Publish workflow from the Actions tab (with dry-run disabled) — it only publishes versions not yet on the registry, so it is safe to retry
+1. Run `pnpm ship` in the top-level NQL directory. This checks the working tree,
+   runs tests, prompts for independent package versions, and pushes the version
+   commit and package tags to `main`.
+2. CI builds the packages and uses Nx Release to publish versions missing from
+   npm using OIDC trusted publishing and provenance. Dependency install scripts
+   remain disabled in the publishing job.
 
+This follows framework's Nx release pattern. `pnpm ship` only versions, commits
+and tags; publishing happens in CI. Existing npm names, independent versions and
+`@tryghost/<package>@<version>` tags are preserved.
+
+- `pnpm ship:patch`, `pnpm ship:minor`, `pnpm ship:major` apply the chosen bump to
+  all packages. These commands also update dependent workspace ranges.
+  Bump names retain their Lerna meaning for 0.x packages: `minor` advances the
+  minor number and `major` graduates the package to 1.0.0.
+- To select packages, use npm package names, for example
+  `pnpm ship:minor --projects=@tryghost/nql-lang`.
+- Preview versions with `pnpm exec nx release version patch --dry-run` (add
+  `--projects=<name>` to narrow the selection). This does not push or publish.
+- Preview publishing with `pnpm build && pnpm exec nx release publish --dry-run`.
+  This does not version or push.
+
+Use `GHOST_UPSTREAM=upstream pnpm ship` when `origin` points to a fork and
+`upstream` points to TryGhost/NQL. Ship from the upstream `main` branch. CI can
+also be dispatched manually with dry-run enabled; retrying a publish skips
+versions already present in the registry.
 
 # Copyright & License 
 
