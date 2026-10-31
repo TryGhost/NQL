@@ -4,7 +4,7 @@
  * Shared utils for writing tests
  */
 
-// DEFAULT env is sqlite3
+// DEFAULT env is better-sqlite3
 if (!process.env.NODE_ENV) {
     process.env.NODE_ENV = 'testing';
 }

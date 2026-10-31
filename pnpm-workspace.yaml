@@ -9,8 +9,5 @@ strictDepBuilds: true
 blockExoticSubdeps: true
 
 allowBuilds:
-  # Lerna uses Nx's task runner without needing Nx's install-time setup.
-  'nx@23.1.1': false
-  # Required by the SQLite test matrix; the privileged publish job still uses
-  # --ignore-scripts and never executes this lifecycle script.
-  'sqlite3@6.0.1': true
+  # Lerna uses Nx's task runner without its install-time setup.
+  'nx@23.3.1': false

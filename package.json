@@ -1,6 +1,6 @@
 {
   "private": true,
-  "packageManager": "pnpm@11.15.1+sha512.81350b07e53c9538a02f1f2303b4290fa2d7be04e56e2a970c4cc4b417dc761de196edabd49d55c7dc9580db81007c44143e4e3d7e462b3000d23c255122d065",
+  "packageManager": "pnpm@12.16.1+sha512.091d1dee7927575661b25dab3c2ae31cafc1c54d6b71ed6a6600cf0c1cb10434a447eae14015f1b23e2e6bedeed79df94a932e2164d2832280dce3fb32f656d1",
   "repository": "https://github.com/TryGhost/NQL",
   "author": "Ghost Foundation",
   "license": "MIT",
@@ -20,9 +20,12 @@
     "preship": "pnpm test",
     "ship": "lerna version --git-remote ${GHOST_UPSTREAM:-origin}"
   },
+  "resolutions": {
+    "underscore": "1.13.8"
+  },
   "devDependencies": {
     "eslint": "8.57.1",
-    "eslint-plugin-ghost": "3.5.0",
-    "lerna": "10.0.0"
+    "eslint-plugin-ghost": "4.0.1",
+    "lerna": "10.1.1"
   }
 }

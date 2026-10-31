@@ -176,6 +176,41 @@ describe('Comparison Query Operators', function () {
             .should.eql('select * from `posts` where lower(`posts`.`email`) like \'%gmail.com\' ESCAPE \'*\'');
     });
 
+    // A value can contain the very characters the anchors are written with. Those arrive escaped
+    // — `5\$`, `\^caret` — so the anchors have to be read before the escaping is removed. Read
+    // afterwards, a literal dollar and an end anchor are the same character, and `contains '5$'`
+    // compiles to the same pattern as `endsWith '5'` while selecting different rows.
+    it('treats an escaped $ as part of the value, not an end anchor', function () {
+        runQuery({title: {$regex: /5\$/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%5$%\' ESCAPE \'*\'');
+    });
+
+    it('can match endswith on a value that itself ends in $', function () {
+        runQuery({title: {$regex: /5\$$/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%5$\' ESCAPE \'*\'');
+    });
+
+    it('treats an escaped ^ as part of the value, not a start anchor', function () {
+        runQuery({title: {$regex: /\^caret/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%^caret%\' ESCAPE \'*\'');
+    });
+
+    it('can match startswith on a value that itself starts with ^', function () {
+        runQuery({title: {$regex: /^\^caret/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'^caret%\' ESCAPE \'*\'');
+    });
+
+    it('can match anchored at both ends, which takes no wildcard at all', function () {
+        runQuery({title: {$regex: /^exact$/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'exact\' ESCAPE \'*\'');
+    });
+
+    // The backslash before the `$` is itself escaped, so the `$` after it is still the anchor.
+    it('reads an end anchor that follows a value ending in a backslash', function () {
+        runQuery({title: {$regex: /a\\$/i}})
+            .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%a\\\\\' ESCAPE \'*\'');
+    });
+
     // % and _ don't have a meaning in regexes, but they do in LIKE, so they should be escaped in the resulting query
     it('correctly escapes _ LIKE special character', function () {
         // Get all posts that contain __GHOST_URL__
@@ -822,5 +857,112 @@ describe('RegExp/Like queries', function () {
 
         runQuery({title: {$regex: /';select * from `settings` where `value` like '/i}})
             .should.eql('select * from `posts` where lower(`posts`.`title`) like \'%\\\';select ** from `settings` where `value` like \\\'%\' ESCAPE \'*\'');
+    });
+});
+
+describe('$elemMatch (single related row)', function () {
+    // $elemMatch collapses all its conditions into ONE subquery, so a
+    // discriminator+value pair like `meta_title = 'A' AND meta_description != 'B'`
+    // matches a single related row rather than splitting the negation into an
+    // independent NOT IN. This is the explicit same-row escape hatch.
+    it('matches a discriminator and a negated value on the same one-to-one row', function () {
+        runQuery({posts_meta: {$elemMatch: {meta_title: 'A', meta_description: {$ne: 'B'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'A\' and `posts_meta`.`meta_description` not in (\'B\'))');
+    });
+
+    // $elemMatch is relation-agnostic: it forces same-row matching on a many-to-many
+    // relation too (one tag that is both slug 'a' and not internal).
+    it('matches a single row of a many-to-many relation', function () {
+        runQuery({tags: {$elemMatch: {slug: 'a', visibility: {$ne: 'internal'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'a\' and `tags`.`visibility` not in (\'internal\'))');
+    });
+
+    // Without $elemMatch the default grouping is unchanged: a negation on a plain
+    // $and is still an independent "no row matches" subquery (has tag a AND not tag b).
+    it('leaves the default per-condition grouping untouched outside $elemMatch', function () {
+        runQuery({$and: [{'tags.slug': 'a'}, {'tags.slug': {$ne: 'b'}}]})
+            .should.eql('select * from `posts` where (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'a\') and `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` in (\'b\')))');
+    });
+
+    // Two independent $elemMatch groups compose under OR.
+    it('composes multiple matches under $or', function () {
+        runQuery({$or: [{posts_meta: {$elemMatch: {meta_title: 'A', meta_description: 'B'}}}, {posts_meta: {$elemMatch: {meta_title: 'C', meta_description: 'D'}}}]})
+            .should.eql('select * from `posts` where (`posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'A\' and `posts_meta`.`meta_description` = \'B\') or `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'C\' and `posts_meta`.`meta_description` = \'D\'))');
+    });
+
+    // An all-negation match stays positive: "has a tag that is neither a nor b" —
+    // one row where both conditions hold. It must NOT invert to a NOT IN subquery
+    // ("has no tag that is both a and b"), which is a different set.
+    it('keeps an all-negation match positive rather than inverting to NOT IN', function () {
+        runQuery({tags: {$elemMatch: {slug: {$ne: 'a'}, visibility: {$ne: 'b'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` not in (\'a\') and `tags`.`visibility` not in (\'b\'))');
+    });
+
+    // The guards fire at conversion (buildQuery), before any SQL is rendered, so a
+    // consumer's filter-parse error handling catches them — hence buildQuery, not runQuery.
+    it('throws on an empty match rather than dropping the constraint', function () {
+        (() => buildQuery({tags: {$elemMatch: {}}})).should.throw(/needs at least one condition/);
+    });
+
+    it('throws when used on a non-relation key', function () {
+        (() => buildQuery({title: {$elemMatch: {foo: 'x'}}})).should.throw(/can only be used on a relation/);
+    });
+
+    it('throws when used on an aggregate relation', function () {
+        (() => buildQuery({tag_count: {$elemMatch: {slug: 'a'}}})).should.throw(/[Aa]ggregate relation/);
+    });
+
+    it('throws on a non-object match value rather than iterating it', function () {
+        (() => buildQuery({tags: {$elemMatch: 'a'}})).should.throw(/needs at least one condition/);
+    });
+
+    // Nested in an $and group, the guard still fires at conversion, not deferred into a
+    // knex where-callback that only runs at render (which would be a 500, not a 4xx).
+    it('throws at conversion for a match nested inside a group', function () {
+        (() => buildQuery({$and: [{status: 'draft'}, {tags: {$elemMatch: {}}}]})).should.throw(/needs at least one condition/);
+    });
+
+    // An unrecognised inner operator is rejected, not silently dropped — dropping it would
+    // leave `{key:'company', value:{$typo:'x'}}` matching every member with a company field.
+    it('throws on an unrecognised operator inside the match', function () {
+        (() => buildQuery({tags: {$elemMatch: {slug: 'a', visibility: {$bogus: 'x'}}}})).should.throw(/does not support the operator/);
+    });
+
+    it('throws on a logical operator inside the match body', function () {
+        (() => buildQuery({tags: {$elemMatch: {$or: [{slug: 'a'}, {slug: 'b'}]}}})).should.throw(/does not support the operator/);
+    });
+
+    // A dotted key would be truncated to relation.column by processStatement, silently
+    // comparing a different column, so it is rejected rather than run.
+    it('throws on a dotted column inside the match', function () {
+        (() => buildQuery({posts_meta: {$elemMatch: {'meta_title.sub': 'x'}}})).should.throw(/cannot use a dotted column/);
+    });
+
+    // The outer $or must not clobber a null condition's IS NULL: the match's first
+    // condition here is a null, and it has to stay `is null`, not become `= NULL`.
+    it('keeps a null condition literal when the match sits under $or', function () {
+        runQuery({$or: [{status: 'draft'}, {posts_meta: {$elemMatch: {meta_title: null, meta_description: 'd'}}}]})
+            .should.eql('select * from `posts` where (`posts`.`status` = \'draft\' or `posts`.`id` in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` is null and `posts_meta`.`meta_description` = \'d\'))');
+    });
+
+    // A $not-wrapped $elemMatch negates the whole single-row match: no related row
+    // satisfies all the conditions, emitted as parent.id NOT IN that same subquery.
+    it('negates the single-row match with $not (NOT IN) on a one-to-one relation', function () {
+        runQuery({posts_meta: {$not: {$elemMatch: {meta_title: 'A', meta_description: 'B'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` not in (select `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'A\' and `posts_meta`.`meta_description` = \'B\')');
+    });
+
+    it('negates a single-condition match with $not on a many-to-many relation', function () {
+        runQuery({tags: {$not: {$elemMatch: {slug: 'a'}}}})
+            .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'a\')');
+    });
+
+    // The negation is only the outer membership: the conditions inside keep their literal
+    // operators, so a non-equality condition survives. Forcing them to $in (as the
+    // De Morgan path does) would silently drop the operator — here it would ask for "no
+    // tag whose slug IS a" instead of "no tag whose slug is NOT a".
+    it('keeps inner operators literal under a $not $elemMatch', function () {
+        runQuery({tags: {$not: {$elemMatch: {slug: {$ne: 'a'}}}}})
+            .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` not in (\'a\'))');
     });
 });

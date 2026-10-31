@@ -126,6 +126,16 @@ describe('Relations', function () {
                     });
             });
 
+            // A regex (contains/startsWith/endsWith) on a related column compiles to
+            // LIKE. Executed here because the base converter emitted invalid SQL for
+            // this shape (a stringified RegExp) and matched nothing - a real, shipped
+            // NQL filter shape (e.g. `tags.slug:~'ani'`), so the fix is pinned end to end.
+            it('matches a related column by a startsWith regex', function () {
+                return makeQuery({'tags.slug': {$regex: /^ani/}})
+                    .select()
+                    .then(result => result.should.matchIds([2, 4, 6]));
+            });
+
             it('tags.visibility equals "internal"', function () {
                 const mongoJSON = {
                     'tags.visibility': 'internal'
@@ -1096,6 +1106,17 @@ describe('Relations', function () {
     });
 
     describe('One-to-One', function () {
+        // A $not-wrapped $elemMatch excludes rows that HAVE a matching related row, so
+        // it also matches parents with no related row at all — proven here by execution
+        // (the NOT IN semantics differ from a positive match, and only real rows show it).
+        describe('$not $elemMatch (no matching related row)', function () {
+            it('excludes posts whose meta_title matches, keeping the rest', function () {
+                return makeQuery({posts_meta: {$not: {$elemMatch: {meta_title: 'Meta of Circle of Life'}}}})
+                    .select()
+                    .then(result => result.should.matchIds([1, 2, 3, 5, 6, 7, 8]));
+            });
+        });
+
         describe('EQUALS $eq', function () {
             it('posts_meta.meta_title equals "Meta of A Whole New World"', function () {
                 const mongoJSON = {

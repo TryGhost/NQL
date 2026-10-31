@@ -1,6 +1,6 @@
 {
   "name": "@tryghost/nql-lang",
-  "version": "0.6.6",
+  "version": "0.7.0",
   "description": "tbc",
   "repository": {
     "type": "git",
@@ -25,13 +25,13 @@
   "devDependencies": {
     "c8": "12.0.0",
     "eslint": "8.57.1",
-    "eslint-plugin-ghost": "3.5.0",
+    "eslint-plugin-ghost": "4.0.1",
     "jison": "0.4.18",
-    "mocha": "11.8.0",
+    "mocha": "12.0.3",
     "should": "13.2.3",
     "sinon": "22.1.0"
   },
   "dependencies": {
-    "date-fns": "2.30.0"
+    "luxon": "3.7.2"
   }
 }
