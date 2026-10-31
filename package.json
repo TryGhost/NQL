@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@nx/js": "23.3.1",
-    "eslint": "8.57.1",
+    "eslint": "10.13.0",
     "eslint-plugin-ghost": "4.0.1",
     "nx": "23.3.1"
   }
