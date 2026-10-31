@@ -94,8 +94,8 @@ query
 ```
 
 ## Test
-- `yarn lint` run just eslint
-- `yarn test` run lint && tests
+- `pnpm lint` run just ESLint
+- `pnpm test` run lint && tests
 
 # Copyright & License
 

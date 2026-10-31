@@ -12,7 +12,7 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint . --ext .js --cache",
-    "posttest": "yarn lint",
+    "posttest": "pnpm lint",
     "test": "c8 --all --100 --reporter text --reporter html --reporter cobertura mocha ./test/**/*.test.js --exit"
   },
   "publishConfig": {
