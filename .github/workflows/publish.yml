@@ -160,7 +160,7 @@ jobs:
         env:
           PUBLISH_PROJECTS: ${{ steps.pubs.outputs.projects }}
 
-      - uses: tryghost/actions/actions/slack-build@f2813635acec904cf8b12e877fe918d42833d98f # main
+      - uses: tryghost/actions/actions/slack-build@ef2c106e1a78ff0227432545d80d0900a3ddd820 # main
         if: failure()
         with:
           status: ${{ job.status }}
