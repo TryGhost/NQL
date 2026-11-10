@@ -12,9 +12,9 @@ final                        [\+\,\(\)\[\]]
 %%
 
 \s+                                                         /* skip whitespace */
-(?:null|NULL|Null)(?!(\\{escapable}|{omitopsbarnot})+)      return 'NULL';
-(?:true|TRUE|True)(?!(\\{escapable}|{omitopsbarnot})+)      return 'TRUE';
-(?:false|FALSE|False)(?!(\\{escapable}|{omitopsbarnot})+)   return 'FALSE';
+(?:null|NULL|Null)(?!(\\{escapable}|{omitopsbarnot}))       return 'NULL';
+(?:true|TRUE|True)(?!(\\{escapable}|{omitopsbarnot}))       return 'TRUE';
+(?:false|FALSE|False)(?!(\\{escapable}|{omitopsbarnot}))    return 'FALSE';
 [a-zA-Z_][a-zA-Z0-9_\.]*[:]                                 return 'PROP';
 [0-9]+(\.[0-9]+)?\b(?![\-])                                 return 'NUMBER';
 '['                                                         return 'LBRACKET';
