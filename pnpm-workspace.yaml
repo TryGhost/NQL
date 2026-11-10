@@ -4,6 +4,10 @@ packages:
 # Match Yarn Classic's workspace-linking behavior for matching local ranges.
 linkWorkspacePackages: true
 
+# Jison's CLI dependencies require an older, vulnerable Underscore version.
+overrides:
+  underscore: 1.13.8
+
 minimumReleaseAge: 4320
 strictDepBuilds: true
 blockExoticSubdeps: true

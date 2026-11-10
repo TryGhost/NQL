@@ -23,9 +23,6 @@
     "ship:minor": "pnpm ship minor",
     "ship:major": "pnpm ship major"
   },
-  "resolutions": {
-    "underscore": "1.13.8"
-  },
   "devDependencies": {
     "@nx/js": "24.0.5",
     "eslint": "8.57.1",
