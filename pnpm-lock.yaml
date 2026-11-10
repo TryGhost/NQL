@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  underscore: 1.13.8
+
 importers:
 
   .:
@@ -2308,8 +2311,8 @@ packages:
     resolution: {integrity: sha512-Ne+eE4r0/iWnpAxD852z3A+N0Bt5RN//NjJwRd2VFHEmrywxf5vsZlh4R6lixl6B+wz/8d+maTSAkN1FIkI3LQ==}
     engines: {node: '>=10'}
 
-  underscore@1.1.7:
-    resolution: {integrity: sha512-w4QtCHoLBXw1mjofIDoMyexaEdWGMedWNDhlWTtT1V1lCRqi65Pnoygkh6+WRdr+Bm8ldkBNkNeCsXGMlQS9HQ==}
+  underscore@1.13.8:
+    resolution: {integrity: sha512-DXtD3ZtEQzc7M8m4cXotyHR+FAS18C64asBYY5vqZexfYryNNnDc02W4hKg3rdQuqOYas1jkseX0+nZXjTXnvQ==}
 
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
@@ -4201,7 +4204,7 @@ snapshots:
   nomnom@1.5.2:
     dependencies:
       colors: 0.5.1
-      underscore: 1.1.7
+      underscore: 1.13.8
 
   npm-run-path@4.0.1:
     dependencies:
@@ -4620,7 +4623,7 @@ snapshots:
 
   type-fest@0.20.2: {}
 
-  underscore@1.1.7: {}
+  underscore@1.13.8: {}
 
   undici-types@8.9.0: {}
 
