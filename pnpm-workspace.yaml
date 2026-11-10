@@ -10,7 +10,7 @@ blockExoticSubdeps: true
 
 allowBuilds:
   # Nx works without its optional install-time setup.
-  'nx@23.3.1': false
+  'nx@24.0.5': false
 
 # Disable implicit executable config discovery; shared policy stays declarative.
 pnpmfile: []
