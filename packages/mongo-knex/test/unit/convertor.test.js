@@ -167,7 +167,7 @@ describe('Comparison Query Operators', function () {
     });
 
     it('can match like with startswith containing a slash', function () {
-        runQuery({email: {$regex: /^https:\/\/www.google.com\//i}})
+        runQuery({email: {$regex: /^https:\/\/www\.google\.com\//i}})
             .should.eql('select * from `posts` where lower(`posts`.`email`) like \'https://www.google.com/%\' ESCAPE \'*\'');
     });
 
