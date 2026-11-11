@@ -61,6 +61,10 @@ jobs:
         uses: TryGhost/renovate-config/.github/actions/pnpm-policy@f01112f88f6152d69a300577d7b21112aa75f16e # main
       - run: pnpm test:ci
 
+      - name: Audit dependencies
+        if: matrix.node == 24 && matrix.env.DB == 'better-sqlite3'
+        run: pnpm audit --audit-level=low
+
       - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
 
       - uses: tryghost/actions/actions/slack-build@ef2c106e1a78ff0227432545d80d0900a3ddd820 # main
