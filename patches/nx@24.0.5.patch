@@ -1,3 +1,4 @@
+diff --git a/dist/src/utils/find-matching-projects.js b/dist/src/utils/find-matching-projects.js
 --- a/dist/src/utils/find-matching-projects.js
 +++ b/dist/src/utils/find-matching-projects.js
 @@ -197,26 +197,26 @@
@@ -34,6 +35,7 @@
                  patternCache.set(item, entry);
              }
              return entry;
+diff --git a/dist/src/command-line/release/utils/repository-git-tags.js b/dist/src/command-line/release/utils/repository-git-tags.js
 --- a/dist/src/command-line/release/utils/repository-git-tags.js
 +++ b/dist/src/command-line/release/utils/repository-git-tags.js
 @@ -110,11 +110,11 @@
@@ -51,6 +53,7 @@
                  });
              }
          }
+diff --git a/dist/src/generators/utils/glob.js b/dist/src/generators/utils/glob.js
 --- a/dist/src/generators/utils/glob.js
 +++ b/dist/src/generators/utils/glob.js
 @@ -33,12 +33,12 @@
