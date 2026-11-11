@@ -38,7 +38,6 @@ jobs:
       DB: ${{ matrix.env.DB }}
       NODE_ENV: ${{ matrix.env.NODE_ENV }}
       database__connection__password: root
-      database__connection__database: nql_testing
     name: Node ${{ matrix.node }}, ${{ matrix.env.DB }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -55,6 +54,14 @@ jobs:
         run: |
           echo "database__connection__host=127.0.0.1" >> "$GITHUB_ENV"
           echo "database__connection__port=${{ job.services.mysql.ports['3306'] }}" >> "$GITHUB_ENV"
+
+      - name: Create mongo-knex test database
+        if: contains(matrix.env.DB, 'mysql')
+        env:
+          MYSQL_CONTAINER_ID: ${{ job.services.mysql.id }}
+        # MySQL creates nql_testing above; mongo-knex's config selects mk_testing.
+        # Keep both schemas separate because Nx runs their tests concurrently.
+        run: docker exec "$MYSQL_CONTAINER_ID" mysql -uroot -proot -e 'CREATE DATABASE IF NOT EXISTS mk_testing;'
 
       - run: pnpm install --frozen-lockfile --prefer-offline
       - name: Check shared pnpm supply-chain policy

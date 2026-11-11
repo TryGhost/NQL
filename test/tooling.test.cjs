@@ -4,6 +4,27 @@ const {createRequire} = require('node:module');
 const {dirname, join} = require('node:path');
 const {mkdtempSync, mkdirSync, writeFileSync, rmSync} = require('node:fs');
 const {tmpdir} = require('node:os');
+const {execFileSync} = require('node:child_process');
+
+test('MySQL test suites use separate databases under the current environment', () => {
+    const databases = ['nql', 'mongo-knex'].map((name) => {
+        // Load each suite's real config in its own process, including CI overrides.
+        const output = execFileSync(process.execPath, ['-e',
+            "process.stdout.write(JSON.stringify(require('./test/config').get('database')));"
+        ], {
+            cwd: join(__dirname, '../packages', name),
+            env: {...process.env, NODE_ENV: 'testing-mysql'},
+            encoding: 'utf8'
+        });
+        const config = JSON.parse(output);
+        assert.equal(config.client, 'mysql2');
+        assert.ok(config.connection.database);
+        return config.connection.database;
+    });
+
+    assert.notEqual(databases[0], databases[1],
+        'NQL and mongo-knex create/drop the same table names and must use separate MySQL databases');
+});
 
 // These internal imports deliberately target the Nx version patched in this repo.
 // An Nx update must rerun these tests before removing or replacing the patch.
