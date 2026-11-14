@@ -65,7 +65,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile --prefer-offline
       - name: Check shared pnpm supply-chain policy
-        uses: TryGhost/renovate-config/.github/actions/pnpm-policy@f01112f88f6152d69a300577d7b21112aa75f16e # main
+        uses: TryGhost/renovate-config/.github/actions/pnpm-policy@b84dd321171fa3f904ad98a5aaa580f64ed7d295 # main
       - run: pnpm test:ci
 
       - name: Audit dependencies
