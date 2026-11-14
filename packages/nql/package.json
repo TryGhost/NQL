@@ -19,7 +19,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "better-sqlite3": "13.0.3",
+    "better-sqlite3": "13.1.1",
     "bluebird": "3.7.2",
     "c8": "12.0.0",
     "eslint": "8.57.1",
