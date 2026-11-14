@@ -9,7 +9,7 @@ overrides:
   underscore: 1.13.8
   # These parents use the public glob/matching APIs supported by the patched majors.
   'glob@13': 14.0.4
-  'minimatch@10': 11.0.5
+  'minimatch@10': 11.0.8
 
 # Nx still calls makeRe(), removed in Minimatch 11. Remove when upstream fixes it.
 # https://github.com/nrwl/nx/issues/37727
@@ -26,4 +26,3 @@ allowBuilds:
 
 # Disable implicit executable config discovery; shared policy stays declarative.
 pnpmfile: []
-
