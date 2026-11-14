@@ -165,7 +165,7 @@ settings:
 overrides:
   underscore: 1.13.8
   glob@13: 14.0.4
-  minimatch@10: 11.0.5
+  minimatch@10: 11.0.8
 
 patchedDependencies:
   nx@24.0.5: 8f624335f53f7593628003dc9b7a1a4af1372474431f9446d5dac6c25696af89
@@ -1912,6 +1912,10 @@ packages:
     resolution: {integrity: sha512-snPlVppFcYWfLLFQGhDxUyBcHNtMlWmn3jtj7pEaO+DP8pqL0IvAzXhMYmn1z9ASNtgmwLBdFxSf4tMUB0OTKA==}
     engines: {node: 20 || >=22}
 
+  minimatch@11.0.8:
+    resolution: {integrity: sha512-nFQuYSTVrGvysVBps5Ih+0BdnYFN/Cj3C816r6+p7yK+FHrVLGE4O4N9AFwykrlNlvM2HYt+Rad1Uiro6h88Ig==}
+    engines: {node: 20 || >=22}
+
   minimatch@3.1.5:
     resolution: {integrity: sha512-VgjWUsnnT6n+NUk6eZq77zeFdpW2LWDzP6zFGrCbHXiYNul5Dzqk2HHQ5uFH2DNW5Xbp8+jVzaeNt94ssEEl4w==}
 
@@ -3265,7 +3269,7 @@ snapshots:
   '@nx/devkit@24.0.5(nx@24.0.5(patch_hash=8f624335f53f7593628003dc9b7a1a4af1372474431f9446d5dac6c25696af89))':
     dependencies:
       ejs: 5.0.1
-      minimatch: 11.0.5
+      minimatch: 11.0.8
       nx: 24.0.5(patch_hash=8f624335f53f7593628003dc9b7a1a4af1372474431f9446d5dac6c25696af89)
       semver: 7.8.6
       tslib: 2.9.1
@@ -4145,6 +4149,11 @@ snapshots:
       '@isaacs/nonrecursive-glob-match': 1.1.0
       brace-expansion: 5.0.12
 
+  minimatch@11.0.8:
+    dependencies:
+      '@isaacs/nonrecursive-glob-match': 1.1.0
+      brace-expansion: 5.0.12
+
   minimatch@3.1.5:
     dependencies:
       brace-expansion: 1.1.21
@@ -4164,7 +4173,7 @@ snapshots:
       is-path-inside: 4.0.0
       is-unicode-supported: 0.1.0
       js-yaml: 5.5.0
-      minimatch: 11.0.5
+      minimatch: 11.0.8
       ms: 2.1.3
       picocolors: 1.1.1
       serialize-javascript: 7.1.4
@@ -4267,7 +4276,7 @@ snapshots:
       lines-and-columns: 2.0.3
       log-symbols: 4.1.0
       mimic-fn: 2.1.0
-      minimatch: 11.0.5
+      minimatch: 11.0.8
       minimist: 1.2.8
       npm-run-path: 4.0.1
       once: 1.4.0
@@ -4593,7 +4602,7 @@ snapshots:
     dependencies:
       '@istanbuljs/schema': 0.1.6
       glob: 14.0.4
-      minimatch: 11.0.5
+      minimatch: 11.0.8
 
   text-table@0.2.0: {}
 
