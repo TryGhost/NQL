@@ -4,7 +4,8 @@ const debugExtended = require('debug')('mongo-knex:converter-extended');
 
 const logicOps = [
     '$and',
-    '$or'
+    '$or',
+    '$nor'
 ];
 
 const compOps = {
@@ -53,6 +54,12 @@ const isNegationOp = key => isOp(key) && _.includes(['$ne', '$nin'], key);
 const isRangeOp = key => isOp(key) && _.includes(['$gt', '$gte', '$lt', '$lte'], key);
 const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
 const isAggregateCompOp = key => Boolean(complementOps[key]);
+const isEmptyDocument = statement => _.isPlainObject(statement) && _.isEmpty(statement);
+// Several keys, or several operators on one key, are an implicit $and
+const hasImplicitAnd = statement => _.isPlainObject(statement) && (
+    Object.keys(statement).length > 1
+    || _.some(statement, value => _.isPlainObject(value) && _.filter(_.keys(value), isOp).length > 1)
+);
 
 // Aggregate values must be numeric: the inversion decision below evaluates the predicate
 // at 0 in JS, so a value the database would coerce differently (null, '', '2abc') must be
@@ -73,6 +80,9 @@ const aggregateOperatorError = relationName => new Error(`Aggregate relation "${
 
 //eslint-disable-next-line ghost/ghost-custom/no-native-error
 const aggregateColumnError = relationName => new Error(`Aggregate relation "${relationName}" is queried by name only, without a column (e.g. "${relationName}:0")`);
+
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const unsupportedOperatorError = key => new Error(`Unsupported operator "${key}"`);
 
 //eslint-disable-next-line ghost/ghost-custom/no-native-error
 const elemMatchRelationError = key => new Error(`$elemMatch can only be used on a relation, not "${key}"`);
@@ -936,7 +946,13 @@ class MongoToKnex {
      * {$and: {author: { $in: [...] }}}
      */
     buildWhereGroup(qb, parentMode, mode, sub) {
-        const whereType = this.processWhereType(parentMode);
+        // $nor is NOT of an $or group. As with $ne, a NULL column fails both a
+        // predicate and its negation (SQL logic), so $nor never matches more than Mongo
+        const negate = mode === '$nor';
+        if (negate) {
+            mode = '$or';
+        }
+        const whereType = this.processWhereType(parentMode) + (negate ? 'Not' : '');
 
         debug(`(buildWhereGroup) mode: ${mode}, whereType: ${whereType}`);
 
@@ -946,7 +962,21 @@ class MongoToKnex {
 
         qb[whereType]((_qb) => {
             if (_.isArray(sub)) {
-                sub.forEach(statement => this.buildQuery(_qb, mode, statement, true));
+                // An empty $or matches nothing
+                if (mode === '$or' && sub.length === 0) {
+                    _qb.whereRaw('1 = 0');
+                }
+                sub.forEach((statement) => {
+                    if (mode === '$or' && isEmptyDocument(statement)) {
+                        // An empty document matches every row
+                        _qb.orWhereRaw('1 = 1');
+                    } else if (mode === '$or' && hasImplicitAnd(statement)) {
+                        // Keys and operators of one $or element are ANDed, as in Mongo
+                        this.buildWhereGroup(_qb, mode, '$and', statement);
+                    } else {
+                        this.buildQuery(_qb, mode, statement, true);
+                    }
+                });
             } else if (_.isObject(sub)) {
                 this.buildQuery(_qb, mode, sub, true);
             }
@@ -1096,6 +1126,25 @@ class MongoToKnex {
     }
 
     /**
+     * Rejects an operator in statement position that is not a logical group ($not,
+     * $where, a typo). It used to be read as a column and dropped, widening the result.
+     * A pre-pass for the same reason as validateAggregateStatements.
+     */
+    validateLogicalOperators(sub) {
+        if (!_.isPlainObject(sub)) {
+            return;
+        }
+
+        _.forIn(sub, (value, key) => {
+            if (isLogicOp(key)) {
+                _.castArray(value).forEach(group => this.validateLogicalOperators(group));
+            } else if (isOp(key)) {
+                throw unsupportedOperatorError(key);
+            }
+        });
+    }
+
+    /**
      * The converter receives sub query objects e.g. `qb.where('..', (qb) => {})`, which
      * we then pass around to our class methods. That's why we pass the parent `qb` object
      * around instead of remembering it as `this.qb`. There are multiple `qb` objects.
@@ -1108,6 +1157,7 @@ class MongoToKnex {
             debugExtended(`(processJSON) ${stringify(mongoJSON)}`);
         }
 
+        this.validateLogicalOperators(mongoJSON);
         this.validateAggregateStatements(mongoJSON);
         this.validateElemMatchStatements(mongoJSON);
 

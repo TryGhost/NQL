@@ -1103,6 +1103,79 @@ describe('Relations', function () {
                     });
             });
         });
+
+        // Shapes NQL never emits but hand-built queries do. Each used to widen the
+        // result: an $or element's keys were ORed and $nor was dropped.
+        describe('$or element with several keys, $nor and empty $or', function () {
+            it('featured:false AND tags.slug:classic, OR tags.slug:cgi', function () {
+                return makeQuery({$or: [{featured: false, 'tags.slug': 'classic'}, {'tags.slug': 'cgi'}]})
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(2);
+                        result.should.matchIds([1, 3]);
+                    });
+            });
+
+            it('NOT tags.slug:classic', function () {
+                return makeQuery({$nor: [{'tags.slug': 'classic'}]})
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([2, 3, 7, 8]);
+                    });
+            });
+
+            it('NOT (featured:true AND tags.slug:classic)', function () {
+                return makeQuery({$nor: [{featured: true, 'tags.slug': 'classic'}]})
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(5);
+                        result.should.matchIds([1, 2, 3, 7, 8]);
+                    });
+            });
+
+            it('published AND NOT (tags.slug:animal OR authors.id:2)', function () {
+                return makeQuery({$and: [{status: 'published'}, {$nor: [{'tags.slug': 'animal'}, {'authors.id': 2}]}]})
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(4);
+                        result.should.matchIds([1, 3, 5, 7]);
+                    });
+            });
+
+            it('NOT (id >= 2 AND id <= 4)', function () {
+                return makeQuery({$nor: [{id: {$gte: 2, $lte: 4}}]})
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(5);
+                        result.should.matchIds([1, 5, 6, 7, 8]);
+                    });
+            });
+
+            it('an empty document in $or matches every row', function () {
+                return makeQuery({$or: [{}, {id: 1}]})
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(8);
+                    });
+            });
+
+            it('an empty document in $nor matches nothing', function () {
+                return makeQuery({$nor: [{}, {id: 1}]})
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(0);
+                    });
+            });
+
+            it('empty $or matches nothing', function () {
+                return makeQuery({$or: []})
+                    .select()
+                    .then((result) => {
+                        result.should.be.an.Array().with.lengthOf(0);
+                    });
+            });
+        });
     });
 
     describe('One-to-One', function () {
