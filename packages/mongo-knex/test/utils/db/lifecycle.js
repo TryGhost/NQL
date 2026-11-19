@@ -1,4 +1,3 @@
-const _ = require('lodash');
 const Promise = require('bluebird');
 const debug = require('debug')('mongo-knex:test');
 const client = require('./client')();
@@ -21,11 +20,11 @@ module.exports.client = client;
  */
 const flatten = (fixtureJson) => {
     const ops = [];
-    _.each(fixtureJson, (entries, table) => {
-        _.each(entries, (entry) => {
+    for (const [table, entries] of Object.entries(fixtureJson)) {
+        for (const entry of entries) {
             ops.push({table, entry});
-        });
-    });
+        }
+    }
 
     return ops;
 };
@@ -81,7 +80,7 @@ module.exports.init = (suiteName, fixtureFileName) => {
  * Can be skipped
  */
 module.exports.teardown = suiteName => function innerTeardown() {
-    if (_.includes(process.argv, '--skip-teardown')) {
+    if (process.argv.includes('--skip-teardown')) {
         debug('Skipping teardown for');
         return;
     }
