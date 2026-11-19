@@ -427,6 +427,81 @@ describe('Logical Groups', function () {
                 .should.eql('select * from `posts` where ((`posts`.`tags` in (\'photo\') or `posts`.`image` is not null or `posts`.`featured` = true) and `posts`.`author` != \'joe\')');
         });
     });
+
+    describe('$or element with several keys', function () {
+        it('ANDs the keys of one element', function () {
+            runQuery({$or: [{status: 'draft', featured: true}, {id: 1}]})
+                .should.eql('select * from `posts` where ((`posts`.`status` = \'draft\' and `posts`.`featured` = true) or `posts`.`id` = 1)');
+        });
+
+        it('ANDs a relation key with the other keys of its element', function () {
+            runQuery({$or: [{status: 'draft', 'tags.slug': 'animal'}, {featured: true}]})
+                .should.eql('select * from `posts` where ((`posts`.`status` = \'draft\' and `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'animal\')) or `posts`.`featured` = true)');
+        });
+
+        it('ANDs several operators on one key', function () {
+            runQuery({$or: [{id: {$gte: 2, $lte: 4}}, {featured: true}]})
+                .should.eql('select * from `posts` where ((`posts`.`id` >= 2 and `posts`.`id` <= 4) or `posts`.`featured` = true)');
+        });
+
+        it('keeps a range on a relation column in one subquery', function () {
+            runQuery({$or: [{'tags.created_at': {$gte: '2015-01-01', $lte: '2015-06-01'}}, {featured: true}]})
+                .should.eql('select * from `posts` where ((`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`created_at` >= \'2015-01-01\' and `tags`.`created_at` <= \'2015-06-01\')) or `posts`.`featured` = true)');
+        });
+
+        it('treats an empty document as matching every row', function () {
+            runQuery({$or: [{}, {id: 1}]})
+                .should.eql('select * from `posts` where (1 = 1 or `posts`.`id` = 1)');
+        });
+    });
+
+    describe('empty $or', function () {
+        it('matches nothing', function () {
+            runQuery({$or: []})
+                .should.eql('select * from `posts` where (1 = 0)');
+        });
+
+        it('matches nothing inside an $and', function () {
+            runQuery({$and: [{status: 'published'}, {$or: []}]})
+                .should.eql('select * from `posts` where (`posts`.`status` = \'published\' and (1 = 0))');
+        });
+    });
+
+    describe('$nor', function () {
+        it('negates an $or of its elements', function () {
+            runQuery({$nor: [{status: 'draft'}, {featured: true}]})
+                .should.eql('select * from `posts` where not (`posts`.`status` = \'draft\' or `posts`.`featured` = true)');
+        });
+
+        it('ANDs the keys of one element before negating', function () {
+            runQuery({$nor: [{status: 'draft', featured: true}]})
+                .should.eql('select * from `posts` where not ((`posts`.`status` = \'draft\' and `posts`.`featured` = true))');
+        });
+
+        it('ANDs several operators on one key before negating', function () {
+            runQuery({$nor: [{id: {$gte: 2, $lte: 4}}]})
+                .should.eql('select * from `posts` where not ((`posts`.`id` >= 2 and `posts`.`id` <= 4))');
+        });
+
+        it('negates a relation statement inside an $or', function () {
+            runQuery({$or: [{id: 1}, {$nor: [{'tags.slug': 'animal'}]}]})
+                .should.eql('select * from `posts` where (`posts`.`id` = 1 or not (`posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'animal\')))');
+        });
+    });
+
+    describe('unsupported operators', function () {
+        it('throws for an operator in statement position', function () {
+            (function () {
+                buildQuery({$not: {status: 'draft'}});
+            }).should.throw('Unsupported operator "$not"');
+        });
+
+        it('throws while building, for one nested in a group', function () {
+            (function () {
+                buildQuery({$or: [{id: 1}, {$and: [{$where: '1'}]}]});
+            }).should.throw('Unsupported operator "$where"');
+        });
+    });
 });
 
 describe('Relations', function () {
