@@ -57,7 +57,7 @@ const combineNeFilters = (mongoJSON) => {
 
     // Extract all filters containing '$ne' and group them by their keys
     const neFilters = andFilters.filter(filter => mongoUtils.findStatement(filter, '$ne'));
-    const neGroups = _.groupBy(neFilters, filter => Object.keys(filter)[0]);
+    const neGroups = Object.groupBy(neFilters, filter => Object.keys(filter)[0]);
 
     // Filter for keys that have multiple '$ne' filters
     const neKeysWithMultipleFilters = Object.keys(neGroups).filter(key => neGroups[key].length > 1);
@@ -112,7 +112,7 @@ const isOp = key => key.charAt(0) === '$';
  * @returns {*} - The node with any `$all` operators expanded.
  */
 const expandAllFilters = (node) => {
-    if (_.isArray(node)) {
+    if (Array.isArray(node)) {
         return node.map(expandAllFilters);
     }
 
@@ -130,14 +130,16 @@ const expandAllFilters = (node) => {
         if (!isOp(key)
             && _.isPlainObject(value)
             && Object.keys(value).length === 1
-            && _.isArray(value.$all)
+            && Array.isArray(value.$all)
         ) {
             return {$and: value.$all.map(item => ({[key]: item}))};
         }
     }
 
     // Otherwise recurse so nested `$all` (e.g. inside `$and`/`$or`) is expanded too
-    return _.mapValues(node, expandAllFilters);
+    return Object.fromEntries(
+        Object.entries(node).map(([key, value]) => [key, expandAllFilters(value)])
+    );
 };
 
 module.exports = {
