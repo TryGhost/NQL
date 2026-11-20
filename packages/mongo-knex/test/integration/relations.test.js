@@ -2461,5 +2461,67 @@ describe('Relations', function () {
         });
     });
 
+    describe('Optimizer hint', function () {
+        // NOTE: these tests rely on the fixtures loaded by the Many-to-Many suite above.
+        //       Only MySQL reads the hint, any other database sees a plain comment.
+        const hint = 'SUBQUERY(INTOEXISTS)';
+
+        const makeHintQuery = (mongoJSON, relationHint) => {
+            const query = convertor(knex('posts'), mongoJSON, {
+                relations: {
+                    tags: {
+                        tableName: 'tags',
+                        type: 'manyToMany',
+                        joinTable: 'posts_tags',
+                        joinFrom: 'post_id',
+                        joinTo: 'tag_id',
+                        hint: relationHint
+                    },
+                    posts_meta: {
+                        tableName: 'posts_meta',
+                        type: 'oneToOne',
+                        joinFrom: 'post_id',
+                        hint: relationHint
+                    },
+                    tag_count: {
+                        type: 'aggregate',
+                        aggregate: {fn: 'count', column: 'posts_tags.tag_id'},
+                        tableName: 'posts_tags',
+                        joinFrom: 'post_id',
+                        hint: relationHint
+                    }
+                }
+            });
+
+            query.orderBy('id', 'ASC');
+
+            return query;
+        };
+
+        const assertSameRows = async (mongoJSON) => {
+            const hintedQuery = makeHintQuery(mongoJSON, hint);
+
+            hintedQuery.toQuery().should.containEql(`(select /*+ ${hint} */ `);
+
+            const expected = await makeHintQuery(mongoJSON).select();
+            const result = await hintedQuery.select();
+
+            expected.should.not.be.empty();
+            result.should.eql(expected);
+        };
+
+        it('many-to-many relation returns the same rows with and without a hint', function () {
+            return assertSameRows({'tags.slug': 'animal'});
+        });
+
+        it('one-to-one relation returns the same rows with and without a hint', function () {
+            return assertSameRows({'posts_meta.meta_title': 'Meta of A Whole New World'});
+        });
+
+        it('aggregate relation returns the same rows with and without a hint', function () {
+            return assertSameRows({tag_count: {$gt: 1}});
+        });
+    });
+
     describe('[NOT IMPLEMENTED] One-to-Many', function () {});
 });

@@ -966,3 +966,175 @@ describe('$elemMatch (single related row)', function () {
             .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` not in (\'a\'))');
     });
 });
+
+describe('Relation hints', function () {
+    // Each relation's subquery is pinned in full, so a hint on the outer select or on
+    // another relation's subquery fails the comparison.
+    const hintConfig = {
+        relations: {
+            tags: {
+                tableName: 'tags',
+                type: 'manyToMany',
+                joinTable: 'posts_tags',
+                joinFrom: 'post_id',
+                joinTo: 'tag_id',
+                hint: 'SUBQUERY(INTOEXISTS)'
+            },
+            authors: {
+                tableName: 'users',
+                tableNameAs: 'authors',
+                type: 'manyToMany',
+                joinTable: 'posts_authors',
+                joinFrom: 'post_id',
+                joinTo: 'author_id',
+                hint: 'SUBQUERY(INTOEXISTS)'
+            },
+            comments: {
+                tableName: 'comments',
+                type: 'manyToMany',
+                joinTable: 'posts_comments',
+                joinFrom: 'post_id',
+                joinTo: 'comment_id'
+            },
+            posts_meta: {
+                tableName: 'posts_meta',
+                type: 'oneToOne',
+                joinFrom: 'post_id',
+                hint: 'SUBQUERY(MATERIALIZATION)'
+            },
+            meta: {
+                tableName: 'posts_meta',
+                tableNameAs: 'meta',
+                type: 'oneToOne',
+                joinFrom: 'post_id',
+                hint: 'SUBQUERY(MATERIALIZATION)'
+            },
+            tag_count: {
+                type: 'aggregate',
+                aggregate: {fn: 'count', column: 'posts_tags.tag_id'},
+                tableName: 'posts_tags',
+                joinFrom: 'post_id',
+                hint: 'SUBQUERY(INTOEXISTS)'
+            },
+            aliased_public_tag_count: {
+                type: 'aggregate',
+                aggregate: {fn: 'countDistinct', column: 'pt.tag_id'},
+                tableName: 'posts_tags',
+                tableNameAs: 'pt',
+                joinFrom: 'post_id',
+                joins: [{tableName: 'tags', tableNameAs: 't', from: 'id', to: 'tag_id'}],
+                wheres: {'t.visibility': 'public'},
+                hint: 'SUBQUERY(INTOEXISTS)'
+            },
+            comment_count: {
+                type: 'aggregate',
+                aggregate: {fn: 'count', column: 'posts_comments.comment_id'},
+                tableName: 'posts_comments',
+                joinFrom: 'post_id'
+            }
+        }
+    };
+
+    const runHintQuery = (query, relationConfig = hintConfig) => convertor(knex('posts'), query, relationConfig).toQuery();
+
+    describe('many-to-many', function () {
+        it('adds the hint inside the relation subquery, not on the outer select', function () {
+            runHintQuery({'tags.slug': 'fred'})
+                .should.eql('select * from `posts` where `posts`.`id` in (select /*+ SUBQUERY(INTOEXISTS) */ `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'fred\')');
+        });
+
+        it('adds the hint with tableNameAs', function () {
+            runHintQuery({'authors.slug': 'joe'})
+                .should.eql('select * from `posts` where `posts`.`id` in (select /*+ SUBQUERY(INTOEXISTS) */ `posts_authors`.`post_id` from `posts_authors` inner join `users` as `authors` on `authors`.`id` = `posts_authors`.`author_id` where `authors`.`slug` = \'joe\')');
+        });
+
+        it('adds the hint to a negated (NOT IN) subquery', function () {
+            runHintQuery({'tags.slug': {$ne: 'fred'}})
+                .should.eql('select * from `posts` where `posts`.`id` not in (select /*+ SUBQUERY(INTOEXISTS) */ `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` in (\'fred\'))');
+        });
+
+        it('adds the hint to every subquery built for the relation', function () {
+            runHintQuery({$and: [{'tags.slug': 'animal'}, {'tags.slug': {$ne: 'classic'}}]})
+                .should.eql('select * from `posts` where (`posts`.`id` in (select /*+ SUBQUERY(INTOEXISTS) */ `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'animal\') and `posts`.`id` not in (select /*+ SUBQUERY(INTOEXISTS) */ `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` in (\'classic\')))');
+        });
+
+        it('adds the hint to an $elemMatch subquery', function () {
+            runHintQuery({tags: {$elemMatch: {slug: 'a', visibility: {$ne: 'internal'}}}})
+                .should.eql('select * from `posts` where `posts`.`id` in (select /*+ SUBQUERY(INTOEXISTS) */ `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'a\' and `tags`.`visibility` not in (\'internal\'))');
+        });
+    });
+
+    describe('one-to-one', function () {
+        it('adds the hint inside the relation subquery, not on the outer select', function () {
+            runHintQuery({'posts_meta.meta_title': 'Meta of A Whole New World'})
+                .should.eql('select * from `posts` where `posts`.`id` in (select /*+ SUBQUERY(MATERIALIZATION) */ `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` = \'Meta of A Whole New World\')');
+        });
+
+        it('adds the hint with tableNameAs', function () {
+            runHintQuery({'meta.meta_title': 'Meta of A Whole New World'})
+                .should.eql('select * from `posts` where `posts`.`id` in (select /*+ SUBQUERY(MATERIALIZATION) */ `posts`.`id` from `posts` left join `posts_meta` as `meta` on `meta`.`post_id` = `posts`.`id` where `meta`.`meta_title` = \'Meta of A Whole New World\')');
+        });
+
+        it('adds the hint to a negated (NOT IN) subquery', function () {
+            runHintQuery({'posts_meta.meta_title': {$ne: 'Meta of A Whole New World'}})
+                .should.eql('select * from `posts` where `posts`.`id` not in (select /*+ SUBQUERY(MATERIALIZATION) */ `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`meta_title` in (\'Meta of A Whole New World\'))');
+        });
+    });
+
+    describe('aggregate', function () {
+        it('adds the hint inside the relation subquery, not on the outer select', function () {
+            runHintQuery({tag_count: {$gt: 1}})
+                .should.eql('select * from `posts` where `posts`.`id` in (select /*+ SUBQUERY(INTOEXISTS) */ `posts_tags`.`post_id` from `posts_tags` group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) > 1)');
+        });
+
+        it('adds the hint with tableNameAs', function () {
+            runHintQuery({aliased_public_tag_count: {$gt: 1}})
+                .should.eql('select * from `posts` where `posts`.`id` in (select /*+ SUBQUERY(INTOEXISTS) */ `pt`.`post_id` from `posts_tags` as `pt` inner join `tags` as `t` on `t`.`id` = `pt`.`tag_id` where `t`.`visibility` = \'public\' group by `pt`.`post_id` having count(distinct `pt`.`tag_id`) > 1)');
+        });
+
+        it('adds the hint to an inverted (NOT IN) subquery', function () {
+            runHintQuery({tag_count: {$ne: 1}})
+                .should.eql('select * from `posts` where `posts`.`id` not in (select /*+ SUBQUERY(INTOEXISTS) */ `posts_tags`.`post_id` from `posts_tags` where `posts_tags`.`post_id` is not null group by `posts_tags`.`post_id` having count(`posts_tags`.`tag_id`) = 1)');
+        });
+    });
+
+    describe('scoping', function () {
+        it('only hints the subquery of the relation that has a hint', function () {
+            runHintQuery({$and: [{'tags.slug': 'animal'}, {'comments.content': 'Hello, world'}]})
+                .should.eql('select * from `posts` where (`posts`.`id` in (select /*+ SUBQUERY(INTOEXISTS) */ `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'animal\') and `posts`.`id` in (select `posts_comments`.`post_id` from `posts_comments` inner join `comments` on `comments`.`id` = `posts_comments`.`comment_id` where `comments`.`content` = \'Hello, world\'))');
+        });
+
+        it('only hints the subquery of the relation that has a hint, across relation types', function () {
+            runHintQuery({$or: [{'posts_meta.like_count': 42}, {comment_count: {$gt: 1}}]})
+                .should.eql('select * from `posts` where (`posts`.`id` in (select /*+ SUBQUERY(MATERIALIZATION) */ `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`like_count` = 42) or `posts`.`id` in (select `posts_comments`.`post_id` from `posts_comments` group by `posts_comments`.`post_id` having count(`posts_comments`.`comment_id`) > 1))');
+        });
+
+        it('keeps each relation\'s own hint when several hinted relations share a filter', function () {
+            runHintQuery({$and: [{'tags.slug': 'animal'}, {'posts_meta.like_count': 42}]})
+                .should.eql('select * from `posts` where (`posts`.`id` in (select /*+ SUBQUERY(INTOEXISTS) */ `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` = \'animal\') and `posts`.`id` in (select /*+ SUBQUERY(MATERIALIZATION) */ `posts`.`id` from `posts` left join `posts_meta` on `posts_meta`.`post_id` = `posts`.`id` where `posts_meta`.`like_count` = 42))');
+        });
+
+        it('renders no hint comment for an empty hint', function () {
+            const emptyHintConfig = {
+                relations: {
+                    tags: Object.assign({}, hintConfig.relations.tags, {hint: ''}),
+                    posts_meta: Object.assign({}, hintConfig.relations.posts_meta, {hint: undefined}),
+                    tag_count: Object.assign({}, hintConfig.relations.tag_count, {hint: null})
+                }
+            };
+
+            runHintQuery({$and: [{'tags.slug': 'animal'}, {'posts_meta.like_count': 42}, {tag_count: {$gt: 1}}]}, emptyHintConfig)
+                .should.eql(runQuery({$and: [{'tags.slug': 'animal'}, {'posts_meta.like_count': 42}, {tag_count: {$gt: 1}}]}));
+        });
+
+        it('leaves it to knex to reject a hint that would close the comment', function () {
+            const unsafeHintConfig = {
+                relations: {
+                    tags: Object.assign({}, hintConfig.relations.tags, {hint: 'SUBQUERY(INTOEXISTS) */ 1 from dual) or 1 = 1 -- '})
+                }
+            };
+
+            (() => runHintQuery({'tags.slug': 'fred'}, unsafeHintConfig)).should.throw('Hint comment cannot include "/*" or "*/"');
+        });
+    });
+});
