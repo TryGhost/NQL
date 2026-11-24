@@ -294,6 +294,109 @@ describe('Parser', function () {
         });
     });
 
+    describe('Negated groups', function () {
+        it('parses a negated group to a $nor of the group', function () {
+            parse('-(status:published)').should.eql({$nor: [{status: 'published'}]});
+
+            parse('-(featured:true+tag:news)')
+                .should.eql({$nor: [{$and: [{featured: true}, {tag: 'news'}]}]});
+
+            parse('-(tag:news,tag:photo)')
+                .should.eql({$nor: [{$or: [{tag: 'news'}, {tag: 'photo'}]}]});
+        });
+
+        it('parses a negated group next to other clauses', function () {
+            parse('newsletters.slug:weekly+-(status:paid+labels.slug:vip)')
+                .should.eql({
+                    $and: [
+                        {'newsletters.slug': 'weekly'},
+                        {$nor: [{$and: [{status: 'paid'}, {'labels.slug': 'vip'}]}]}
+                    ]
+                });
+
+            parse('-(status:paid)+featured:true')
+                .should.eql({$and: [{$nor: [{status: 'paid'}]}, {featured: true}]});
+
+            parse('featured:true,-(status:draft+tag:news)')
+                .should.eql({
+                    $or: [
+                        {featured: true},
+                        {$nor: [{$and: [{status: 'draft'}, {tag: 'news'}]}]}
+                    ]
+                });
+        });
+
+        it('parses a negated group inside a negated group', function () {
+            parse('-(featured:true+-(tag:news))')
+                .should.eql({$nor: [{$and: [{featured: true}, {$nor: [{tag: 'news'}]}]}]});
+        });
+
+        it('reads the brackets around and inside a negated group as the group', function () {
+            parse('(-(status:draft))').should.eql({$nor: [{status: 'draft'}]});
+            parse('-((status:draft))').should.eql({$nor: [{status: 'draft'}]});
+            parse('-((status:draft+featured:true))')
+                .should.eql({$nor: [{$and: [{status: 'draft'}, {featured: true}]}]});
+            parse('(page:false+status:draft)+-(featured:true)')
+                .should.eql({$and: [{$and: [{page: false}, {status: 'draft'}]}, {$nor: [{featured: true}]}]});
+        });
+
+        it('negates exactly the filter it wraps, so a stored filter can be wrapped and left out', function () {
+            const filters = [
+                'status:paid',
+                'status:paid+labels.slug:vip',
+                'status:paid,labels.slug:vip+tier:gold',
+                '(status:paid,labels.slug:vip)+tier:gold',
+                'tag:[news,photo]+tag:[a+b]+title:~^\'Gh\'',
+                'status:paid+-(labels.slug:vip,email:-null)',
+                'last_seen_at:>now-30d'
+            ];
+
+            filters.forEach((filter) => {
+                const options = {preserveRelativeDates: true};
+                const parsed = parse(filter, options);
+
+                parse(`-(${filter})`, options).should.eql({$nor: [parsed]}, filter);
+                parse(`newsletters.slug:weekly+-(${filter})`, options)
+                    .should.eql({$and: [{'newsletters.slug': 'weekly'}, {$nor: [parsed]}]}, filter);
+            });
+        });
+
+        it('ignores whitespace between the minus and the bracket', function () {
+            parse('- (status:draft)').should.eql(parse('-(status:draft)'));
+            parse('featured:true + - ( status:draft )').should.eql(parse('featured:true+-(status:draft)'));
+        });
+
+        it('parses the values a group can hold', function () {
+            parse('-(tag:[news,photo]+title:~\'ghost\'+count:>=5+image:null+published_at:>now-7d)', {preserveRelativeDates: true})
+                .should.eql({$nor: [{$and: [
+                    {tag: {$in: ['news', 'photo']}},
+                    {title: {$regex: /ghost/i}},
+                    {count: {$gte: 5}},
+                    {image: null},
+                    {published_at: {$gt: {$relativeDate: {op: 'sub', amount: 7, unit: 'days'}}}}
+                ]}]});
+            parse('-(tag:-news+tag:-[photo,video]+title:-~\'ghost\')')
+                .should.eql({$nor: [{$and: [
+                    {tag: {$ne: 'news'}},
+                    {tag: {$nin: ['photo', 'video']}},
+                    {title: {$not: /ghost/i}}
+                ]}]});
+        });
+
+        it('expands aliases inside a negated group', function () {
+            parse('-(tag:news)', {aliases: {tag: 'tags.slug'}})
+                .should.eql({$nor: [{'tags.slug': 'news'}]});
+        });
+
+        it('still rejects a minus anywhere but directly before a group', function () {
+            ['--(status:draft)', '-status:draft', 'status:-(draft)', 'status:draft-(featured:true)', 'status:\'draft\'-(featured:true)', '-()', '-(status:draft', '-'].forEach((filter) => {
+                (function () {
+                    parse(filter);
+                }).should.throw(/^Query Error: /, filter);
+            });
+        });
+    });
+
     describe('complex examples', function () {
         it('Many expressions', function () {
             parse('tag:photo+featured:true,tag.count:>5').should.eql({
