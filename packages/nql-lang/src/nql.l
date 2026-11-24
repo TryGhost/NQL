@@ -29,7 +29,7 @@ now(?=[-+]\d+[dwMyhms](?:{final}|$))                        { this.pushState('re
 <reldate>[dwMyhms]                                          { this.popState();
                                                             return 'INTERVAL' }
 
-{omitops}(\\{escapable}|{omitopsbarnot})+                   return 'LITERAL';
+{omitops}(\\{escapable}|{omitopsbarnot})*                   return 'LITERAL';
 ['](\\['"]|[^'"])+?[']                                      return 'STRING';
 '('                                                         return 'LPAREN';
 ')'                                                         return 'RPAREN';
@@ -43,7 +43,6 @@ now(?=[-+]\d+[dwMyhms](?:{final}|$))                        { this.pushState('re
 '~^'                                                        return 'STARTSWITH';
 '~$'                                                        return 'ENDSWITH';
 '~'                                                         return 'CONTAINS';
-([a-zA-Z])(?![a-zA-Z'"\,\(\)\>\<=\[\]\~])                   return 'LITERAL';
 
 
 %%
