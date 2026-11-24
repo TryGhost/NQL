@@ -928,6 +928,32 @@ describe('mapKeyValues', function () {
     });
 });
 
+describe('mapKeyValues with null', function () {
+    let transformer;
+
+    before(function () {
+        transformer = mongoUtils.mapKeyValues({
+            key: {
+                from: 'good',
+                to: 'bad'
+            },
+            values: [{
+                from: true,
+                to: false
+            }]
+        });
+    });
+
+    it('Keeps a condition that compares the key with null', function () {
+        transformer({good: null}).should.eql({bad: null});
+        transformer({$and: [{good: null}, {something: 'else'}]}).should.eql({$and: [{bad: null}, {something: 'else'}]});
+    });
+
+    it('Keeps a condition that compares the key with not null', function () {
+        transformer({good: {$ne: null}}).should.eql({bad: {$ne: null}});
+    });
+});
+
 describe('getUsedKeys', function () {
     it('Returns all keys', function () {
         const query = {
