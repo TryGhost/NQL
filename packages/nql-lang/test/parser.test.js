@@ -773,6 +773,21 @@ describe('Parser', function () {
             it('can handle single character literals', function () {
                 parse('name:a').should.eql({name: 'a'});
             });
+
+            it('can handle a single character literal before a comma or a closing bracket', function () {
+                parse('name:a,name:b').should.eql({$or: [{name: 'a'}, {name: 'b'}]});
+                parse('(name:a)').should.eql({name: 'a'});
+                parse('(name:a)+page:false').should.eql({$and: [{name: 'a'}, {page: false}]});
+                parse('name:[a,b]').should.eql({name: {$in: ['a', 'b']}});
+                parse('name:-[a]').should.eql({name: {$nin: ['a']}});
+            });
+
+            it('can handle a single character literal that is not a letter', function () {
+                parse('name:_').should.eql({name: '_'});
+                parse('name:é').should.eql({name: 'é'});
+                parse('(name:猫)+page:false').should.eql({$and: [{name: '猫'}, {page: false}]});
+                parse('name:[_,é]').should.eql({name: {$in: ['_', 'é']}});
+            });
         });
     });
 });

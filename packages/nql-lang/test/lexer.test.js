@@ -48,10 +48,9 @@ describe('Lexer', function () {
             lex('~$').should.eql([{token: 'ENDSWITH', matched: '~$'}]);
         });
 
-        it('cannot recognise :', function () {
-            (function () {
-                lex(':');
-            }).should.throw(lexicalError);
+        it('reads : on its own as a LITERAL, as it does ::', function () {
+            lex(':').should.eql([{token: 'LITERAL', matched: ':'}]);
+            lex('::').should.eql([{token: 'LITERAL', matched: '::'}]);
         });
         it('cannot recognise =', function () {
             (function () {
@@ -190,37 +189,49 @@ describe('Lexer', function () {
             ]);
         });
 
-        it('should NOT permit special chars inside a literal', function () {
-            (function () {
-                lex('t,st');
-            }).should.throw(lexicalError);
-            (function () {
-                lex('t(st');
-            }).should.throw(lexicalError);
-            (function () {
-                lex('t)st');
-            }).should.throw(lexicalError);
-            (function () {
-                lex('t>st');
-            }).should.throw(lexicalError);
-            (function () {
-                lex('t<st');
-            }).should.throw(lexicalError);
+        it('should NOT permit quotes or = inside a literal', function () {
             (function () {
                 lex('t=st');
             }).should.throw(lexicalError);
             (function () {
-                lex('t[st');
-            }).should.throw(lexicalError);
-            (function () {
-                lex('t]st');
+                lex('te=st');
             }).should.throw(lexicalError);
             (function () {
                 lex('t\'st');
             }).should.throw(lexicalError);
             (function () {
+                lex('te\'st');
+            }).should.throw(lexicalError);
+            (function () {
                 lex('t"st');
             }).should.throw(lexicalError);
+            (function () {
+                lex('te"st');
+            }).should.throw(lexicalError);
+        });
+
+        it('should end a one-character literal where it ends a longer one', function () {
+            const ends = [
+                [',', 'OR'],
+                ['+', 'AND'],
+                ['(', 'LPAREN'],
+                [')', 'RPAREN'],
+                ['[', 'LBRACKET'],
+                [']', 'RBRACKET'],
+                ['>', 'GT'],
+                ['<', 'LT'],
+                ['~', 'CONTAINS']
+            ];
+
+            ends.forEach(([char, token]) => {
+                ['t', 'te', '_', 'é'].forEach((literal) => {
+                    lex(`${literal}${char}st`).should.eql([
+                        {token: 'LITERAL', matched: literal},
+                        {token, matched: char},
+                        {token: 'LITERAL', matched: 'st'}
+                    ]);
+                });
+            });
         });
 
         it('should not match special chars at the start of a literal', function () {
