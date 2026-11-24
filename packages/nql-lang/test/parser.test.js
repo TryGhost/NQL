@@ -248,6 +248,36 @@ describe('Parser', function () {
                 .should.eql({$and: [{page: false}, {status: 'published'}]});
         });
 
+        it('reads a group that holds only another group as that group', function () {
+            parse('((status:published))').should.eql({status: 'published'});
+            parse('(((status:published)))').should.eql({status: 'published'});
+            parse('((page:false+status:published))')
+                .should.eql({$and: [{page: false}, {status: 'published'}]});
+        });
+
+        it('reads a group that holds only another group as that group, among other clauses', function () {
+            parse('page:false+((status:published))')
+                .should.eql({$and: [{page: false}, {status: 'published'}]});
+            parse('((status:published))+page:false')
+                .should.eql({$and: [{status: 'published'}, {page: false}]});
+            parse('page:false,((status:published))')
+                .should.eql({$or: [{page: false}, {status: 'published'}]});
+            parse('((page:false,featured:true))+((status:published))')
+                .should.eql({
+                    $and: [
+                        {$or: [{page: false}, {featured: true}]},
+                        {status: 'published'}
+                    ]
+                });
+        });
+
+        it('reads a property with the name the group mark used to have', function () {
+            parse('yg:ab').should.eql({yg: 'ab'});
+            parse('(yg:ab)').should.eql({yg: 'ab'});
+            parse('yg:ab+page:false').should.eql({$and: [{yg: 'ab'}, {page: false}]});
+            parse('((yg:ab)),page:false').should.eql({$or: [{yg: 'ab'}, {page: false}]});
+        });
+
         it('ungroups top level group with nested groups', function () {
             parse('(page:false,(status:published+featured:true))')
                 .should.eql({

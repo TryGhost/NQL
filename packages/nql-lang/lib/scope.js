@@ -17,9 +17,20 @@ const intervals = {
 // but appends milliseconds, which we don't want.
 const SQL_FORMAT = 'yyyy-MM-dd HH:mm:ss';
 
+// Marks an expression that was written in brackets, so that combining it with the clauses
+// next to it keeps it as one element instead of merging it into their list. A symbol, so
+// that the mark can't be mistaken for a property of the same name and never appears in
+// the parsed filter.
+const GROUP = Symbol('group');
+
 module.exports = {
+    // A group that holds only another group is the same group, so it is marked once
+    group(value) {
+        return {[GROUP]: this.ungroup(value)};
+    },
+
     ungroup(value) {
-        return value.yg ? value.yg : value;
+        return value && value[GROUP] !== undefined ? value[GROUP] : value;
     },
 
     unescape(value) {
