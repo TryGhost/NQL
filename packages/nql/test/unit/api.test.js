@@ -165,6 +165,14 @@ describe('Public API', function () {
         query.queryJSON({slug: 'hello-world', page: false}).should.be.true();
     });
 
+    it('reads a property with the name the parser once used to mark a group', function () {
+        const query = nql('yg:ab+(featured:true)');
+
+        query.toJSON().should.eql({$and: [{yg: 'ab'}, {featured: true}]});
+        query.querySQL(knex('posts')).toQuery()
+            .should.eql('select * from `posts` where (`posts`.`yg` = \'ab\' and `posts`.`featured` = true)');
+    });
+
     describe('parsing when options.transformer is set', function () {
         it('sets this.filter to the result of options.transform(nql.parse(queryString)', function () {
             const options = {

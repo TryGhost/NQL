@@ -14,7 +14,6 @@ const GROUPS = ['$and', '$or'];
  * If the query is an array, it recursively maps each object in the array.
  * If the query is an object, it maps each key-value pair using the mapping function.
  * If the key is in the GROUPS array, it maps the value recursively.
- * If the key is 'yg', it maps the value recursively.
  * Otherwise, it applies the mapping function to the value and key.
  *
  * @param {Object|Array} query - The query object to be mapped.
@@ -34,10 +33,6 @@ const mapQuery = (query, fn) => {
             // Allow removal of parent with empty children
             mappedObject = _.isEmpty(mappedValue) ? null : {
                 [key]: mappedValue
-            };
-        } else if (key === 'yg') {
-            mappedObject = {
-                [key]: mapQuery(value, fn)
             };
         } else {
             mappedObject = fn(value, key);
@@ -342,9 +337,6 @@ function getUsedKeys(filter) {
                 }
             }
         }
-    } else if (filter.yg) {
-        // Single filter grouped in brackets
-        usedKeys.push(...getUsedKeys(filter.yg));
     } else {
         usedKeys.push(...Object.keys(filter));
     }
@@ -433,9 +425,6 @@ function splitFilter(filter, keys) {
         } else {
             withoutKeysFilter = filter;
         }
-    } else if (filter.yg) {
-        // Single filter grouped in brackets
-        return this.splitFilter(filter.yg, keys);
     } else {
         const filterKeys = Object.keys(filter);
 
