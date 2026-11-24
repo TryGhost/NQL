@@ -173,6 +173,41 @@ describe('Public API', function () {
             .should.eql('select * from `posts` where (`posts`.`yg` = \'ab\' and `posts`.`featured` = true)');
     });
 
+    describe('negated groups', function () {
+        it('removes an overridden key from inside a negated group', function () {
+            const query = nql('-(status:draft+featured:true)', {overrides: 'status:published'});
+
+            query.toJSON().should.eql({$and: [
+                {status: 'published'},
+                {$nor: [{$and: [{featured: true}]}]}
+            ]});
+
+            query.queryJSON({status: 'published', featured: true}).should.be.false();
+            query.queryJSON({status: 'published', featured: false}).should.be.true();
+        });
+
+        it('drops a default for a key used inside a negated group', function () {
+            const query = nql('-(page:true)', {defaults: 'page:false'});
+
+            query.toJSON().should.eql({$nor: [{page: true}]});
+        });
+
+        it('expands a key inside a negated group', function () {
+            const query = nql('-(primary_tag:photo)', {expansions: expansions});
+
+            query.toJSON().should.eql({$nor: [{$and: [{'tags.slug': 'photo'}, {order: 0}]}]});
+
+            query.queryJSON({order: 0, tags: [{slug: 'photo'}]}).should.be.false();
+            query.queryJSON({order: 1, tags: [{slug: 'photo'}]}).should.be.true();
+        });
+
+        it('rewrites a key inside a negated group with utils.mapKeyValues', function () {
+            const transformer = nql.utils.mapKeyValues({key: {from: 'tier', to: 'products.slug'}, values: []});
+
+            nql('-(tier:gold)', {transformer}).toJSON().should.eql({$nor: [{'products.slug': 'gold'}]});
+        });
+    });
+
     describe('parsing when options.transformer is set', function () {
         it('sets this.filter to the result of options.transform(nql.parse(queryString)', function () {
             const options = {

@@ -1,0 +1,61 @@
+{
+    "members": [
+        {"id": 1, "email": "alice@example.com", "status": "paid", "last_seen_at": "2026-11-01 10:00:00"},
+        {"id": 2, "email": "bob@example.com", "status": "paid", "last_seen_at": null},
+        {"id": 3, "email": "carol@example.com", "status": "free", "last_seen_at": "2026-10-01 10:00:00"},
+        {"id": 4, "email": "dan@example.com", "status": "free", "last_seen_at": null},
+        {"id": 5, "email": "erin@example.com", "status": "comped", "last_seen_at": "2026-11-20 10:00:00"},
+        {"id": 6, "email": "frank@example.com", "status": "paid", "last_seen_at": "2025-01-01 10:00:00"}
+    ],
+    "labels": [
+        {"id": 1, "slug": "vip"},
+        {"id": 2, "slug": "beta"}
+    ],
+    "members_labels": [
+        {"member_id": 1, "label_id": 1},
+        {"member_id": 3, "label_id": 1},
+        {"member_id": 5, "label_id": 1},
+        {"member_id": 6, "label_id": 1},
+        {"member_id": 6, "label_id": 2}
+    ],
+    "products": [
+        {"id": 1, "slug": "gold"},
+        {"id": 2, "slug": "silver"}
+    ],
+    "members_products": [
+        {"member_id": 1, "product_id": 1},
+        {"member_id": 2, "product_id": 1},
+        {"member_id": 5, "product_id": 2},
+        {"member_id": 6, "product_id": 1}
+    ],
+    "newsletters": [
+        {"id": 1, "slug": "weekly"},
+        {"id": 2, "slug": "daily"}
+    ],
+    "members_newsletters": [
+        {"member_id": 1, "newsletter_id": 1},
+        {"member_id": 2, "newsletter_id": 1},
+        {"member_id": 3, "newsletter_id": 1},
+        {"member_id": 4, "newsletter_id": 1},
+        {"member_id": 4, "newsletter_id": 2},
+        {"member_id": 5, "newsletter_id": 2}
+    ],
+    "members_stripe_customers_subscriptions": [
+        {"id": 1, "status": "active"},
+        {"id": 2, "status": "active"},
+        {"id": 3, "status": "canceled"},
+        {"id": 4, "status": "active"}
+    ],
+    "members_current_subscription": [
+        {"member_id": 1, "subscription_id": 1},
+        {"member_id": 2, "subscription_id": 2},
+        {"member_id": 5, "subscription_id": 3},
+        {"member_id": 6, "subscription_id": 4}
+    ],
+    "members_metafield_values": [
+        {"member_id": 1, "metafield_key": "company", "value_text": "Ghost"},
+        {"member_id": 2, "metafield_key": "company", "value_text": "Acme"},
+        {"member_id": 5, "metafield_key": "company", "value_text": "Ghost"},
+        {"member_id": 6, "metafield_key": "company", "value_text": null}
+    ]
+}
