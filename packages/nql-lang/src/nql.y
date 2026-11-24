@@ -46,6 +46,7 @@ andCondition
 
 filterExpr
     : LPAREN expression RPAREN { yy.debug('LPAREN expression RPAREN', $2); $$ = yy.group($2); }
+    | NOT LPAREN expression RPAREN { yy.debug('NOT LPAREN expression RPAREN', $3); $$ = {$nor: [yy.ungroup($3)]}; }
     | propExpr valueExpr { $$ = {[$1]: $2}; }
     ;
 

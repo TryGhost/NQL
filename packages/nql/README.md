@@ -37,6 +37,27 @@ If the same expression would be applied to Knex [QueryBuilder](https://knexjs.or
 where (`posts`.`featured` = true and `posts`.`slug` in ('photo', 'video'))
 ```
 
+## Negating a group
+A minus before a value negates that value, as in `status:-free`. A minus directly before brackets negates the whole group, so the filter matches everything the group doesn't. Subscribers to the weekly newsletter who aren't paid members labelled VIP are:
+
+```
+newsletters.slug:weekly+-(status:paid+labels.slug:vip)
+```
+
+The negated group parses to a `$nor` that holds the group:
+```javascript
+{
+    $and: [
+        {'newsletters.slug': 'weekly'},
+        {$nor: [{$and: [{status: 'paid'}, {'labels.slug': 'vip'}]}]}
+    ]
+}
+```
+
+A negated group matches exactly the rows the group doesn't match, including a row with NULL in a column the group tests. A member who has never been seen doesn't match `last_seen_at:>'2026-10-15'`, so `-(last_seen_at:>'2026-10-15')` matches them.
+
+Groups can hold relations, other negated groups and either kind of separator, and a negated group can sit anywhere a bracketed group can, as in `status:comped,-(tier:gold+label:vip)`.
+
 ## Usage
 Some common usages:
 ```javascript
