@@ -234,6 +234,47 @@ describe('Comparison Query Operators', function () {
     });
 });
 
+describe('Unsupported comparison operators', function () {
+    it('throws on an unknown operator instead of dropping the condition', function () {
+        (function () {
+            runQuery({status: {$typo: 'published'}});
+        }).should.throw('Unsupported operator "$typo" for "status"');
+    });
+
+    it('throws on a field nested under a field', function () {
+        (function () {
+            runQuery({group: {status: 'published'}});
+        }).should.throw('Unsupported operator "status" for "group"');
+    });
+
+    it('throws when a supported operator sits next to an unknown one', function () {
+        (function () {
+            runQuery({id: {$gte: 2, $typo: 4}});
+        }).should.throw('Unsupported operator "$typo" for "id"');
+    });
+
+    it('throws inside $and and $or groups', function () {
+        (function () {
+            runQuery({$and: [{featured: true}, {status: {$typo: 'published'}}]});
+        }).should.throw('Unsupported operator "$typo" for "status"');
+
+        (function () {
+            runQuery({$or: [{featured: true}, {$and: [{group: {status: 'published'}}]}]});
+        }).should.throw('Unsupported operator "status" for "group"');
+    });
+
+    it('throws on a relation', function () {
+        (function () {
+            runQuery({'tags.slug': {$typo: 'animal'}});
+        }).should.throw('Unsupported operator "$typo" for "tags.slug"');
+    });
+
+    it('still accepts $elemMatch, and $not around it, on a relation', function () {
+        runQuery({tags: {$elemMatch: {slug: 'animal'}}}).should.match(/`posts`.`id` in \(select/);
+        runQuery({tags: {$not: {$elemMatch: {slug: 'animal'}}}}).should.match(/`posts`.`id` not in \(select/);
+    });
+});
+
 describe('Logical Query Operators', function () {
     it('$and (different properties)', function () {
         runQuery({$and: [{featured: false}, {status: 'published'}]})

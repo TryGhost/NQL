@@ -75,6 +75,9 @@ const aggregateOperatorError = relationName => new Error(`Aggregate relation "${
 const aggregateColumnError = relationName => new Error(`Aggregate relation "${relationName}" is queried by name only, without a column (e.g. "${relationName}:0")`);
 
 //eslint-disable-next-line ghost/ghost-custom/no-native-error
+const unsupportedComparisonError = (key, op) => new Error(`Unsupported operator "${op}" for "${key}"`);
+
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
 const elemMatchRelationError = key => new Error(`$elemMatch can only be used on a relation, not "${key}"`);
 
 //eslint-disable-next-line ghost/ghost-custom/no-native-error
@@ -1029,6 +1032,36 @@ class MongoToKnex {
         });
     }
 
+    /**
+     * Rejects an operator under a field that the converter can't turn into a condition,
+     * as in `{status: {$typo: 'x'}}` or `{group: {status: 'x'}}`. buildWhereClause skips
+     * such an operator, which leaves the query with fewer conditions than the filter
+     * states and widens the result. A pre-pass for the same reason as
+     * validateAggregateStatements.
+     */
+    validateComparisonOperators(sub) {
+        if (!_.isPlainObject(sub)) {
+            return;
+        }
+
+        _.forIn(sub, (value, key) => {
+            if (isLogicOp(key)) {
+                _.castArray(value).forEach(group => this.validateComparisonOperators(group));
+                return;
+            }
+
+            if (isOp(key) || !_.isPlainObject(value)) {
+                return;
+            }
+
+            _.forIn(value, (operatorValue, op) => {
+                if (op !== '$elemMatch' && !isCompOp(op)) {
+                    throw unsupportedComparisonError(key, op);
+                }
+            });
+        });
+    }
+
     // Walks the filter for $elemMatch clauses (bare or wrapped in $not) and validates
     // each one. Raised here, before query building, so a match nested in an $and/$or
     // group fails at conversion rather than deep inside a knex where-callback at render
@@ -1108,8 +1141,11 @@ class MongoToKnex {
             debugExtended(`(processJSON) ${stringify(mongoJSON)}`);
         }
 
+        // The aggregate and $elemMatch passes name the relation and what it supports, so
+        // they run before the general operator check
         this.validateAggregateStatements(mongoJSON);
         this.validateElemMatchStatements(mongoJSON);
+        this.validateComparisonOperators(mongoJSON);
 
         // 'and' is the default behaviour
         this.buildQuery(qb, '$and', mongoJSON);
