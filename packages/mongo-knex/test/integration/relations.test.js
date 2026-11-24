@@ -1685,6 +1685,119 @@ describe('Relations', function () {
         });
     });
 
+    // A negated group matches exactly the posts its conditions don't match. These rely on
+    // the base and many-to-many fixtures: every post's image is NULL except post 2's, and
+    // post 2's published_at is NULL. Each group tests one of those columns, where a
+    // comparison is unknown for a NULL and so is its plain SQL NOT. Every test fails if the
+    // group is dropped, if it isn't negated, or if it is negated with a plain NOT.
+    describe('Negated group $nor', function () {
+        const matchIds = (mongoJSON, ids) => makeQuery(mongoJSON)
+            .select()
+            .then(result => result.should.matchIds(ids));
+
+        it('keeps the posts with NULL in the column the group tests', function () {
+            return matchIds({$nor: [{image: 'myimage.jpg'}]}, [1, 3, 4, 5, 6, 7, 8]);
+        });
+
+        it('negates a group that ORs a many-to-many relation with a column', function () {
+            return matchIds({$nor: [{$or: [{image: 'myimage.jpg'}, {'tags.slug': 'cgi'}]}]}, [1, 4, 5, 6, 7, 8]);
+        });
+
+        it('negates a group that ANDs a many-to-many relation with a column', function () {
+            // Post 2 has the animal tag and no published_at, so the group is unknown for it
+            return matchIds({$nor: [{$and: [{'tags.slug': 'animal'}, {published_at: {$lt: '2015-06-02'}}]}]}, [1, 2, 3, 5, 6, 7, 8]);
+        });
+
+        it('negates a condition on the join table together with its relation, as an expansion writes it', function () {
+            // Posts 4 and 6 have the animal tag second, posts 7 and 8 were published after 2015-06-03
+            return matchIds({$nor: [{$or: [
+                {$and: [{'tags.slug': 'animal'}, {'posts_tags.sort_order': 1}]},
+                {published_at: {$gt: '2015-06-03'}}
+            ]}]}, [1, 2, 3, 5]);
+        });
+
+        it('negates a many-to-many relation with an aliased table', function () {
+            return matchIds({$nor: [{$or: [{'authors.slug': 'sam'}, {image: 'myimage.jpg'}]}]}, [1, 3, 5, 6, 7]);
+        });
+
+        it('negates a one-to-one relation, keeping the posts with no related row', function () {
+            return matchIds({$nor: [{$or: [{'posts_meta.like_count': 42}, {image: 'myimage.jpg'}]}]}, [1, 3, 6, 7, 8]);
+        });
+
+        it('negates an $elemMatch on a one-to-one relation', function () {
+            return matchIds({$nor: [{$or: [
+                {posts_meta: {$elemMatch: {like_count: 42, meta_description: null}}},
+                {image: 'myimage.jpg'}
+            ]}]}, [1, 3, 4, 6, 7, 8]);
+        });
+
+        it('negates an aggregate relation', function () {
+            return matchIds({$nor: [{$or: [{tag_count: 0}, {image: 'myimage.jpg'}]}]}, [1, 3, 4, 5, 6, 8]);
+        });
+
+        it('negates a group that ANDs an aggregate relation with a column', function () {
+            // Post 2 has one tag and no published_at, so the group is unknown for it
+            return matchIds({$nor: [{$and: [{tag_count: 1}, {published_at: {$lt: '2015-06-02'}}]}]}, [2, 4, 5, 6, 7, 8]);
+        });
+
+        it('ANDs the keys of one condition and ORs the conditions', function () {
+            return Promise.all([
+                matchIds({$nor: [{'tags.slug': 'animal', published_at: {$lt: '2015-06-02'}}]}, [1, 2, 3, 5, 6, 7, 8]),
+                matchIds({$nor: [{image: 'myimage.jpg'}, {'tags.slug': 'cgi'}]}, [1, 4, 5, 6, 7, 8])
+            ]);
+        });
+
+        it('applies next to an ordinary condition', function () {
+            return matchIds({$and: [{featured: false}, {$nor: [{published_at: {$lt: '2015-06-02'}}]}]}, [2]);
+        });
+
+        it('applies inside an $or', function () {
+            return matchIds({$or: [{'tags.slug': 'cgi'}, {$nor: [{published_at: {$lt: '2015-06-02'}}]}]}, [2, 3, 5, 6, 7, 8]);
+        });
+
+        it('negates a group that holds a negated group', function () {
+            // The inner group is the posts without the classic tag: 2, 3, 7 and 8
+            return matchIds({$nor: [{$or: [{image: 'myimage.jpg'}, {$nor: [{'tags.slug': 'classic'}]}]}]}, [1, 4, 5, 6]);
+        });
+
+        it('filters an UPDATE of the same table', function () {
+            const rollback = new Error('rollback');
+
+            // Rolled back, so the fixtures stay as they are for the tests after this one
+            return knex.transaction(async (trx) => {
+                await makeQuery({$nor: [{$or: [{image: 'myimage.jpg'}, {'tags.slug': 'cgi'}]}]})
+                    .clearOrder()
+                    .transacting(trx)
+                    .update({title: 'Left out'});
+
+                const ids = await trx('posts').where('title', 'Left out').orderBy('id').pluck('id');
+                ids.should.eql([1, 4, 5, 6, 7, 8]);
+
+                throw rollback;
+            }).catch((err) => {
+                if (err !== rollback) {
+                    throw err;
+                }
+            });
+        });
+
+        describe('with a join row that has a NULL post_id', function () {
+            // The relation's subquery then returns a NULL, so `posts.id IN (…)` is unknown
+            // rather than false for every post it doesn't return
+            before(function () {
+                return knex('posts_tags').insert({post_id: null, tag_id: 3});
+            });
+
+            after(function () {
+                return knex('posts_tags').whereNull('post_id').del();
+            });
+
+            it('keeps the posts the relation is unknown for', function () {
+                return matchIds({$nor: [{'tags.slug': 'cgi'}]}, [1, 2, 4, 5, 6, 7, 8]);
+            });
+        });
+    });
+
     describe('Aggregate', function () {
         // NOTE: these tests rely on the fixtures loaded by the Many-to-Many suite above.
         //       Tag counts per post: 1:1, 2:1, 3:1, 4:2, 5:1, 6:2, 7:0, 8:1

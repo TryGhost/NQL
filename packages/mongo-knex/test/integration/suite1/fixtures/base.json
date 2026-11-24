@@ -154,5 +154,10 @@
             "meta_description": null,
             "like_count": 42
         }
+    ],
+    "settings": [
+        {"key": "title", "value": "Ghost"},
+        {"key": "description", "value": null},
+        {"key": "locale", "value": "en"}
     ]
 }
