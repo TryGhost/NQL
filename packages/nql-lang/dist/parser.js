@@ -87,10 +87,7 @@ case 1:
 
         yy.debug('expression', $$[$0]);
         yy.debug('opt', opt);
-        if ($$[$0] && $$[$0].yg) {
-            return $$[$0].yg; // Unwrap from 'yg' if present
-        }
-        return $$[$0];
+        return yy.ungroup($$[$0]);
     
 break;
 case 2:
@@ -115,7 +112,7 @@ case 5:
     
 break;
 case 6:
- yy.debug('LPAREN expression RPAREN', $$[$0-1]); this.$ = {yg: $$[$0-1]}; 
+ yy.debug('LPAREN expression RPAREN', $$[$0-1]); this.$ = yy.group($$[$0-1]); 
 break;
 case 7:
  this.$ = {[$$[$0-1]]: $$[$0]}; 

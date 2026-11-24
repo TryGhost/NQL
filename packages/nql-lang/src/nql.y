@@ -21,10 +21,7 @@ expressions
     : expression {
         yy.debug('expression', $1);
         yy.debug('opt', opt);
-        if ($1 && $1.yg) {
-            return $1.yg; // Unwrap from 'yg' if present
-        }
-        return $1;
+        return yy.ungroup($1);
     }
     ;
 
@@ -48,7 +45,7 @@ andCondition
     ;
 
 filterExpr
-    : LPAREN expression RPAREN { yy.debug('LPAREN expression RPAREN', $2); $$ = {yg: $2}; }
+    : LPAREN expression RPAREN { yy.debug('LPAREN expression RPAREN', $2); $$ = yy.group($2); }
     | propExpr valueExpr { $$ = {[$1]: $2}; }
     ;
 
