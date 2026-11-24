@@ -4,7 +4,8 @@ const debugExtended = require('debug')('mongo-knex:converter-extended');
 
 const logicOps = [
     '$and',
-    '$or'
+    '$or',
+    '$nor'
 ];
 
 const compOps = {
@@ -54,6 +55,24 @@ const isRangeOp = key => isOp(key) && _.includes(['$gt', '$gte', '$lt', '$lte'],
 const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
 const isAggregateCompOp = key => Boolean(complementOps[key]);
 
+// Whether a condition holds no statement at some level, so the converter would build no SQL
+// for that part of it: an empty object, an empty group list, or a field with an empty
+// object of operators
+const hasEmptyCondition = (condition) => {
+    if (!_.isPlainObject(condition) || _.isEmpty(condition)) {
+        return true;
+    }
+
+    return _.some(condition, (value, key) => {
+        if (isLogicOp(key)) {
+            const conditions = _.castArray(value);
+            return conditions.length === 0 || _.some(conditions, hasEmptyCondition);
+        }
+
+        return _.isPlainObject(value) && _.isEmpty(value);
+    });
+};
+
 // Aggregate values must be numeric: the inversion decision below evaluates the predicate
 // at 0 in JS, so a value the database would coerce differently (null, '', '2abc') must be
 // rejected up front or the two evaluations can disagree. Arrays are only meaningful for
@@ -76,6 +95,9 @@ const aggregateColumnError = relationName => new Error(`Aggregate relation "${re
 
 //eslint-disable-next-line ghost/ghost-custom/no-native-error
 const unsupportedComparisonError = (key, op) => new Error(`Unsupported operator "${op}" for "${key}"`);
+
+//eslint-disable-next-line ghost/ghost-custom/no-native-error
+const negatedGroupError = () => new Error('$nor needs a list of one or more conditions, and each condition needs at least one statement');
 
 //eslint-disable-next-line ghost/ghost-custom/no-native-error
 const elemMatchRelationError = key => new Error(`$elemMatch can only be used on a relation, not "${key}"`);
@@ -962,6 +984,36 @@ class MongoToKnex {
         });
     }
 
+    /**
+     * {$nor: [{status: 'draft'}, {'tags.slug': 'news'}]}
+     *
+     * Matches exactly the rows that none of the conditions match: the complement of an
+     * $or of the conditions. The keys of one condition are ANDed, as in Mongo.
+     *
+     * Built as `NOT EXISTS (SELECT 1 WHERE <conditions>)` rather than
+     * `NOT (<conditions>)`. In SQL a comparison with NULL is unknown, and NOT of unknown
+     * is still unknown, so `NOT (image = 'x')` leaves out a row whose image is NULL even
+     * though that row doesn't match `image = 'x'`. The subquery has no table of its own,
+     * so its conditions read the row the outer query is testing, and it returns a row
+     * only when they are true for that row. NOT EXISTS is then true for every other row,
+     * including one where the conditions are unknown because of a NULL.
+     */
+    buildNegatedGroup(qb, mode, conditions) {
+        debug(`(buildNegatedGroup) mode: ${mode}`);
+
+        // The subquery body is a knex callback where `this` is the query builder
+        const self = this;
+        const whereType = mode === '$or' ? 'orWhereNotExists' : 'whereNotExists';
+
+        qb[whereType](function () {
+            this.select(this.client.raw('1'));
+
+            conditions.forEach((condition) => {
+                self.buildWhereGroup(this, '$or', '$and', condition);
+            });
+        });
+    }
+
     buildQuery(qb, mode, sub, group) {
         debug(`(buildQuery) mode: ${mode}`);
 
@@ -972,7 +1024,9 @@ class MongoToKnex {
         _.forIn(sub, (value, key) => {
             debug(`(buildQuery) key: ${key}`);
 
-            if (isLogicOp(key)) {
+            if (key === '$nor') {
+                this.buildNegatedGroup(qb, mode, value);
+            } else if (isLogicOp(key)) {
                 // CASE: you have two groups ($or), you have one group ($and)
                 this.buildWhereGroup(qb, mode, key, value);
             } else {
@@ -1062,6 +1116,30 @@ class MongoToKnex {
         });
     }
 
+    /**
+     * Rejects a $nor that isn't a list of one or more conditions, or that holds an empty
+     * condition at any depth: an empty object, an empty $and/$or/$nor list or a field with
+     * an empty object of operators. knex drops an empty condition, so
+     * `{$nor: [{}, {id: 1}]}` would match every row except id 1, when an empty condition
+     * matches every row and the $nor should match none. Mongo rejects an empty list too.
+     * A pre-pass for the same reason as validateAggregateStatements.
+     */
+    validateNegatedGroups(sub) {
+        if (!_.isPlainObject(sub)) {
+            return;
+        }
+
+        _.forIn(sub, (value, key) => {
+            if (key === '$nor' && !(_.isArray(value) && value.length > 0 && !_.some(value, hasEmptyCondition))) {
+                throw negatedGroupError();
+            }
+
+            if (isLogicOp(key)) {
+                _.castArray(value).forEach(group => this.validateNegatedGroups(group));
+            }
+        });
+    }
+
     // Walks the filter for $elemMatch clauses (bare or wrapped in $not) and validates
     // each one. Raised here, before query building, so a match nested in an $and/$or
     // group fails at conversion rather than deep inside a knex where-callback at render
@@ -1141,8 +1219,10 @@ class MongoToKnex {
             debugExtended(`(processJSON) ${stringify(mongoJSON)}`);
         }
 
-        // The aggregate and $elemMatch passes name the relation and what it supports, so
-        // they run before the general operator check
+        // The $nor pass runs first so that a malformed $nor is reported as such, not by a
+        // pass that checks what it holds. The aggregate and $elemMatch passes name the
+        // relation and what it supports, so they run before the general operator check
+        this.validateNegatedGroups(mongoJSON);
         this.validateAggregateStatements(mongoJSON);
         this.validateElemMatchStatements(mongoJSON);
         this.validateComparisonOperators(mongoJSON);

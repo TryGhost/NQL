@@ -143,5 +143,42 @@ describe('Same Table', function () {
                 });
         });
     });
+
+    // The settings table has no id column, and the description setting's value is NULL
+    describe('Negated group $nor on a table without an id column', function () {
+        const nor = {$nor: [{value: 'Ghost'}]};
+        const rollback = new Error('rollback');
+
+        // Runs fn in a transaction and rolls it back, so the fixtures stay as they are
+        const inTransaction = fn => knex.transaction(async (trx) => {
+            await fn(trx);
+            throw rollback;
+        }).catch((err) => {
+            if (err !== rollback) {
+                throw err;
+            }
+        });
+
+        it('selects the rows the group does not match, including one with NULL in the tested column', async function () {
+            const keys = await convertor(knex('settings'), nor).orderBy('key').pluck('key');
+            keys.should.eql(['description', 'locale']);
+        });
+
+        it('filters an UPDATE of the same table', function () {
+            return inTransaction(async (trx) => {
+                await convertor(trx('settings'), nor).update({value: 'changed'});
+                const keys = await trx('settings').where('value', 'changed').orderBy('key').pluck('key');
+                keys.should.eql(['description', 'locale']);
+            });
+        });
+
+        it('filters a DELETE from the same table', function () {
+            return inTransaction(async (trx) => {
+                await convertor(trx('settings'), nor).del();
+                const keys = await trx('settings').orderBy('key').pluck('key');
+                keys.should.eql(['title']);
+            });
+        });
+    });
 });
 

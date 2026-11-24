@@ -1,5 +1,6 @@
 const Promise = require('bluebird');
 const TABLES = [
+    'settings',
     'posts_comments',
     'comments',
     'posts_tags',
@@ -63,6 +64,11 @@ module.exports.up = function (knex) {
             table.increments('id').primary();
             table.integer('post_id').unsigned().references('posts.id');
             table.string('comment_id').references('comments.comment_provider_id');
+        }))
+        // A table without an id column
+        .then(() => knex.schema.createTable('settings', (table) => {
+            table.string('key', 191);
+            table.string('value', 191).nullable();
         }));
 };
 

@@ -297,6 +297,36 @@ describe('Logical Query Operators', function () {
     });
 });
 
+// The rows a $nor matches are in the integration tests
+describe('Negated group $nor', function () {
+    it('throws on an empty list, a value that is not a list, or an empty condition at any depth', function () {
+        const error = '$nor needs a list of one or more conditions, and each condition needs at least one statement';
+
+        [
+            {$nor: []},
+            {$nor: {status: 'draft'}},
+            {$nor: [{}, {id: 1}]},
+            {$nor: [{$and: []}, {id: 1}]},
+            {$nor: [{$or: [{}, {id: 1}]}]},
+            {$nor: [{status: {}}, {id: 1}]},
+            {$or: [{id: 1}, {$nor: ['draft']}]}
+        ].forEach((filter) => {
+            (() => buildQuery(filter)).should.throw(error);
+        });
+    });
+
+    it('validates the statements inside it before the query is built', function () {
+        (() => buildQuery({$nor: [{status: {$typo: 'draft'}}]}))
+            .should.throw('Unsupported operator "$typo" for "status"');
+
+        (() => buildQuery({$nor: [{$and: [{featured: true}, {tag_count: {$regex: /1/}}]}]}))
+            .should.throw(/Aggregate relation "tag_count" only supports/);
+
+        (() => buildQuery({$nor: [{tags: {$elemMatch: {}}}]}))
+            .should.throw('$elemMatch on "tags" needs at least one condition');
+    });
+});
+
 describe('Logical Groups', function () {
     describe('$or', function () {
         it('ungrouped version', function () {
