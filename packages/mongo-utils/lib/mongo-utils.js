@@ -254,8 +254,9 @@ function mapKeyValues(mapping) {
                 };
             }
 
-            // Primitive query of the form "key: value"
-            if (typeof value !== 'object') {
+            // Primitive query of the form "key: value". null is a primitive too, although
+            // typeof calls it an object
+            if (value === null || typeof value !== 'object') {
                 return {
                     [mapping.key.to]: replaceValue(value, mapping.values)
                 };
