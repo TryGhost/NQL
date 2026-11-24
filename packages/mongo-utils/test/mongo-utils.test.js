@@ -1338,3 +1338,126 @@ describe('splitFilter', function () {
         });
     });
 });
+
+// nql-lang parses `-(featured:true+tag:news)` to {$nor: [{$and: [{featured: true}, {tag: 'news'}]}]}.
+// Every helper has to treat the statements inside a $nor the same as statements anywhere
+// else: a key rewrite that skips them changes what the filter means, and a rejected key
+// that is left inside a $nor stays in the query.
+describe('Negated groups ($nor)', function () {
+    const filter = {$and: [{status: 'published'}, {$nor: [{$and: [{featured: true}, {tag: 'news'}]}]}]};
+
+    it('findStatement finds a key inside a $nor', function () {
+        mongoUtils.findStatement(filter, 'tag').should.eql(true);
+        mongoUtils.findStatement(filter, 'author').should.eql(false);
+    });
+
+    it('rejectStatements rejects a key inside a $nor', function () {
+        mongoUtils.rejectStatements(
+            {$nor: [{$and: [{password: {$regex: /^\$2a/}}, {id: 1}]}]},
+            key => key === 'password'
+        ).should.eql({$nor: [{$and: [{id: 1}]}]});
+    });
+
+    it('rejectStatements removes a $nor when it rejects every key inside it', function () {
+        mongoUtils.rejectStatements(
+            {$and: [{status: 'published'}, {$nor: [{password: {$regex: /^\$2a/}}]}]},
+            key => key === 'password'
+        ).should.eql({$and: [{status: 'published'}]});
+    });
+
+    it('mapQuery maps the statements inside a $nor', function () {
+        mongoUtils.mapQuery(filter, (value, key) => ({[key.toUpperCase()]: value}))
+            .should.eql({$and: [{STATUS: 'published'}, {$nor: [{$and: [{FEATURED: true}, {TAG: 'news'}]}]}]});
+    });
+
+    it('mapKeyValues rewrites a key and its values inside a $nor', function () {
+        const transformer = mongoUtils.mapKeyValues({
+            key: {from: 'tier', to: 'products.slug'},
+            values: [{from: 'gold', to: 'gold-tier'}]
+        });
+
+        transformer({$nor: [{tier: {$in: ['gold', 'silver']}}]})
+            .should.eql({$nor: [{'products.slug': {$in: ['gold-tier', 'silver']}}]});
+    });
+
+    it('mapKeys and chainTransformers reach inside a $nor', function () {
+        const transformer = mongoUtils.chainTransformers(
+            ...mongoUtils.mapKeys({tag: 'tags.slug'}),
+            input => mongoUtils.rejectStatements(input, key => key === 'secret')
+        );
+
+        transformer({$nor: [{$and: [{tag: 'news'}, {secret: 'x'}]}]})
+            .should.eql({$nor: [{$and: [{'tags.slug': 'news'}]}]});
+    });
+
+    it('expandFilters expands a key inside a $nor', function () {
+        mongoUtils.expandFilters({$nor: [{primary_tag: 'news'}]}, [{
+            key: 'primary_tag',
+            replacement: 'tags.slug',
+            expansion: {'posts_tags.sort_order': 0}
+        }]).should.eql({$nor: [{$and: [{'tags.slug': 'news'}, {'posts_tags.sort_order': 0}]}]});
+    });
+
+    it('replaceFilters replaces a key inside a $nor', function () {
+        mongoUtils.replaceFilters(filter, {tag: {'tags.slug': 'news'}})
+            .should.eql({$and: [{status: 'published'}, {$nor: [{$and: [{featured: true}, {'tags.slug': 'news'}]}]}]});
+    });
+
+    it('mergeFilters rejects an overridden key inside a $nor, and a default for a key the $nor uses', function () {
+        mongoUtils.mergeFilters(
+            {status: 'published'},
+            {$nor: [{$and: [{status: 'draft'}, {featured: true}]}]},
+            {featured: false}
+        ).should.eql({$and: [{status: 'published'}, {$nor: [{$and: [{featured: true}]}]}]});
+    });
+
+    it('getUsedKeys returns the keys inside a $nor', function () {
+        mongoUtils.getUsedKeys(filter).should.eql(['status', 'featured', 'tag']);
+        mongoUtils.getUsedKeys({$nor: [{tag: 'news'}, {author: 'joe'}]}).should.eql(['tag', 'author']);
+    });
+
+    it('getUsedKeys returns the keys next to a $nor as well as inside it', function () {
+        mongoUtils.getUsedKeys({status: 'published', $nor: [{password: {$regex: /^\$2a/}}]})
+            .should.eql(['status', 'password']);
+    });
+
+    describe('splitFilter', function () {
+        it('puts a $nor in the first filter when it only uses the keys', function () {
+            const query = {$nor: [{$and: [{'count.reports': {$gt: 0}}, {'count.reports': {$lt: 5}}]}]};
+
+            const [first, second] = mongoUtils.splitFilter(query, ['count.reports']);
+            assert.equal(first, query);
+            assert.equal(second, undefined);
+        });
+
+        it('puts a $nor in the second filter when it uses none of the keys', function () {
+            const query = {$nor: [{status: 'hidden'}]};
+
+            const [first, second] = mongoUtils.splitFilter(query, ['count.reports']);
+            assert.equal(first, undefined);
+            assert.equal(second, query);
+        });
+
+        it('splits an AND that holds a $nor', function () {
+            const [first, second] = mongoUtils.splitFilter(
+                {$and: [{status: 'hidden'}, {$nor: [{'count.reports': 0}]}]},
+                ['count.reports']
+            );
+            assert.deepEqual(first, {$nor: [{'count.reports': 0}]});
+            assert.deepEqual(second, {status: 'hidden'});
+        });
+
+        it('throws for a $nor that uses the keys and other keys, in either order, inside an AND or not', function () {
+            const error = /This filter is not supported because you cannot combine count.reports filters with other filters in a negated group/;
+            const mixed = [
+                {$nor: [{$and: [{'count.reports': 0}, {status: 'hidden'}]}]},
+                {$nor: [{$and: [{status: 'hidden'}, {'count.reports': 0}]}]}
+            ];
+
+            mixed.forEach((negated) => {
+                assert.throws(() => mongoUtils.splitFilter(negated, ['count.reports']), error);
+                assert.throws(() => mongoUtils.splitFilter({$and: [{status: 'published'}, negated]}, ['count.reports']), error);
+            });
+        });
+    });
+});

@@ -4,7 +4,10 @@
  */
 const _ = require('lodash');
 
-const GROUPS = ['$and', '$or'];
+// The logical operators whose value is a list of filters. mapQuery and the helpers built on
+// it, findStatement and getUsedKeys walk into each of them, so a statement inside a negated
+// group ($nor) is mapped, rejected and found the same as a statement anywhere else.
+const GROUPS = ['$and', '$or', '$nor'];
 
 /**
  * Maps over a mongo query, calling `fn` on each non-operator object
@@ -71,11 +74,9 @@ const combineFilters = (primary, secondary) => {
  * @returns {boolean} - Returns true if the statement is found, otherwise false.
  */
 const findStatement = (statements, match) => {
-    return _.some(statements, (value, key, obj) => {
-        if (key === '$and') {
-            return findStatement(obj.$and, match);
-        } else if (key === '$or') {
-            return findStatement(obj.$or, match);
+    return _.some(statements, (value, key) => {
+        if (GROUPS.includes(key)) {
+            return findStatement(value, match);
         } else {
             if ((key !== match) && _.isObject(value)) {
                 return findStatement(value, match);
@@ -321,27 +322,39 @@ function getUsedKeys(filter) {
         return [];
     }
     const usedKeys = [];
-    if (filter.$and) {
-        for (const subfilter of filter.$and) {
-            for (const key of getUsedKeys(subfilter)) {
-                if (!usedKeys.includes(key)) {
-                    usedKeys.push(key);
-                }
+    for (const [key, value] of Object.entries(filter)) {
+        const keys = GROUPS.includes(key) ? _.castArray(value).flatMap(getUsedKeys) : [key];
+
+        for (const usedKey of keys) {
+            if (!usedKeys.includes(usedKey)) {
+                usedKeys.push(usedKey);
             }
         }
-    } else if (filter.$or) {
-        for (const subfilter of filter.$or) {
-            for (const key of getUsedKeys(subfilter)) {
-                if (!usedKeys.includes(key)) {
-                    usedKeys.push(key);
-                }
-            }
-        }
-    } else {
-        usedKeys.push(...Object.keys(filter));
     }
 
     return usedKeys;
+}
+
+/**
+ * Whether a negated group belongs in the first filter of a split, the one with the keys.
+ * A negated group can't be split, because NOT (a AND b) is not (NOT a) AND (NOT b), so it
+ * belongs in the first filter when it only uses the keys and in the second when it uses
+ * none of them. Throws when it uses both.
+ *
+ * @param {Object} filter - A filter whose only key is $nor
+ * @param {string[]} keys
+ * @returns {boolean}
+ */
+function negatedGroupUsesKeys(filter, keys) {
+    const usedKeys = getUsedKeys(filter);
+    const keysUsed = usedKeys.filter(key => keys.includes(key));
+
+    if (keysUsed.length > 0 && keysUsed.length < usedKeys.length) {
+        //eslint-disable-next-line ghost/ghost-custom/no-native-error
+        throw new Error(`This filter is not supported because you cannot combine ${keys.join(', ')} filters with other filters in a negated group.`);
+    }
+
+    return keysUsed.length > 0;
 }
 
 /**
@@ -363,10 +376,12 @@ function splitFilter(filter, keys) {
     if (filter.$and) {
         // And filter
         for (const subfilter of filter.$and) {
-            const usedKeys = getUsedKeys(subfilter);
+            // A negated group can't be split, so it is checked as a whole
+            const isNegatedGroup = Boolean(subfilter.$nor);
+            const usedKeys = isNegatedGroup ? [] : getUsedKeys(subfilter);
 
             // If this filter is using a combination of keys: not possible to split this filter
-            let hasKeys = false;
+            let hasKeys = isNegatedGroup && negatedGroupUsesKeys(subfilter, keys);
             for (const key of usedKeys) {
                 if (keys.includes(key)) {
                     hasKeys = true;
@@ -421,6 +436,12 @@ function splitFilter(filter, keys) {
         }
 
         if (hasKeys) {
+            withKeysFilter = filter;
+        } else {
+            withoutKeysFilter = filter;
+        }
+    } else if (filter.$nor) {
+        if (negatedGroupUsesKeys(filter, keys)) {
             withKeysFilter = filter;
         } else {
             withoutKeysFilter = filter;
