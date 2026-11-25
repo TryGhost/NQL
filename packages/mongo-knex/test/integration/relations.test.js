@@ -1,4 +1,3 @@
-const _ = require('lodash');
 const utils = require('../utils');
 const knex = utils.db.client;
 
@@ -846,10 +845,10 @@ describe('Relations', function () {
                     ]
                 };
 
-                _.times(100, (idx) => {
+                for (let idx = 0; idx < 100; idx++) {
                     const author = {'authors.slug': `author-${idx}`};
                     mongoJSON.$or.push(author);
-                });
+                }
 
                 const query = makeQuery(mongoJSON);
 
@@ -1517,10 +1516,10 @@ describe('Relations', function () {
                     ]
                 };
 
-                _.times(100, (idx) => {
+                for (let idx = 0; idx < 100; idx++) {
                     const condition = {'posts_meta.meta_title': `meta-title-${idx}`};
                     mongoJSON.$or.push(condition);
-                });
+                }
 
                 const query = makeQuery(mongoJSON);
 

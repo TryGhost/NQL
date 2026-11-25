@@ -48,11 +48,11 @@ const aggregateFunctions = {
 const likeEscapeCharacter = '*';
 
 const isOp = key => key.charAt(0) === '$';
-const isLogicOp = key => isOp(key) && _.includes(logicOps, key);
-const isCompOp = key => isOp(key) && _.includes(_.keys(compOps), key);
-const isNegationOp = key => isOp(key) && _.includes(['$ne', '$nin'], key);
-const isRangeOp = key => isOp(key) && _.includes(['$gt', '$gte', '$lt', '$lte'], key);
-const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
+const isLogicOp = key => isOp(key) && logicOps.includes(key);
+const isCompOp = key => isOp(key) && Object.keys(compOps).includes(key);
+const isNegationOp = key => isOp(key) && ['$ne', '$nin'].includes(key);
+const isRangeOp = key => isOp(key) && ['$gt', '$gte', '$lt', '$lte'].includes(key);
+const isStatementGroupOp = key => [compOps.$in, compOps.$nin].includes(key);
 const isAggregateCompOp = key => Boolean(complementOps[key]);
 
 // Whether a condition holds no statement at some level, so the converter would build no SQL
@@ -77,11 +77,11 @@ const hasEmptyCondition = (condition) => {
 // at 0 in JS, so a value the database would coerce differently (null, '', '2abc') must be
 // rejected up front or the two evaluations can disagree. Arrays are only meaningful for
 // the set operators - bound to a scalar comparison they render invalid SQL (e.g. `> 1, 2`)
-const isNumericScalar = value => (_.isNumber(value) && Number.isFinite(value))
-    || (_.isString(value) && value.trim() !== '' && Number.isFinite(Number(value)));
+const isNumericScalar = value => (typeof value === 'number' && Number.isFinite(value))
+    || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)));
 const isAggregateValue = (op, value) => {
     if (op === '$in' || op === '$nin') {
-        return _.isArray(value) ? _.every(value, isNumericScalar) : isNumericScalar(value);
+        return Array.isArray(value) ? value.every(isNumericScalar) : isNumericScalar(value);
     }
 
     return isNumericScalar(value);
@@ -296,7 +296,7 @@ class MongoToKnex {
 
             if (!relation) {
                 // CASE: you want to filter by a column on the join table
-                relation = _.find(this.config.relations, (_relation) => {
+                relation = Object.values(this.config.relations).find((_relation) => {
                     return _relation.joinTable === table;
                 });
 
@@ -378,7 +378,7 @@ class MongoToKnex {
             ? statements.filter(r => !(r.joinTable))
             : statements;
 
-        _.each(innerWhereStatements, (statement, idx) => {
+        innerWhereStatements.forEach((statement, idx) => {
             /**
              * CASE:
              * - we should not use the same sub query if the column name is the same (two sub queries)
@@ -410,7 +410,7 @@ class MongoToKnex {
 
             let shouldCreateSubGroup = !isAggregate && isNegationOp(statement.operator);
             if (!shouldCreateSubGroup && !isAggregate && group[statement.table]) {
-                shouldCreateSubGroup = _.some(group[statement.table].innerWhereStatements, (innerStatement) => {
+                shouldCreateSubGroup = group[statement.table].innerWhereStatements.some((innerStatement) => {
                     if (innerStatement.column !== statement.column) {
                         return false;
                     }
@@ -451,7 +451,7 @@ class MongoToKnex {
         if (mode === '$and') {
             const joinFilterStatements = statements.filter(r => (r.joinTable));
 
-            _.each(Object.keys(group), (key) => {
+            Object.keys(group).forEach((key) => {
                 group[key].joinFilterStatements = joinFilterStatements;
             });
         }
@@ -479,7 +479,7 @@ class MongoToKnex {
         }
 
         // CASE: {tags: [where clause, where clause], tags_123: [where clause], authors: [where clause, where clause]}
-        _.each(Object.keys(groupedRelations), (key) => {
+        Object.keys(groupedRelations).forEach((key) => {
             debug(`(buildRelationQuery) build relation for ${key}`);
 
             const statements = groupedRelations[key].innerWhereStatements;
@@ -488,7 +488,7 @@ class MongoToKnex {
             const reference = statements[0];
 
             if (reference.config.type === 'manyToMany') {
-                if (_.every(statements.map(s => s.operator), isCompOp)) {
+                if (statements.map(s => s.operator).every(isCompOp)) {
                     // CASE: only negate whole group when all the operators in the group are negative,
                     // otherwise we cannot combine groups with negated and regular equation operators.
                     // Two distinct negations converge on a NOT IN outer membership:
@@ -500,7 +500,7 @@ class MongoToKnex {
                     //     their literal operators — only the outer membership flips.
                     // A positive $elemMatch negates neither: each condition applies within the one row.
                     const legacyNegate = reference.elemMatchGroup === undefined
-                        && _.every(statements.map(s => s.operator), (operator) => {
+                        && statements.map(s => s.operator).every((operator) => {
                             return isNegationOp(operator);
                         });
                     const negateGroup = reference.elemMatchNegate === true || legacyNegate;
@@ -533,7 +533,7 @@ class MongoToKnex {
 
                                 // CASE: when applying AND con junction and having multiple groups the filter
                                 //       related to joining table has to be applied within each group
-                                _.each(joinFilterStatements, (joinFilter) => {
+                                (joinFilterStatements || []).forEach((joinFilter) => {
                                     this.andOn(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
                                 });
                             });
@@ -542,7 +542,7 @@ class MongoToKnex {
                             debug(`(buildRelationQuery) innerQB sql-pre: ${innerQB.toSQL().sql}`);
                         }
 
-                        _.each(statements, (statement, _key) => {
+                        statements.forEach((statement, _key) => {
                             debug(`(buildRelationQuery) build relation where statements for ${_key}`);
 
                             const statementColumn = `${statement.joinTable || statement.table}.${statement.column}`;
@@ -562,7 +562,7 @@ class MongoToKnex {
 
                             // CASE: need to normalize value to array when it's a group operation
                             if (isStatementGroupOp(statementOp)) {
-                                statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
+                                statementValue = !Array.isArray(statement.value) ? [statement.value] : statement.value;
                             }
 
                             self.applyComparison(innerQB, statement.whereType, statementColumn, statementOp, statementValue);
@@ -578,7 +578,7 @@ class MongoToKnex {
                     debug(`one of ${key} group statements contains unknown operator`);
                 }
             } else if (reference.config.type === 'oneToOne') {
-                if (_.every(statements.map(s => s.operator), isCompOp)) {
+                if (statements.map(s => s.operator).every(isCompOp)) {
                     // CASE: only negate whole group when all the operators in the group are negative,
                     // otherwise we cannot combine groups with negated and regular equation operators.
                     // Two distinct negations converge on a NOT IN outer membership:
@@ -590,7 +590,7 @@ class MongoToKnex {
                     //     their literal operators — only the outer membership flips.
                     // A positive $elemMatch negates neither: each condition applies within the one row.
                     const legacyNegate = reference.elemMatchGroup === undefined
-                        && _.every(statements.map(s => s.operator), (operator) => {
+                        && statements.map(s => s.operator).every((operator) => {
                             return isNegationOp(operator);
                         });
                     const negateGroup = reference.elemMatchNegate === true || legacyNegate;
@@ -621,12 +621,12 @@ class MongoToKnex {
 
                                 // CASE: when applying AND con junction and having multiple groups the filter
                                 //       related to joining table has to be applied within each group
-                                _.each(joinFilterStatements, (joinFilter) => {
+                                (joinFilterStatements || []).forEach((joinFilter) => {
                                     this.andOn(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
                                 });
                             });
 
-                        _.each(statements, (statement, _key) => {
+                        statements.forEach((statement, _key) => {
                             debug(`(buildRelationQuery) build relation where statements for ${_key}`);
 
                             const statementColumn = `${statement.table}.${statement.column}`;
@@ -653,7 +653,7 @@ class MongoToKnex {
 
                             // CASE: need to normalize value to array when it's a group operation
                             if (isStatementGroupOp(statementOp)) {
-                                statementValue = !_.isArray(statement.value) ? [statement.value] : statement.value;
+                                statementValue = !Array.isArray(statement.value) ? [statement.value] : statement.value;
                             }
 
                             self.applyComparison(innerQB, statement.whereType, statementColumn, statementOp, statementValue);
@@ -708,8 +708,8 @@ class MongoToKnex {
         // CASE: statements within a group are combined with AND ($and) or OR ($or),
         //       so the group matches a zero aggregate when every/some statement does
         const invertSubquery = (mode === '$or')
-            ? _.some(statements, s => aggregateMatchesZero(s.operator, s.value))
-            : _.every(statements, s => aggregateMatchesZero(s.operator, s.value));
+            ? statements.some(s => aggregateMatchesZero(s.operator, s.value))
+            : statements.every(s => aggregateMatchesZero(s.operator, s.value));
 
         const comp = invertSubquery ? compOps.$nin : compOps.$in;
         const whereType = reference.whereType === 'orWhere' ? 'orWhere' : 'where';
@@ -725,8 +725,8 @@ class MongoToKnex {
         //       subquery's join chain can restrict the aggregated rows, the others
         //       reference tables that are never joined here and are handled by their
         //       own relation's subquery
-        const subqueryTables = [baseTable, ..._.map(config.joins, join => join.tableNameAs || join.tableName)];
-        const applicableJoinFilters = _.filter(joinFilterStatements, joinFilter => subqueryTables.includes(joinFilter.joinTable));
+        const subqueryTables = [baseTable, ...(config.joins || []).map(join => join.tableNameAs || join.tableName)];
+        const applicableJoinFilters = (joinFilterStatements || []).filter(joinFilter => subqueryTables.includes(joinFilter.joinTable));
 
         // CASE: WHERE resource.id (IN | NOT IN) (SELECT ... GROUP BY ... HAVING ...)
         qb[whereType](`${this.tableName}.id`, comp, function () {
@@ -744,7 +744,7 @@ class MongoToKnex {
             // CASE: qualifying related rows can live across a chain of joined tables,
             //       each join's `from` column references the `to` column of the previous table
             let previousTable = baseTable;
-            _.each(config.joins, (join) => {
+            (config.joins || []).forEach((join) => {
                 const joinTable = join.tableNameAs || join.tableName;
                 const joinTableValue = join.tableNameAs ? `${join.tableName} as ${join.tableNameAs}` : join.tableName;
 
@@ -754,19 +754,19 @@ class MongoToKnex {
 
             // CASE: fixed conditions a related row must meet to be counted live in
             //       the relation config, they are not part of the filter input
-            _.each(config.wheres, (value, column) => {
+            Object.entries(config.wheres || {}).forEach(([column, value]) => {
                 innerQB.where(column, value);
             });
 
             // CASE: when applying AND conjunction, filters on a join table restrict
             //       which related rows are aggregated (same as the other relation types)
-            _.each(applicableJoinFilters, (joinFilter) => {
+            applicableJoinFilters.forEach((joinFilter) => {
                 innerQB.where(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
             });
 
             innerQB.groupBy(`${baseTable}.${config.joinFrom}`);
 
-            _.each(statements, (statement, idx) => {
+            statements.forEach((statement, idx) => {
                 debug(`(buildAggregateRelationQuery) build aggregate having statement for ${idx}`);
 
                 const operator = invertSubquery ? complementOps[statement.operator] : statement.operator;
@@ -879,7 +879,7 @@ class MongoToKnex {
         // CASE: sub is an object, contains statements and operators
         //       (unknown operators on aggregate relations were already rejected by
         //       the validateAggregateStatements pre-pass in processJSON)
-        _.forIn(sub, (value, op) => {
+        Object.entries(sub).forEach(([op, value]) => {
             if (op === '$elemMatch') {
                 this.buildElemMatch(qb, mode, statement, value, group, false);
             } else if (op === '$not' && _.isObject(value) && value.$elemMatch) {
@@ -916,7 +916,7 @@ class MongoToKnex {
         // Inner conditions are always ANDed - a single row satisfies all of them - so
         // process them as an $and regardless of the mode the match itself sits in. Each
         // inner key names a column on the related row.
-        _.forIn(conditions, (conditionValue, conditionColumn) => {
+        Object.entries(conditions).forEach(([conditionColumn, conditionValue]) => {
             this.buildWhereClause(collector, '$and', `${relationName}.${conditionColumn}`, conditionValue, true);
         });
 
@@ -970,7 +970,7 @@ class MongoToKnex {
         }
 
         qb[whereType]((_qb) => {
-            if (_.isArray(sub)) {
+            if (Array.isArray(sub)) {
                 sub.forEach(statement => this.buildQuery(_qb, mode, statement, true));
             } else if (_.isObject(sub)) {
                 this.buildQuery(_qb, mode, sub, true);
@@ -1021,7 +1021,7 @@ class MongoToKnex {
             debugExtended(`(buildQuery) ${stringify(sub)}`);
         }
 
-        _.forIn(sub, (value, key) => {
+        Object.entries(sub ?? {}).forEach(([key, value]) => {
             debug(`(buildQuery) key: ${key}`);
 
             if (key === '$nor') {
@@ -1052,7 +1052,7 @@ class MongoToKnex {
             return;
         }
 
-        _.forIn(sub, (value, key) => {
+        Object.entries(sub).forEach(([key, value]) => {
             if (isLogicOp(key)) {
                 _.castArray(value).forEach(group => this.validateAggregateStatements(group));
                 return;
@@ -1078,7 +1078,7 @@ class MongoToKnex {
             // CASE: an atomic value (incl. arrays and regexes) is shorthand for $eq
             const statements = _.isPlainObject(value) ? value : {$eq: value};
 
-            _.forIn(statements, (statementValue, op) => {
+            Object.entries(statements).forEach(([op, statementValue]) => {
                 if (!isAggregateCompOp(op) || !isAggregateValue(op, statementValue)) {
                     throw aggregateOperatorError(relationName);
                 }
@@ -1149,7 +1149,7 @@ class MongoToKnex {
             return;
         }
 
-        _.forIn(sub, (value, key) => {
+        Object.entries(sub).forEach(([key, value]) => {
             if (isLogicOp(key)) {
                 _.castArray(value).forEach(group => this.validateElemMatchStatements(group));
                 return;
@@ -1180,7 +1180,7 @@ class MongoToKnex {
             throw elemMatchEmptyError(relationName);
         }
 
-        _.forIn(conditions, (conditionValue, conditionColumn) => {
+        Object.entries(conditions).forEach(([conditionColumn, conditionValue]) => {
             // A condition names a column, not an operator: a logical or nested operator in
             // the match body (e.g. $or, a nested $elemMatch) is a non-goal, not a column.
             if (isOp(conditionColumn)) {
@@ -1197,7 +1197,7 @@ class MongoToKnex {
             // so a typo'd operator is rejected rather than silently dropped — which would
             // leave fewer conditions in place and widen the single-row match.
             if (_.isPlainObject(conditionValue)) {
-                _.forIn(conditionValue, (operatorValue, op) => {
+                Object.keys(conditionValue).forEach((op) => {
                     if (!isCompOp(op)) {
                         throw elemMatchOperatorError(relationName, op);
                     }

@@ -29,7 +29,7 @@ const mapQuery = (query, fn) => {
             // Allow removal of empty children from lists
             .filter(obj => !_.isEmpty(obj));
     }
-    return _.reduce(query, (modifiedNQLMongoJSON, value, key) => {
+    return Object.entries(query ?? {}).reduce((modifiedNQLMongoJSON, [key, value]) => {
         let mappedObject;
         if (GROUPS.includes(key)) {
             const mappedValue = mapQuery(value, fn);
@@ -41,7 +41,7 @@ const mapQuery = (query, fn) => {
             mappedObject = fn(value, key);
         }
 
-        return _.assign({}, modifiedNQLMongoJSON, mappedObject);
+        return Object.assign({}, modifiedNQLMongoJSON, mappedObject);
     }, {});
 };
 
@@ -172,7 +172,7 @@ const expandFilters = (statements, expansions) => {
     };
 
     return mapQuery(statements, function (value, key) {
-        const expansion = _.find(expansions, {key});
+        const expansion = Object.values(expansions ?? {}).find(item => item?.key === key);
 
         if (!expansion) {
             return {
@@ -260,7 +260,7 @@ function mapKeyValues(mapping) {
 
             // Complex query of the form "key: { $in: [value, value] }" or "key: { $ne: value }"
             return {
-                [mapping.key.to]: _.reduce(value, (updatedQuery, objValue, objKey) => {
+                [mapping.key.to]: Object.entries(value ?? {}).reduce((updatedQuery, [objKey, objValue]) => {
                     // objKey = $in | $ne | etc...
                     // objValue = vallue | [value, value] | etc...
                     return Object.assign(updatedQuery, {
