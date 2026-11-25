@@ -1,6 +1,6 @@
 {
   "name": "@tryghost/nql",
-  "version": "0.13.6",
+  "version": "0.14.0",
   "description": "tbc",
   "repository": {
     "type": "git",
@@ -32,9 +32,9 @@
     "sinon": "22.1.0"
   },
   "dependencies": {
-    "@tryghost/mongo-knex": "^0.12.0",
-    "@tryghost/mongo-utils": "^0.6.7",
-    "@tryghost/nql-lang": "^0.7.2",
+    "@tryghost/mongo-knex": "^0.13.0",
+    "@tryghost/mongo-utils": "^0.7.0",
+    "@tryghost/nql-lang": "^0.8.0",
     "lodash": "4.18.1",
     "mingo": "2.5.3"
   }

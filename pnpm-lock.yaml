@@ -267,13 +267,13 @@ importers:
   packages/nql:
     dependencies:
       '@tryghost/mongo-knex':
-        specifier: ^0.12.0
+        specifier: ^0.13.0
         version: link:../mongo-knex
       '@tryghost/mongo-utils':
-        specifier: ^0.6.7
+        specifier: ^0.7.0
         version: link:../mongo-utils
       '@tryghost/nql-lang':
-        specifier: ^0.7.2
+        specifier: ^0.8.0
         version: link:../nql-lang
       lodash:
         specifier: 4.18.1
