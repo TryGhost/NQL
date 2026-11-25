@@ -8,7 +8,7 @@ linkWorkspacePackages: true
 overrides:
   underscore: 1.13.8
   # These parents use the public glob/matching APIs supported by the patched majors.
-  'glob@13': 14.0.4
+  'glob@13': 14.0.6
   'minimatch@10': 11.0.5
 
 # Nx still calls makeRe(), removed in Minimatch 11. Remove when upstream fixes it.
