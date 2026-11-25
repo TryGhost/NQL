@@ -220,6 +220,7 @@ class MongoToKnex {
      *      joinTable: String (e.g.  posts_tags)
      *      joinFrom: String (e.g. post_id)
      *      joinTo: String (e.g. tag_id)
+     *      hint: String (e.g. SUBQUERY(INTOEXISTS), optional)
      *  }
      *
      * `aggregate` relations compare a computed value over related rows instead of
@@ -233,9 +234,14 @@ class MongoToKnex {
      *      joinFrom: String (e.g. post_id) - column on tableName referencing the parent table's id
      *      joins: [{tableName, tableNameAs (optional), from, to}] (optional) - chain of joins needed to qualify rows
      *      wheres: {[column]: value} (optional) - fixed conditions a related row must meet to be counted
+     *      hint: String (optional)
      *  }
      *
      * When tableNameAs is used, aggregate.column and wheres must reference the alias.
+     *
+     * `hint` is supported by every relation type. It is emitted as an optimizer hint comment
+     * (knex's hintComment) right after the `select` of each subquery built for that relation,
+     * never on the outer query or on another relation's subquery.
      */
     constructor(options = {}, config = {}) {
         this.tableName = options.tableName;
@@ -538,6 +544,11 @@ class MongoToKnex {
                                 });
                             });
 
+                        // CASE: an optimizer hint scoped to this relation's subquery
+                        if (reference.config.hint) {
+                            innerQB.hintComment(reference.config.hint);
+                        }
+
                         if (debugExtended.enabled) {
                             debug(`(buildRelationQuery) innerQB sql-pre: ${innerQB.toSQL().sql}`);
                         }
@@ -625,6 +636,11 @@ class MongoToKnex {
                                     this.andOn(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
                                 });
                             });
+
+                        // CASE: an optimizer hint scoped to this relation's subquery
+                        if (reference.config.hint) {
+                            innerQB.hintComment(reference.config.hint);
+                        }
 
                         _.each(statements, (statement, _key) => {
                             debug(`(buildRelationQuery) build relation where statements for ${_key}`);
@@ -733,6 +749,11 @@ class MongoToKnex {
             const innerQB = this
                 .select(`${baseTable}.${config.joinFrom}`)
                 .from(baseTableValue);
+
+            // CASE: an optimizer hint scoped to this relation's subquery
+            if (config.hint) {
+                innerQB.hintComment(config.hint);
+            }
 
             // CASE: a single NULL in a NOT IN list makes the comparison UNKNOWN for every
             //       parent row, so an orphaned related row (NULL joinFrom) would silently
