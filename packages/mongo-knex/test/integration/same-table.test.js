@@ -86,6 +86,59 @@ describe('Same Table', function () {
         });
     });
 
+    // Every post's image is NULL except post 2's
+    describe('IN $in / NOT IN $nin with null among the values', function () {
+        it('image is null or other.jpg', function () {
+            const query = makeQuery({image: {$in: [null, 'other.jpg']}});
+
+            return query
+                .then((result) => {
+                    result.should.matchIds([1, 3, 4, 5, 6, 7, 8]);
+                });
+        });
+
+        it('image is neither null nor other.jpg', function () {
+            const query = makeQuery({image: {$nin: [null, 'other.jpg']}});
+
+            return query
+                .then((result) => {
+                    result.should.matchIds([2]);
+                });
+        });
+
+        it('image is not null, as the only value', function () {
+            const query = makeQuery({image: {$nin: [null]}});
+
+            return query
+                .then((result) => {
+                    result.should.matchIds([2]);
+                });
+        });
+
+        it('featured is true and image is null or myimage.jpg', function () {
+            const query = makeQuery({
+                $and: [
+                    {featured: true},
+                    {image: {$in: [null, 'myimage.jpg']}}
+                ]
+            });
+
+            return query
+                .then((result) => {
+                    result.should.matchIds([3, 4, 5, 6, 7, 8]);
+                });
+        });
+
+        it('none of image is null or other.jpg', function () {
+            const query = makeQuery({$nor: [{image: {$in: [null, 'other.jpg']}}]});
+
+            return query
+                .then((result) => {
+                    result.should.matchIds([2]);
+                });
+        });
+    });
+
     describe('COMPARISONS $gt / $gte / $lt / $lte', function () {
         it('published_at is > 2015-06-04', function () {
             const mongoJSON = {published_at: {
