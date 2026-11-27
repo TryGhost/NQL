@@ -1500,8 +1500,9 @@ describe('Relations', function () {
                 return query
                     .select()
                     .then((result) => {
-                        result.should.be.an.Array().with.lengthOf(6);
-                        result.should.matchIds([1, 2, 3, 6, 7, 8]);
+                        // Post 5's like_count is 42 and its meta_description is NULL
+                        result.should.be.an.Array().with.lengthOf(7);
+                        result.should.matchIds([1, 2, 3, 5, 6, 7, 8]);
                     });
             });
 
@@ -1622,6 +1623,23 @@ describe('Relations', function () {
                         result.should.matchIds([1]);
                     });
             });
+
+            it('null among the values', function () {
+                // Posts 2, 3, 6, 7 and 8 have no posts_meta row
+                const mongoJSON = {
+                    'posts_meta.meta_title': {
+                        $in: [null, 'Meta of Circle of Life']
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.matchIds([2, 3, 4, 6, 7, 8]);
+                    });
+            });
         });
 
         describe('NOT IN $nin', function () {
@@ -1680,6 +1698,22 @@ describe('Relations', function () {
                     .then((result) => {
                         result.should.be.an.Array().with.lengthOf(2);
                         result.should.matchIds([1, 2]);
+                    });
+            });
+
+            it('null among the values', function () {
+                const mongoJSON = {
+                    'posts_meta.meta_title': {
+                        $nin: [null, 'Meta of Circle of Life']
+                    }
+                };
+
+                const query = makeQuery(mongoJSON);
+
+                return query
+                    .select()
+                    .then((result) => {
+                        result.should.matchIds([1, 5]);
                     });
             });
         });

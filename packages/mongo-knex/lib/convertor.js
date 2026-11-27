@@ -249,7 +249,8 @@ class MongoToKnex {
      * Apply one comparison to a query builder. A regex reaches here only via a relation
      * subquery — the top-level path handles it in buildComparison — so it is converted
      * to the same LIKE-with-ESCAPE form that contains/startsWith/endsWith use, so they
-     * work on a related column too. Everything else is the plain
+     * work on a related column too. A null among the values of an `in` or `not in` is
+     * compared on its own, as below. Everything else is the plain
      * `qb[whereType](column, op, value)` call.
      */
     applyComparison(builder, whereType, column, op, value) {
@@ -257,6 +258,28 @@ class MongoToKnex {
             const {source, ignoreCase} = processRegExp(value);
             const lhs = ignoreCase ? 'lower(??)' : '??';
             return builder[`${whereType}Raw`](`${lhs} ${op} ? ESCAPE ?`, [column, source, likeEscapeCharacter]);
+        }
+
+        // CASE: SQL's IN never matches a NULL, and a NULL in NOT IN makes it match no row, so
+        //       `{a: {$in: [null, 'x']}}` is `(a IS NULL OR a IN ('x'))` and its `$nin` is
+        //       `(a IS NOT NULL AND a NOT IN ('x'))`. A null check where type such as whereNotNull
+        //       compares no value, so it is left as it is.
+        if (isStatementGroupOp(op) && _.isArray(value) && value.includes(null) && !whereType.endsWith('Null')) {
+            const values = _.without(value, null);
+
+            return builder[whereType](function () {
+                if (op === compOps.$in) {
+                    this.whereNull(column);
+                    if (values.length) {
+                        this.orWhere(column, op, values);
+                    }
+                } else {
+                    this.whereNotNull(column);
+                    if (values.length) {
+                        this.andWhere(column, op, values);
+                    }
+                }
+            });
         }
 
         return builder[whereType](column, op, value);
