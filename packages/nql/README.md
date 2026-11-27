@@ -58,6 +58,16 @@ A negated group matches exactly the rows the group doesn't match, including a ro
 
 Groups can hold relations, other negated groups and either kind of separator, and a negated group can sit anywhere a bracketed group can, as in `status:comped,-(tier:gold+label:vip)`.
 
+## Keys whose values are text
+A value written without quotes is read as a number, `null`, `true`, `false` or a relative date when it looks like one, so `tag:2024` compares the tag with the number 2024 and `tag:null` compares it with no value at all. A key whose values are always text, such as a key that names a record by its slug, can be listed in `textKeys`. Every value of a listed key is then read as the text it is written as, as if it were quoted:
+
+```javascript
+nql('tag:2024,tag:null', {textKeys: ['tag']}).toJSON();
+// => {$or: [{tag: '2024'}, {tag: 'null'}]}
+```
+
+A listed key can't be compared with null, so a key that can be null shouldn't be listed. The keys are matched as the filter writes them, before `expansions` rename them, so each way of writing a key needs listing, and the overrides and the defaults are read with the same keys. The values of every other key are read as before.
+
 ## Usage
 Some common usages:
 ```javascript

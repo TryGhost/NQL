@@ -17,6 +17,11 @@ const utils = require('./utils');
 module.exports = (queryString, options = {}) => {
     const api = {};
 
+    // How the query string, the overrides and the defaults are all read: the keys whose values
+    // are text, as nql-lang's `textKeys` option takes them. They are the keys as written in a
+    // filter, before `expansions` rename them.
+    const parseOptions = {textKeys: options.textKeys};
+
     /**
      * Lexically analyzes the query string and returns an array of tokens.
      * @returns {Array} An array of tokens.
@@ -30,7 +35,7 @@ module.exports = (queryString, options = {}) => {
     api.parse = function () {
         // set the filter if not present
         if (!this.filter && queryString) {
-            this.filter = nql.parse(queryString);
+            this.filter = nql.parse(queryString, parseOptions);
             if (options.transformer) {
                 this.filter = options.transformer(this.filter);
             }
@@ -40,11 +45,11 @@ module.exports = (queryString, options = {}) => {
         let defaults;
 
         if (options.overrides) {
-            overrides = nql.parse(options.overrides);
+            overrides = nql.parse(options.overrides, parseOptions);
         }
 
         if (options.defaults) {
-            defaults = nql.parse(options.defaults);
+            defaults = nql.parse(options.defaults, parseOptions);
         }
 
         let mongoJSON = utils.mergeFilters(overrides, this.filter, defaults);

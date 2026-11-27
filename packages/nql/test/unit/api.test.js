@@ -165,6 +165,38 @@ describe('Public API', function () {
         query.queryJSON({slug: 'hello-world', page: false}).should.be.true();
     });
 
+    describe('text keys', function () {
+        it('reads a value of a text key as the text it is written as', function () {
+            const query = nql('slug:2024', {textKeys: ['slug']});
+
+            query.toJSON().should.eql({slug: '2024'});
+            query.queryJSON({slug: '2024'}).should.be.true();
+            query.querySQL(knex('posts')).toQuery()
+                .should.eql('select * from `posts` where `posts`.`slug` = \'2024\'');
+        });
+
+        it('matches a text key as the filter writes it, before expansions rename it', function () {
+            const query = nql('tags:2024', {expansions, textKeys: ['tags']});
+
+            query.toJSON().should.eql({'tags.slug': '2024'});
+            query.queryJSON({tags: [{slug: '2024'}]}).should.be.true();
+            query.queryJSON({tags: [{slug: '2024-recap'}]}).should.be.false();
+        });
+
+        it('reads the overrides and the defaults with the same text keys', function () {
+            const query = nql('tags:news', {
+                textKeys: ['slug', 'authors'],
+                overrides: 'slug:-2024',
+                defaults: 'authors:007'
+            });
+
+            query.toJSON().should.eql({$and: [
+                {$and: [{slug: {$ne: '2024'}}, {tags: 'news'}]},
+                {authors: '007'}
+            ]});
+        });
+    });
+
     it('reads a property with the name the parser once used to mark a group', function () {
         const query = nql('yg:ab+(featured:true)');
 
