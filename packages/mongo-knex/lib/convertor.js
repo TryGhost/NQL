@@ -55,6 +55,22 @@ const isRangeOp = key => isOp(key) && _.includes(['$gt', '$gte', '$lt', '$lte'],
 const isStatementGroupOp = key => _.includes([compOps.$in, compOps.$nin], key);
 const isAggregateCompOp = key => Boolean(complementOps[key]);
 
+// Whether a relation's subquery reads the given table, so that a condition on one of that
+// table's columns can restrict the rows the subquery reads: a many-to-many relation reads its
+// joining table, an aggregate reads its table and the tables it joins, and a one-to-one
+// relation reads no joining table
+const readsTable = (relation, table) => {
+    if (relation.type === 'manyToMany') {
+        return relation.joinTable === table;
+    }
+
+    if (relation.type === 'aggregate') {
+        return [relation.tableNameAs || relation.tableName, ..._.map(relation.joins, join => join.tableNameAs || join.tableName)].includes(table);
+    }
+
+    return false;
+};
+
 // Whether a condition holds no statement at some level, so the converter would build no SQL
 // for that part of it: an empty object, an empty group list, or a field with an empty
 // object of operators
@@ -373,10 +389,13 @@ class MongoToKnex {
         // groups depend on the mode of grouping, if its and $and we need to treat a filter on
         // joining table differently than we would with $or
         // e.g. for $or we can create a subquery or group that filter,
-        //      for $and we have to include joining table filter in every group
-        const innerWhereStatements = (mode === '$and')
-            ? statements.filter(r => !(r.joinTable))
-            : statements;
+        //      for $and we have to include joining table filter in every group that reads
+        //      the joining table. A joining table filter with no statement beside it whose
+        //      relation reads that table is grouped like any other statement, as with $or
+        const joinFilterStatements = (mode === '$and')
+            ? statements.filter(r => r.joinTable && _.some(statements, s => !s.joinTable && readsTable(s.config, r.joinTable)))
+            : [];
+        const innerWhereStatements = _.difference(statements, joinFilterStatements);
 
         _.each(innerWhereStatements, (statement, idx) => {
             /**
@@ -449,10 +468,10 @@ class MongoToKnex {
         // NOTE: filters applied on join level have to be included when they are
         // a part of $and  group
         if (mode === '$and') {
-            const joinFilterStatements = statements.filter(r => (r.joinTable));
-
             _.each(Object.keys(group), (key) => {
-                group[key].joinFilterStatements = joinFilterStatements;
+                const relation = group[key].innerWhereStatements[0].config;
+
+                group[key].joinFilterStatements = joinFilterStatements.filter(r => readsTable(relation, r.joinTable));
             });
         }
 
@@ -602,8 +621,6 @@ class MongoToKnex {
 
                     const where = (reference.outerWhereType || reference.whereType) === 'orWhere' ? 'orWhere' : 'where';
                     qb[where](`${this.tableName}.id`, comp, function () {
-                        const joinFilterStatements = groupedRelations[key].joinFilterStatements;
-
                         let innerJoinValue = reference.config.tableName;
                         let innerJoinOn = `${reference.config.tableName}.${reference.config.joinFrom}`;
 
@@ -618,12 +635,6 @@ class MongoToKnex {
                             .from(`${tableName}`)
                             .leftJoin(innerJoinValue, function () {
                                 this.on(innerJoinOn, '=', `${tableName}.id`);
-
-                                // CASE: when applying AND con junction and having multiple groups the filter
-                                //       related to joining table has to be applied within each group
-                                _.each(joinFilterStatements, (joinFilter) => {
-                                    this.andOn(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
-                                });
                             });
 
                         _.each(statements, (statement, _key) => {
@@ -720,14 +731,6 @@ class MongoToKnex {
         const baseTable = config.tableNameAs || config.tableName;
         const baseTableValue = config.tableNameAs ? `${config.tableName} as ${config.tableNameAs}` : config.tableName;
 
-        // CASE: $and groups attach every join table filter of the group to every
-        //       relation subquery - only filters on tables that are part of this
-        //       subquery's join chain can restrict the aggregated rows, the others
-        //       reference tables that are never joined here and are handled by their
-        //       own relation's subquery
-        const subqueryTables = [baseTable, ..._.map(config.joins, join => join.tableNameAs || join.tableName)];
-        const applicableJoinFilters = _.filter(joinFilterStatements, joinFilter => subqueryTables.includes(joinFilter.joinTable));
-
         // CASE: WHERE resource.id (IN | NOT IN) (SELECT ... GROUP BY ... HAVING ...)
         qb[whereType](`${this.tableName}.id`, comp, function () {
             const innerQB = this
@@ -758,9 +761,9 @@ class MongoToKnex {
                 innerQB.where(column, value);
             });
 
-            // CASE: when applying AND conjunction, filters on a join table restrict
-            //       which related rows are aggregated (same as the other relation types)
-            _.each(applicableJoinFilters, (joinFilter) => {
+            // CASE: when applying AND conjunction, filters on a join table this subquery
+            //       reads restrict which related rows are aggregated (same as many-to-many)
+            _.each(joinFilterStatements, (joinFilter) => {
                 innerQB.where(`${joinFilter.joinTable}.${joinFilter.column}`, compOps[joinFilter.operator], joinFilter.value);
             });
 
