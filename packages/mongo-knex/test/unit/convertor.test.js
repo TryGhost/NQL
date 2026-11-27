@@ -521,9 +521,9 @@ describe('Relations', function () {
             .should.eql('select * from `posts` where `posts`.`id` not in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `tags`.`slug` in (\'fred\'))');
     });
 
-    // This case doesn't work
-    it.skip('should be able to perform a query on a many-to-many join table alone', function () {
-        runQuery({'posts_tags.sort_order': 0});
+    it('should be able to perform a query on a many-to-many join table alone', function () {
+        runQuery({'posts_tags.sort_order': 0})
+            .should.eql('select * from `posts` where `posts`.`id` in (select `posts_tags`.`post_id` from `posts_tags` inner join `tags` on `tags`.`id` = `posts_tags`.`tag_id` where `posts_tags`.`sort_order` = 0)');
     });
 
     it('should be able to perform a query on a many-to-many join table and its relation', function () {

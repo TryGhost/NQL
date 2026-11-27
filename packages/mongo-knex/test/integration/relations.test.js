@@ -761,6 +761,53 @@ describe('Relations', function () {
                         });
                 });
             });
+
+            // A condition on the joining table restricts the subquery of a condition beside it on
+            // a relation that reads that table. With no such condition, it is a condition on its
+            // own relation. Posts 4, 6 and 8 have a tag second, posts 7 and 8 have no tag first.
+            describe('A condition on the joining table goes to its own relation', function () {
+                const matchIds = (mongoJSON, ids) => makeQuery(mongoJSON)
+                    .select()
+                    .then(result => result.should.matchIds(ids));
+
+                it('with no other condition', function () {
+                    return matchIds({'posts_tags.sort_order': 1}, [4, 6, 8]);
+                });
+
+                it('beside a column', function () {
+                    return matchIds({$and: [{featured: true}, {'posts_tags.sort_order': 1}]}, [4, 6, 8]);
+                });
+
+                it('negated, matching the posts with no such tag, as a negated condition on a relation does', function () {
+                    return matchIds({$and: [{featured: true}, {'posts_tags.sort_order': {$ne: 0}}]}, [7, 8]);
+                });
+
+                it('in a negated group', function () {
+                    return matchIds({$nor: [{'posts_tags.sort_order': 0}]}, [7, 8]);
+                });
+
+                it('beside a group that holds its relation', function () {
+                    return matchIds({$and: [{$and: [{'tags.slug': 'classic'}, {featured: true}]}, {'posts_tags.sort_order': 1}]}, [4, 6]);
+                });
+
+                it('beside a many-to-many relation with another joining table', function () {
+                    return matchIds({$and: [{'authors.slug': 'sam'}, {'posts_tags.sort_order': 1}]}, [4, 8]);
+                });
+
+                it('beside a one-to-one relation', function () {
+                    return matchIds({$and: [{'posts_meta.like_count': 42}, {'posts_tags.sort_order': 1}]}, [4]);
+                });
+
+                it('beside its relation, when another relation has its own joining table condition', function () {
+                    // pat is the second author of post 4 only
+                    return matchIds({$and: [
+                        {'authors.slug': 'pat'},
+                        {'posts_authors.sort_order': 1},
+                        {'tags.slug': 'animal'},
+                        {'posts_tags.sort_order': 1}
+                    ]}, [4]);
+                });
+            });
         });
 
         describe('OR $or', function () {
