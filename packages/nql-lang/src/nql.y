@@ -51,7 +51,7 @@ filterExpr
     ;
 
 propExpr
-    : PROP { $1 = $1.replace(/:$/, ''); $1 = opt.aliases && opt.aliases[$1] ? opt.aliases[$1] : $1; $$ = $1; }
+    : PROP { $1 = $1.replace(/:$/, ''); $1 = opt.aliases && opt.aliases[$1] ? opt.aliases[$1] : $1; yy.valuesAreText = yy.textKeys.has($1); $$ = $1; }
     ;
 
 valueExpr
@@ -75,11 +75,11 @@ allExpr
     ;
 
 VALUE
-    : NULL { $$ = null }
-    | TRUE { $$ = true }
-    | FALSE { $$ = false }
-    | NUMBER { $$ = parseInt(yytext); }
-    | NOW DATEOP AMOUNT INTERVAL { $$ = yy.relDateToAbsolute($2, $3, $4) }
+    : NULL { $$ = yy.valuesAreText ? $1 : null }
+    | TRUE { $$ = yy.valuesAreText ? $1 : true }
+    | FALSE { $$ = yy.valuesAreText ? $1 : false }
+    | NUMBER { $$ = yy.valuesAreText ? $1 : parseInt(yytext); }
+    | NOW DATEOP AMOUNT INTERVAL { $$ = yy.valuesAreText ? $1 + ($2 === 'add' ? '+' : '-') + $3 + $4 : yy.relDateToAbsolute($2, $3, $4) }
     | LITERAL { $$ = yy.unescape($1); }
     | STRING  { $1 = $1.replace(/^'|'$/g, ''); $$ = yy.unescape($1); }
     ;

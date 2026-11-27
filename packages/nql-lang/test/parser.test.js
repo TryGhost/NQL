@@ -723,6 +723,82 @@ describe('Parser', function () {
         });
     });
 
+    describe('Text keys', function () {
+        const textKeys = ['tag'];
+
+        it('reads a value of a text key as the text it is written as', function () {
+            parse('tag:2024', {textKeys}).should.eql({tag: '2024'});
+            parse('tag:007', {textKeys}).should.eql({tag: '007'});
+            parse('tag:3.14', {textKeys}).should.eql({tag: '3.14'});
+            parse('tag:null', {textKeys}).should.eql({tag: 'null'});
+            parse('tag:Null', {textKeys}).should.eql({tag: 'Null'});
+            parse('tag:true', {textKeys}).should.eql({tag: 'true'});
+            parse('tag:false', {textKeys}).should.eql({tag: 'false'});
+            parse('tag:now-1d', {textKeys}).should.eql({tag: 'now-1d'});
+            parse('tag:now+12h', {textKeys}).should.eql({tag: 'now+12h'});
+        });
+
+        it('reads it as the same quoted value', function () {
+            ['2024', '007', 'null', 'true', 'false', 'now-1d'].forEach((value) => {
+                parse(`tag:${value}`, {textKeys}).should.eql(parse(`tag:'${value}'`), value);
+            });
+        });
+
+        it('reads every value a text key is given as text', function () {
+            parse('tag:-2024', {textKeys}).should.eql({tag: {$ne: '2024'}});
+            parse('tag:>2024', {textKeys}).should.eql({tag: {$gt: '2024'}});
+            parse('tag:[2024,null,news]', {textKeys}).should.eql({tag: {$in: ['2024', 'null', 'news']}});
+            parse('tag:-[2024,true]', {textKeys}).should.eql({tag: {$nin: ['2024', 'true']}});
+            parse('tag:[2024+2025]', {textKeys}).should.eql({tag: {$all: ['2024', '2025']}});
+            parse('-(tag:2024)', {textKeys}).should.eql({$nor: [{tag: '2024'}]});
+        });
+
+        it('reads the values of other keys in the same filter as before', function () {
+            parse('count:5+tag:2024+featured:true,image:null', {textKeys}).should.eql({
+                $or: [
+                    {$and: [{count: 5}, {tag: '2024'}, {featured: true}]},
+                    {image: null}
+                ]
+            });
+            parse('(tag:[2024,2025])+count:[5,6]', {textKeys}).should.eql({
+                $and: [{tag: {$in: ['2024', '2025']}}, {count: {$in: [5, 6]}}]
+            });
+        });
+
+        it('leaves values that are already text as they are', function () {
+            parse('tag:news+tag:\'2024\'+tag:2024-recap', {textKeys}).should.eql({
+                $and: [{tag: 'news'}, {tag: '2024'}, {tag: '2024-recap'}]
+            });
+            parse('tag:~\'2024\'', {textKeys}).should.eql({tag: {$regex: /2024/i}});
+        });
+
+        it('matches keys after aliases', function () {
+            parse('tag:2024', {aliases: {tag: 'tags.slug'}, textKeys: ['tags.slug']})
+                .should.eql({'tags.slug': '2024'});
+        });
+
+        it('reads a relative date of a text key as text when relative dates are preserved', function () {
+            parse('tag:now-7d+created_at:>now-7d', {textKeys, preserveRelativeDates: true}).should.eql({
+                $and: [
+                    {tag: 'now-7d'},
+                    {created_at: {$gt: {$relativeDate: {op: 'sub', amount: 7, unit: 'days'}}}}
+                ]
+            });
+        });
+
+        it('does not affect later parses that omit the option', function () {
+            parse('tag:2024', {textKeys}).should.eql({tag: '2024'});
+            parse('tag:2024').should.eql({tag: 2024});
+        });
+
+        it('rejects text keys that are not an array', function () {
+            (function () {
+                parse('tag:2024', {textKeys: 'tag'});
+            }).should.throw('textKeys must be an array of keys');
+            parse('tag:2024').should.eql({tag: 2024});
+        });
+    });
+
     describe('Relative dates', function () {
         describe('relDateToAbsolute is called correctly', function () {
             let relDateToAbsoluteStub;
