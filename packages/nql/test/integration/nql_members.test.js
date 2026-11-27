@@ -124,6 +124,28 @@ describe('Negated groups on members', function () {
     });
 });
 
+// Each filter negates an empty value and another value of the same key, and selects the members
+// that both of its conditions select on their own
+describe('Negating an empty value beside another value of the same key', function () {
+    before(utils.db.setup('members'));
+    after(utils.db.teardown('members'));
+
+    it('selects the members seen at another time', async function () {
+        (await memberIds('last_seen_at:-null+last_seen_at:-\'2026-11-01 10:00:00\'')).should.eql([3, 5, 6]);
+    });
+
+    it('selects the members with a custom field value other than one', async function () {
+        (await memberIds('metafields.value_text:-null+metafields.value_text:-Acme')).should.eql([1, 5]);
+    });
+
+    it('keeps both conditions on a many-to-many relation', async function () {
+        const notNull = await memberIds('labels.slug:-null');
+        const notBeta = await memberIds('labels.slug:-beta');
+
+        (await memberIds('labels.slug:-null+labels.slug:-beta')).should.eql(notNull.filter(id => notBeta.includes(id)));
+    });
+});
+
 describe('Negated groups on JSON objects', function () {
     it('matches an object the group does not match', function () {
         const query = nql('newsletters:weekly+-(status:paid+labels:vip)');

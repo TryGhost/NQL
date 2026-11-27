@@ -55,8 +55,12 @@ const combineNeFilters = (mongoJSON) => {
 
     const andFilters = mongoJSON.$and;
 
-    // Extract all filters containing '$ne' and group them by their keys
-    const neFilters = andFilters.filter(filter => mongoUtils.findStatement(filter, '$ne'));
+    // Extract all filters containing '$ne' and group them by their keys. A '$ne' of null stays
+    // its own statement, because mongo-knex doesn't select the same rows for it as for a null
+    // in a '$nin' list: on a many-to-many relation, `tags.slug:-null` selects the rows with no
+    // related row at all.
+    const neFilters = andFilters.filter(filter => mongoUtils.findStatement(filter, '$ne')
+        && _.get(filter, [Object.keys(filter)[0], '$ne']) !== null);
     const neGroups = _.groupBy(neFilters, filter => Object.keys(filter)[0]);
 
     // Filter for keys that have multiple '$ne' filters
