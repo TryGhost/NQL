@@ -121,7 +121,7 @@ case 8:
  this.$ = {[$$[$0-1]]: $$[$0]}; 
 break;
 case 9:
- $$[$0] = $$[$0].replace(/:$/, ''); $$[$0] = opt.aliases && opt.aliases[$$[$0]] ? opt.aliases[$$[$0]] : $$[$0]; this.$ = $$[$0]; 
+ $$[$0] = $$[$0].replace(/:$/, ''); $$[$0] = opt.aliases && opt.aliases[$$[$0]] ? opt.aliases[$$[$0]] : $$[$0]; yy.valuesAreText = yy.textKeys.has($$[$0]); this.$ = $$[$0]; 
 break;
 case 10:
  this.$ = {$not: $$[$0]}; 
@@ -154,19 +154,19 @@ case 20:
  this.$ = [$$[$0-2], $$[$0]]; 
 break;
 case 21:
- this.$ = null 
+ this.$ = yy.valuesAreText ? $$[$0] : null 
 break;
 case 22:
- this.$ = true 
+ this.$ = yy.valuesAreText ? $$[$0] : true 
 break;
 case 23:
- this.$ = false 
+ this.$ = yy.valuesAreText ? $$[$0] : false 
 break;
 case 24:
- this.$ = parseInt(yytext); 
+ this.$ = yy.valuesAreText ? $$[$0] : parseInt(yytext); 
 break;
 case 25:
- this.$ = yy.relDateToAbsolute($$[$0-2], $$[$0-1], $$[$0]) 
+ this.$ = yy.valuesAreText ? $$[$0-3] + ($$[$0-2] === 'add' ? '+' : '-') + $$[$0-1] + $$[$0] : yy.relDateToAbsolute($$[$0-2], $$[$0-1], $$[$0]) 
 break;
 case 26:
  this.$ = yy.unescape($$[$0]); 

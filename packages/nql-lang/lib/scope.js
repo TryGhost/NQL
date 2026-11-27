@@ -24,6 +24,12 @@ const SQL_FORMAT = 'yyyy-MM-dd HH:mm:ss';
 const GROUP = Symbol('group');
 
 module.exports = {
+    // The keys whose values the parse in progress reads as text, from its `textKeys` option.
+    // The parser reads a key before the key's values, so as it reads each key it sets
+    // `yy.valuesAreText`, on its own copy of this scope for the parse, to whether the key is one
+    // of these, and reads the values that follow by it.
+    textKeys: new Set(),
+
     // A group that holds only another group is the same group, so it is marked once
     group(value) {
         return {[GROUP]: this.ungroup(value)};
